@@ -10,6 +10,7 @@ export default function ClientDashboard({ session, profile }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState(null);
+  const [detailClass, setDetailClass] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -49,7 +50,7 @@ export default function ClientDashboard({ session, profile }) {
     setActionLoading(cls.id);
     const { error } = await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id });
     if (error) showMsg("Błąd przy zapisie.", "error");
-    else showMsg("Zapisałaś się na zajęcia! ✓");
+    else { showMsg("Zapisałaś się na zajęcia! ✓"); setDetailClass(null); }
     await fetchData();
     setActionLoading(null);
   }
@@ -65,6 +66,7 @@ export default function ClientDashboard({ session, profile }) {
       await supabase.from("waitlist").delete().eq("id", waitlistFirst[0].id);
     }
     showMsg("Wypisałaś się z zajęć.");
+    setDetailClass(null);
     await fetchData();
     setActionLoading(null);
   }
@@ -73,7 +75,7 @@ export default function ClientDashboard({ session, profile }) {
     setActionLoading(cls.id);
     const { error } = await supabase.from("waitlist").insert({ class_id: cls.id, user_id: session.user.id });
     if (error) showMsg("Już jesteś w kolejce.", "error");
-    else showMsg("Zapisałaś się do kolejki! ✓");
+    else { showMsg("Zapisałaś się do kolejki! ✓"); setDetailClass(null); }
     await fetchData();
     setActionLoading(null);
   }
@@ -82,6 +84,7 @@ export default function ClientDashboard({ session, profile }) {
     setActionLoading(cls.id);
     await supabase.from("waitlist").delete().eq("class_id", cls.id).eq("user_id", session.user.id);
     showMsg("Usunięto z kolejki.");
+    setDetailClass(null);
     await fetchData();
     setActionLoading(null);
   }
@@ -102,13 +105,153 @@ export default function ClientDashboard({ session, profile }) {
     </button>
   );
 
+  // Karta zajęć
+  function ClassCard({ cls }) {
+    const booked = isBooked(cls.id);
+    const onWaitlist = isOnWaitlist(cls.id);
+    const count = getBookedCount(cls);
+    const waitlistCount = cls.waitlist?.length || 0;
+    const isFull = count >= cls.max_spots;
+    const fillPct = Math.min((count / cls.max_spots) * 100, 100);
+
+    return (
+      <div className="class-card" style={{ cursor: "pointer" }} onClick={() => setDetailClass(cls)}>
+        <div className="class-card-header">
+          <span className="class-title">{cls.name}</span>
+          {booked ? <span className="class-badge badge-yours">Zapisana</span>
+            : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
+            : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
+            : <span className="class-badge badge-open">Wolne miejsca</span>}
+        </div>
+        <div className="class-card-body">
+          <div className="class-meta">
+            <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(cls.starts_at)}</div>
+            <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>
+            {cls.location && <div className="meta-item"><span className="meta-icon">📍</span>{cls.location}</div>}
+            {cls.price_pln && <div className="meta-item"><span className="meta-icon">💰</span>{cls.price_pln} zł</div>}
+          </div>
+          <div className="spots-bar">
+            <div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} />
+          </div>
+          <p className="spots-text">{count} / {cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}</p>
+          {cls.notes && (
+            <p style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: "0.5rem", fontStyle: "italic" }}>
+              📌 {cls.notes.length > 60 ? cls.notes.slice(0, 60) + "..." : cls.notes}
+            </p>
+          )}
+          <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>Kliknij, aby zobaczyć szczegóły →</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Modal szczegółów zajęć
+  function DetailModal({ cls, onClose }) {
+    if (!cls) return null;
+    const booked = isBooked(cls.id);
+    const onWaitlist = isOnWaitlist(cls.id);
+    const count = getBookedCount(cls);
+    const isFull = count >= cls.max_spots;
+    const fillPct = Math.min((count / cls.max_spots) * 100, 100);
+
+    return (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="modal" style={{ maxWidth: 500 }}>
+          <div className="modal-header">
+            <h3>{cls.name}</h3>
+            <button className="modal-close" onClick={onClose}>×</button>
+          </div>
+
+          {/* Badge status */}
+          <div style={{ marginBottom: "1.25rem" }}>
+            {booked ? <span className="class-badge badge-yours">Jesteś zapisana</span>
+              : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>Jesteś w kolejce</span>
+              : isFull ? <span className="class-badge badge-full">Brak wolnych miejsc</span>
+              : <span className="class-badge badge-open">Wolne miejsca</span>}
+          </div>
+
+          {/* Szczegóły */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem" }}>
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+              <span style={{ fontSize: "1.1rem" }}>📅</span>
+              <div>
+                <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Data</div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{formatDate(cls.starts_at)}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+              <span style={{ fontSize: "1.1rem" }}>🕐</span>
+              <div>
+                <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Godzina i czas trwania</div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{formatTime(cls.starts_at)} · {cls.duration_min} minut</div>
+              </div>
+            </div>
+            {cls.location && (
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                <span style={{ fontSize: "1.1rem" }}>📍</span>
+                <div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Lokalizacja</div>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{cls.location}</div>
+                </div>
+              </div>
+            )}
+            {cls.price_pln && (
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                <span style={{ fontSize: "1.1rem" }}>💰</span>
+                <div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Cena</div>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{cls.price_pln} zł</div>
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+              <span style={{ fontSize: "1.1rem" }}>👥</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Dostępność</div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{count} / {cls.max_spots} miejsc zajętych</div>
+                <div className="spots-bar" style={{ marginTop: "0.4rem" }}>
+                  <div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Notatki */}
+          {cls.notes && (
+            <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
+              <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>📌 Informacje dodatkowe</div>
+              <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{cls.notes}</p>
+            </div>
+          )}
+
+          {/* Przycisk akcji */}
+          {booked ? (
+            <CancelButton cls={cls} />
+          ) : onWaitlist ? (
+            <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)} disabled={actionLoading === cls.id}>
+              {actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}
+            </button>
+          ) : isFull ? (
+            <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)} disabled={actionLoading === cls.id}>
+              {actionLoading === cls.id ? "..." : "Dołącz do kolejki"}
+            </button>
+          ) : (
+            <button className="btn btn-primary btn-full" onClick={() => handleBook(cls)} disabled={actionLoading === cls.id}>
+              {actionLoading === cls.id ? "..." : "Zapisz się na zajęcia"}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-logo" onClick={() => setTab("upcoming")} style={{ cursor: "pointer" }}>
-  <h1>Pilates</h1>
-  <p>Studio by Paulina</p>
-</div>
+          <h1>Pilates</h1>
+          <p>Studio by Paulina</p>
+        </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}>
             <span className="nav-icon">🗓</span> Zajęcia
@@ -139,7 +282,7 @@ export default function ClientDashboard({ session, profile }) {
 
         {tab === "upcoming" && (
           <>
-            <div className="page-header"><h2>Nadchodzące zajęcia</h2><p>Zapisz się klikając poniżej</p></div>
+            <div className="page-header"><h2>Nadchodzące zajęcia</h2><p>Kliknij w zajęcia, aby zobaczyć szczegóły i się zapisać</p></div>
             {currentTokens && (
               <div className="card" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>🎟️</span>
@@ -151,54 +294,7 @@ export default function ClientDashboard({ session, profile }) {
             )}
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
               : classes.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
-              : (
-                <div className="cards-grid">
-                  {classes.map(cls => {
-                    const booked = isBooked(cls.id);
-                    const onWaitlist = isOnWaitlist(cls.id);
-                    const count = getBookedCount(cls);
-                    const waitlistCount = cls.waitlist?.length || 0;
-                    const isFull = count >= cls.max_spots;
-                    const fillPct = Math.min((count / cls.max_spots) * 100, 100);
-                    return (
-                      <div className="class-card" key={cls.id}>
-                        <div className="class-card-header">
-                          <span className="class-title">{cls.name}</span>
-                          {booked ? <span className="class-badge badge-yours">Zapisana</span>
-                            : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
-                            : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
-                            : <span className="class-badge badge-open">Wolne miejsca</span>}
-                        </div>
-                        <div className="class-card-body">
-                          <div className="class-meta">
-                            <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(cls.starts_at)}</div>
-                            <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>
-                            {cls.location && <div className="meta-item"><span className="meta-icon">📍</span>{cls.location}</div>}
-                          </div>
-                          <div className="spots-bar">
-                            <div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} />
-                          </div>
-                          <p className="spots-text">{count} / {cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}</p>
-                          {booked ? <CancelButton cls={cls} />
-                            : onWaitlist ? (
-                              <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)} disabled={actionLoading === cls.id}>
-                                {actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}
-                              </button>
-                            ) : isFull ? (
-                              <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)} disabled={actionLoading === cls.id}>
-                                {actionLoading === cls.id ? "..." : "Dołącz do kolejki"}
-                              </button>
-                            ) : (
-                              <button className="btn btn-primary btn-full" onClick={() => handleBook(cls)} disabled={actionLoading === cls.id}>
-                                {actionLoading === cls.id ? "..." : "Zapisz się"}
-                              </button>
-                            )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              : <div className="cards-grid">{classes.map(cls => <ClassCard key={cls.id} cls={cls} />)}</div>}
           </>
         )}
 
@@ -208,7 +304,7 @@ export default function ClientDashboard({ session, profile }) {
             {upcomingMyClasses.length === 0
               ? <div className="empty-state"><div className="empty-icon">✦</div><p>Brak rezerwacji.</p></div>
               : <div className="cards-grid">{upcomingMyClasses.map(b => (
-                <div className="class-card" key={b.id}>
+                <div className="class-card" key={b.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(b.classes)}>
                   <div className="class-card-header">
                     <span className="class-title">{b.classes?.name}</span>
                     <span className="class-badge badge-yours">Zapisana</span>
@@ -218,15 +314,16 @@ export default function ClientDashboard({ session, profile }) {
                       <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(b.classes?.starts_at)}</div>
                       <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(b.classes?.starts_at)} · {b.classes?.duration_min} min</div>
                     </div>
-                    <CancelButton cls={b.classes} />
+                    <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>Kliknij, aby zobaczyć szczegóły →</p>
                   </div>
                 </div>
               ))}</div>}
+
             {myWaitlist.length > 0 && (
               <>
                 <div className="page-header" style={{ marginTop: "2rem" }}><h2>Lista oczekujących</h2></div>
                 <div className="cards-grid">{myWaitlist.map(w => (
-                  <div className="class-card" key={w.id}>
+                  <div className="class-card" key={w.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(w.classes)}>
                     <div className="class-card-header">
                       <span className="class-title">{w.classes?.name}</span>
                       <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
@@ -236,7 +333,7 @@ export default function ClientDashboard({ session, profile }) {
                         <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(w.classes?.starts_at)}</div>
                         <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(w.classes?.starts_at)}</div>
                       </div>
-                      <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(w.classes)}>Wypisz się z kolejki</button>
+                      <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>Kliknij, aby zobaczyć szczegóły →</p>
                     </div>
                   </div>
                 ))}</div>
@@ -249,7 +346,6 @@ export default function ClientDashboard({ session, profile }) {
           <>
             <div className="page-header"><h2>Moje konto</h2></div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
-              {/* Profil */}
               <div className="card">
                 <div className="user-info" style={{ marginBottom: "1.5rem" }}>
                   <div className="user-avatar" style={{ width: 56, height: 56, fontSize: "1.5rem" }}>
@@ -262,8 +358,6 @@ export default function ClientDashboard({ session, profile }) {
                 </div>
                 <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
               </div>
-
-              {/* Tokeny */}
               <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎟️ Moje tokeny</h3>
                 {myTokens.length === 0 ? (
@@ -288,6 +382,9 @@ export default function ClientDashboard({ session, profile }) {
           </>
         )}
       </main>
+
+      {/* Modal szczegółów */}
+      {detailClass && <DetailModal cls={detailClass} onClose={() => setDetailClass(null)} />}
 
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}>
