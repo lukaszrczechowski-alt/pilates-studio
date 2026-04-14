@@ -8,6 +8,7 @@ export default function AdminDashboard({ session, profile }) {
   const [allProfiles, setAllProfiles] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [tokenHistory, setTokenHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -17,9 +18,9 @@ export default function AdminDashboard({ session, profile }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [userTokens, setUserTokens] = useState([]);
-  const [tokenHistory, setTokenHistory] = useState([]);
+  const [userTokenHistory, setUserTokenHistory] = useState([]);
   const [stats, setStats] = useState({ totalClasses: 0, totalBookings: 0, uniqueClients: 0 });
-  const [form, setForm] = useState({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "" });
+  const [form, setForm] = useState({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "" });
   const [tokenForm, setTokenForm] = useState({ amount: 1, month: new Date().getMonth() + 1, year: new Date().getFullYear(), note: "" });
   const [message, setMessage] = useState(null);
 
@@ -36,16 +37,19 @@ export default function AdminDashboard({ session, profile }) {
     const { data: classData } = await supabase.from("classes").select("*, bookings(*), waitlist(*)")
       .order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings")
-      .select("id, class_id, user_id, created_at, profiles(first_name, last_name, email), classes(id, name, starts_at)")
+      .select("id, class_id, user_id, created_at, profiles(first_name, last_name, email), classes(id, name, starts_at, price_pln)")
       .order("created_at", { ascending: false });
     const { data: profileData } = await supabase.from("profiles").select("*")
       .eq("role", "client").order("created_at", { ascending: false });
     const { data: notifData } = await supabase.from("notifications").select("*")
       .order("created_at", { ascending: false }).limit(50);
+    const { data: histData } = await supabase.from("token_history").select("*, classes(name, starts_at, price_pln), profiles(first_name, last_name)")
+      .order("created_at", { ascending: false });
     setClasses(classData || []);
     setAllBookings(bookingData || []);
     setAllProfiles(profileData || []);
     setNotifications(notifData || []);
+    setTokenHistory(histData || []);
     setUnreadCount((notifData || []).filter(n => !n.read).length);
     setStats({
       totalClasses: (classData || []).filter(c => c.starts_at >= now).length,
@@ -61,7 +65,7 @@ export default function AdminDashboard({ session, profile }) {
     const { data: hist } = await supabase.from("token_history").select("*, classes(name)")
       .eq("user_id", userId).order("created_at", { ascending: false }).limit(20);
     setUserTokens(data || []);
-    setTokenHistory(hist || []);
+    setUserTokenHistory(hist || []);
   }
 
   async function fetchParticipants(classId) {
@@ -79,7 +83,7 @@ export default function AdminDashboard({ session, profile }) {
 
   function openCreate() {
     setEditClass(null);
-    setForm({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "" });
+    setForm({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "" });
     setShowModal(true);
   }
 
@@ -87,13 +91,21 @@ export default function AdminDashboard({ session, profile }) {
     setEditClass(cls);
     const local = new Date(cls.starts_at);
     const localStr = new Date(local.getTime() - local.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setForm({ name: cls.name, starts_at: localStr, duration_min: cls.duration_min, max_spots: cls.max_spots, location: cls.location || "", notes: cls.notes || "" });
+    setForm({ name: cls.name, starts_at: localStr, duration_min: cls.duration_min, max_spots: cls.max_spots, location: cls.location || "", notes: cls.notes || "", price_pln: cls.price_pln || "" });
     setShowModal(true);
   }
 
   async function handleSave() {
     if (!form.name || !form.starts_at) return;
-    const payload = { ...form, starts_at: new Date(form.starts_at).toISOString() };
+    const payload = {
+      name: form.name,
+      starts_at: new Date(form.starts_at).toISOString(),
+      duration_min: form.duration_min,
+      max_spots: form.max_spots,
+      location: form.location,
+      notes: form.notes,
+      price_pln: form.price_pln ? parseInt(form.price_pln) : null,
+    };
     if (editClass) await supabase.from("classes").update(payload).eq("id", editClass.id);
     else await supabase.from("classes").insert(payload);
     setShowModal(false);
@@ -114,11 +126,10 @@ export default function AdminDashboard({ session, profile }) {
     await fetchAll();
   }
 
-  // Admin zapisuje usera na zajęcia
   async function handleAddUserToClass(userId, classId) {
     const { error } = await supabase.from("bookings").insert({ class_id: classId, user_id: userId });
-    if (error) showMsg("Użytkownik już jest zapisany na te zajęcia.", "error");
-    else showMsg("Użytkownik został zapisany na zajęcia! ✓");
+    if (error) showMsg("Użytkownik już jest zapisany.", "error");
+    else showMsg("Zapisano na zajęcia! ✓");
     setShowAddUserModal(false);
     await fetchParticipants(selectedClass.id);
     await fetchAll();
@@ -130,7 +141,6 @@ export default function AdminDashboard({ session, profile }) {
     setTab("participants");
   }
 
-  // Otwórz panel tokenów usera
   function openUserTokens(user) {
     setSelectedUser(user);
     setTokenForm({ amount: 1, month: new Date().getMonth() + 1, year: new Date().getFullYear(), note: "" });
@@ -138,80 +148,63 @@ export default function AdminDashboard({ session, profile }) {
     setShowTokenModal(true);
   }
 
-  // Dodaj tokeny
   async function handleAddTokens() {
     const { data: existing } = await supabase.from("tokens").select("*")
       .eq("user_id", selectedUser.id).eq("month", tokenForm.month).eq("year", tokenForm.year).single();
-
     if (existing) {
-      await supabase.from("tokens").update({
-        amount: existing.amount + tokenForm.amount,
-        updated_at: new Date().toISOString(),
-        note: tokenForm.note,
-      }).eq("id", existing.id);
+      await supabase.from("tokens").update({ amount: existing.amount + tokenForm.amount, updated_at: new Date().toISOString(), note: tokenForm.note }).eq("id", existing.id);
     } else {
-      await supabase.from("tokens").insert({
-        user_id: selectedUser.id,
-        amount: tokenForm.amount,
-        month: tokenForm.month,
-        year: tokenForm.year,
-        added_by: session.user.id,
-        note: tokenForm.note,
-      });
+      await supabase.from("tokens").insert({ user_id: selectedUser.id, amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, added_by: session.user.id, note: tokenForm.note });
     }
-
-    await supabase.from("token_history").insert({
-      user_id: selectedUser.id,
-      operation: "add",
-      amount: tokenForm.amount,
-      month: tokenForm.month,
-      year: tokenForm.year,
-      note: tokenForm.note || `Dodano przez admina`,
-    });
-
-    await supabase.from("notifications").insert({
-      type: "tokens_added",
-      user_id: selectedUser.id,
-      message: `Dodano ${tokenForm.amount} token(ów) dla ${selectedUser.first_name} ${selectedUser.last_name} na ${monthName(tokenForm.month)} ${tokenForm.year}`,
-    });
-
+    await supabase.from("token_history").insert({ user_id: selectedUser.id, operation: "add", amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, note: tokenForm.note || "Dodano przez admina" });
+    await supabase.from("notifications").insert({ type: "tokens_added", user_id: selectedUser.id, message: `Dodano ${tokenForm.amount} token(ów) dla ${selectedUser.first_name} ${selectedUser.last_name} na ${monthName(tokenForm.month)} ${tokenForm.year}` });
     showMsg(`Dodano ${tokenForm.amount} tokenów! ✓`);
     await fetchUserTokens(selectedUser.id);
     await fetchAll();
   }
 
-  // Zużyj token po zajęciach
-  async function handleUseToken(userId, classId, className) {
+  async function handleUseToken(userId, classId, className, price) {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-
     const { data: tok } = await supabase.from("tokens").select("*")
       .eq("user_id", userId).eq("month", month).eq("year", year).single();
-
     if (!tok || tok.amount <= 0) {
-      showMsg("Brak tokenów na ten miesiąc.", "error"); return;
+      showMsg("Brak tokenów — dodaj token najpierw.", "error"); return;
     }
-
     await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-    await supabase.from("token_history").insert({
-      user_id: userId, class_id: classId, operation: "use", amount: -1,
-      month, year, note: `Zużyto za zajęcia: ${className}`,
-    });
+    await supabase.from("token_history").insert({ user_id: userId, class_id: classId, operation: "use", amount: -1, month, year, note: `Zużyto za: ${className}` });
     showMsg("Token zużyty! ✓");
+    await fetchAll();
+  }
+
+  // Rozlicz od razu — dodaj token i zużyj
+  async function handleSettleNow(userId, classId, className, startsAt) {
+    const d = new Date(startsAt);
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear();
+    const { data: existing } = await supabase.from("tokens").select("*")
+      .eq("user_id", userId).eq("month", month).eq("year", year).single();
+    if (existing) {
+      await supabase.from("tokens").update({ amount: existing.amount + 1, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    } else {
+      await supabase.from("tokens").insert({ user_id: userId, amount: 1, month, year, added_by: session.user.id, note: "Rozliczenie na miejscu" });
+    }
+    await supabase.from("token_history").insert([
+      { user_id: userId, class_id: classId, operation: "add", amount: 1, month, year, note: "Rozliczenie — dodano" },
+      { user_id: userId, class_id: classId, operation: "use", amount: -1, month, year, note: `Rozliczenie — zużyto za: ${className}` },
+    ]);
+    await supabase.from("tokens").update({ amount: existing ? existing.amount : 0, updated_at: new Date().toISOString() })
+      .eq("user_id", userId).eq("month", month).eq("year", year);
+    showMsg("Rozliczono! ✓");
     await fetchAll();
   }
 
   function monthName(m) {
     return ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"][m - 1];
   }
-
-  function formatDate(iso) {
-    return new Date(iso).toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-  }
-  function formatTime(iso) {
-    return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
-  }
+  function formatDate(iso) { return new Date(iso).toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
+  function formatTime(iso) { return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }); }
   function formatRelative(iso) {
     const diff = (new Date() - new Date(iso)) / 1000;
     if (diff < 60) return "przed chwilą";
@@ -223,6 +216,16 @@ export default function AdminDashboard({ session, profile }) {
   const upcomingClasses = classes.filter(c => new Date(c.starts_at) >= new Date());
   const pastClasses = classes.filter(c => new Date(c.starts_at) < new Date());
 
+  // DO ROZLICZENIA - zajęcia które się odbyły, bez zużytego tokena
+  const settled = new Set(tokenHistory.filter(h => h.operation === "use").map(h => `${h.user_id}_${h.class_id}`));
+  const toSettle = allBookings.filter(b => {
+    const classTime = new Date(b.classes?.starts_at);
+    const isPast = classTime < new Date();
+    const isSettled = settled.has(`${b.user_id}_${b.class_id}`);
+    return isPast && !isSettled;
+  });
+  const totalOwed = toSettle.reduce((sum, b) => sum + (b.classes?.price_pln || 0), 0);
+
   // Statystyki
   const dayStats = [0,1,2,3,4,5,6].map(day => ({
     name: ["Nd","Pn","Wt","Śr","Cz","Pt","So"][day],
@@ -233,16 +236,10 @@ export default function AdminDashboard({ session, profile }) {
   allBookings.forEach(b => { const h = new Date(b.classes?.starts_at).getHours(); hourStats[h] = (hourStats[h] || 0) + 1; });
   const topHours = Object.entries(hourStats).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
-  // Tokeny per user (bieżący miesiąc)
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-
   const notifIcon = (type) => ({ booking: "✅", cancel: "❌", waitlist_promoted: "⬆️", tokens_added: "🎟️" }[type] || "🔔");
-
-  // Uzytkownicy niezapisani na wybrane zajęcia
-  const notEnrolled = selectedClass
-    ? allProfiles.filter(p => !participants.some(part => part.user_id === p.id))
-    : [];
+  const notEnrolled = selectedClass ? allProfiles.filter(p => !participants.some(part => part.user_id === p.id)) : [];
 
   return (
     <div className="app-layout">
@@ -251,6 +248,10 @@ export default function AdminDashboard({ session, profile }) {
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => setTab("classes")}>
             <span className="nav-icon">🗓</span> Zajęcia
+          </div>
+          <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => setTab("settle")}>
+            <span className="nav-icon">💰</span> Do rozliczenia
+            {toSettle.length > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{toSettle.length}</span>}
           </div>
           <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markAllRead(); }}>
             <span className="nav-icon">🔔</span> Powiadomienia
@@ -302,11 +303,11 @@ export default function AdminDashboard({ session, profile }) {
               <button className="btn btn-primary" onClick={openCreate}>+ Nowe zajęcia</button>
             </div>
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
-              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zaplanowanych zajęć.</p></div>
+              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
               : (
                 <div className="table-wrapper">
                   <table>
-                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godzina</th><th>Czas</th><th>Miejsca</th><th>Kolejka</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
+                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godzina</th><th>Czas</th><th>Cena</th><th>Miejsca</th><th>Kolejka</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
                     <tbody>
                       {upcomingClasses.map(cls => {
                         const count = cls.bookings?.length || 0;
@@ -317,6 +318,7 @@ export default function AdminDashboard({ session, profile }) {
                             <td>{formatDate(cls.starts_at)}</td>
                             <td>{formatTime(cls.starts_at)}</td>
                             <td>{cls.duration_min} min</td>
+                            <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
                             <td>{count} / {cls.max_spots}</td>
                             <td>{waitCount > 0 ? <span style={{ color: "var(--clay)" }}>{waitCount} os.</span> : "—"}</td>
                             <td><button className="btn btn-secondary btn-sm" onClick={() => openParticipants(cls)}>Lista ({count})</button></td>
@@ -334,10 +336,73 @@ export default function AdminDashboard({ session, profile }) {
           </>
         )}
 
+        {/* DO ROZLICZENIA */}
+        {tab === "settle" && (
+          <>
+            <div className="page-header">
+              <h2>Do rozliczenia</h2>
+              <p>Zajęcia które się odbyły bez zużytego tokena</p>
+            </div>
+
+            {toSettle.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">✅</div>
+                <p>Wszystko rozliczone! Brak zaległości.</p>
+              </div>
+            ) : (
+              <>
+                {/* Podsumowanie */}
+                <div className="stats-row" style={{ marginBottom: "1.5rem" }}>
+                  <div className="stat-card">
+                    <div className="stat-value">{toSettle.length}</div>
+                    <div className="stat-label">Nierozliczonych zajęć</div>
+                  </div>
+                  {totalOwed > 0 && (
+                    <div className="stat-card">
+                      <div className="stat-value" style={{ color: "var(--clay)" }}>{totalOwed} zł</div>
+                      <div className="stat-label">Łącznie do zapłaty</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Klientka</th>
+                        <th>Zajęcia</th>
+                        <th>Data</th>
+                        <th>Cena</th>
+                        <th>Akcja</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {toSettle.map(b => (
+                        <tr key={b.id}>
+                          <td><strong>{b.profiles?.first_name} {b.profiles?.last_name}</strong></td>
+                          <td>{b.classes?.name}</td>
+                          <td>{b.classes?.starts_at ? formatDate(b.classes.starts_at) : "—"}</td>
+                          <td>{b.classes?.price_pln ? <strong style={{ color: "var(--clay)" }}>{b.classes.price_pln} zł</strong> : "—"}</td>
+                          <td>
+                            <button className="btn btn-primary btn-sm"
+                              onClick={() => handleSettleNow(b.user_id, b.class_id, b.classes?.name, b.classes?.starts_at)}>
+                              ✓ Rozlicz
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
         {/* UCZESTNICY */}
         {tab === "participants" && selectedClass && (
           <>
-            <div className="page-header"><h2>{selectedClass.name}</h2><p>{formatDate(selectedClass.starts_at)} o {formatTime(selectedClass.starts_at)}</p></div>
+            <div className="page-header"><h2>{selectedClass.name}</h2><p>{formatDate(selectedClass.starts_at)} o {formatTime(selectedClass.starts_at)}{selectedClass.price_pln ? ` · ${selectedClass.price_pln} zł/os.` : ""}</p></div>
             <div className="section-header">
               <h3>Lista uczestników ({participants.length} / {selectedClass.max_spots})</h3>
               <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -352,20 +417,31 @@ export default function AdminDashboard({ session, profile }) {
                 <table>
                   <thead><tr><th>#</th><th>Imię i nazwisko</th><th>Email</th><th>Data zapisu</th><th>Token</th><th>Akcja</th></tr></thead>
                   <tbody>
-                    {participants.map((b, i) => (
-                      <tr key={b.id}>
-                        <td>{i + 1}</td>
-                        <td><strong>{b.profiles?.first_name} {b.profiles?.last_name}</strong></td>
-                        <td>{b.profiles?.email}</td>
-                        <td>{new Date(b.created_at).toLocaleDateString("pl-PL")}</td>
-                        <td>
-                          <button className="btn btn-secondary btn-sm" onClick={() => handleUseToken(b.user_id, selectedClass.id, selectedClass.name)}>
-                            🎟️ Zużyj
-                          </button>
-                        </td>
-                        <td><button className="btn btn-danger btn-sm" onClick={() => handleRemoveParticipant(b.id)}>Usuń</button></td>
-                      </tr>
-                    ))}
+                    {participants.map((b, i) => {
+                      const isSettled = settled.has(`${b.user_id}_${b.class_id}`);
+                      const isPast = new Date(selectedClass.starts_at) < new Date();
+                      return (
+                        <tr key={b.id}>
+                          <td>{i + 1}</td>
+                          <td><strong>{b.profiles?.first_name} {b.profiles?.last_name}</strong></td>
+                          <td>{b.profiles?.email}</td>
+                          <td>{new Date(b.created_at).toLocaleDateString("pl-PL")}</td>
+                          <td>
+                            {isSettled ? (
+                              <span style={{ color: "var(--sage-dark)", fontSize: "0.875rem" }}>✅ Rozliczone</span>
+                            ) : isPast ? (
+                              <button className="btn btn-secondary btn-sm"
+                                onClick={() => handleUseToken(b.user_id, selectedClass.id, selectedClass.name, selectedClass.price_pln)}>
+                                🎟️ Zużyj token
+                              </button>
+                            ) : (
+                              <span style={{ color: "var(--light)", fontSize: "0.8rem" }}>zajęcia w toku</span>
+                            )}
+                          </td>
+                          <td><button className="btn btn-danger btn-sm" onClick={() => handleRemoveParticipant(b.id)}>Usuń</button></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -440,7 +516,7 @@ export default function AdminDashboard({ session, profile }) {
               : (
                 <div className="table-wrapper">
                   <table>
-                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godzina</th><th>Uczestnicy</th></tr></thead>
+                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godzina</th><th>Cena</th><th>Uczestnicy</th></tr></thead>
                     <tbody>
                       {pastClasses.map(cls => {
                         const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
@@ -449,6 +525,7 @@ export default function AdminDashboard({ session, profile }) {
                             <td><strong>{cls.name}</strong></td>
                             <td>{formatDate(cls.starts_at)}</td>
                             <td>{formatTime(cls.starts_at)}</td>
+                            <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
                             <td>{bookingsForClass.length > 0
                               ? bookingsForClass.map(b => <span key={b.id} className="participant-chip">{b.profiles?.first_name} {b.profiles?.last_name}</span>)
                               : <span style={{ color: "var(--light)", fontSize: "0.8rem" }}>brak</span>}
@@ -466,7 +543,7 @@ export default function AdminDashboard({ session, profile }) {
         {/* KLIENCI */}
         {tab === "clients" && (
           <>
-            <div className="page-header"><h2>Klienci</h2><p>Zarządzaj klientami i tokenami</p></div>
+            <div className="page-header"><h2>Klienci</h2></div>
             {allProfiles.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><p>Brak klientów</p></div>
               : (
                 <div className="table-wrapper">
@@ -480,14 +557,8 @@ export default function AdminDashboard({ session, profile }) {
                             <td><strong>{c.first_name} {c.last_name}</strong></td>
                             <td>{c.email}</td>
                             <td>{clientBookings.length}</td>
-                            <td>
-                              <TokenBadge userId={c.id} month={currentMonth} year={currentYear} />
-                            </td>
-                            <td>
-                              <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>
-                                🎟️ Tokeny
-                              </button>
-                            </td>
+                            <td><TokenBadge userId={c.id} month={currentMonth} year={currentYear} /></td>
+                            <td><button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎟️ Tokeny</button></td>
                           </tr>
                         );
                       })}
@@ -504,21 +575,24 @@ export default function AdminDashboard({ session, profile }) {
         <div className={`mobile-nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => setTab("classes")}>
           <span className="mobile-nav-icon">🗓</span><span>Zajęcia</span>
         </div>
+        <div className={`mobile-nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => setTab("settle")}>
+          <span className="mobile-nav-icon" style={{ position: "relative" }}>
+            💰{toSettle.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--clay)", color: "white", borderRadius: "50%", width: 14, height: 14, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{toSettle.length}</span>}
+          </span>
+          <span>Rozlicz</span>
+        </div>
         <div className={`mobile-nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markAllRead(); }}>
           <span className="mobile-nav-icon" style={{ position: "relative" }}>
             🔔{unreadCount > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--clay)", color: "white", borderRadius: "50%", width: 14, height: 14, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</span>}
           </span>
           <span>Powiadomienia</span>
         </div>
-        <div className={`mobile-nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => setTab("stats")}>
-          <span className="mobile-nav-icon">📊</span><span>Statystyki</span>
-        </div>
         <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => setTab("clients")}>
           <span className="mobile-nav-icon">👥</span><span>Klienci</span>
         </div>
       </nav>
 
-      {/* MODAL - Nowe/edytuj zajęcia */}
+      {/* MODAL - Zajęcia */}
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
@@ -530,11 +604,13 @@ export default function AdminDashboard({ session, profile }) {
               <input className="form-input" placeholder="np. Pilates Flow" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Data i godzina</label>
               <input className="form-input" type="datetime-local" value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} /></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
               <div className="form-group"><label className="form-label">Czas (min)</label>
                 <input className="form-input" type="number" min="15" max="180" step="15" value={form.duration_min} onChange={e => setForm({ ...form, duration_min: +e.target.value })} /></div>
               <div className="form-group"><label className="form-label">Maks. miejsc</label>
                 <input className="form-input" type="number" min="1" max="50" value={form.max_spots} onChange={e => setForm({ ...form, max_spots: +e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Cena (zł)</label>
+                <input className="form-input" type="number" min="0" placeholder="np. 50" value={form.price_pln} onChange={e => setForm({ ...form, price_pln: e.target.value })} /></div>
             </div>
             <div className="form-group"><label className="form-label">Lokalizacja</label>
               <input className="form-input" placeholder="np. Sala A" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
@@ -550,7 +626,7 @@ export default function AdminDashboard({ session, profile }) {
         </div>
       )}
 
-      {/* MODAL - Tokeny usera */}
+      {/* MODAL - Tokeny */}
       {showTokenModal && selectedUser && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowTokenModal(false)}>
           <div className="modal" style={{ maxWidth: 560 }}>
@@ -558,31 +634,25 @@ export default function AdminDashboard({ session, profile }) {
               <h3>🎟️ Tokeny — {selectedUser.first_name} {selectedUser.last_name}</h3>
               <button className="modal-close" onClick={() => setShowTokenModal(false)}>×</button>
             </div>
-
-            {/* Aktualne tokeny */}
             <div style={{ marginBottom: "1.5rem" }}>
               <p className="form-label" style={{ marginBottom: "0.75rem" }}>Saldo tokenów</p>
-              {userTokens.length === 0 ? (
-                <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Brak tokenów</p>
-              ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                  {userTokens.map(t => (
-                    <div key={t.id} style={{ background: t.amount > 0 ? "#EBF5EA" : "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", textAlign: "center" }}>
-                      <div style={{ fontSize: "1.4rem", fontFamily: "Cormorant Garamond, serif", color: t.amount > 0 ? "var(--sage-dark)" : "var(--light)" }}>{t.amount}</div>
-                      <div style={{ fontSize: "0.7rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{monthName(t.month)} {t.year}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {userTokens.length === 0 ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Brak tokenów</p>
+                : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                    {userTokens.map(t => (
+                      <div key={t.id} style={{ background: t.amount > 0 ? "#EBF5EA" : "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", textAlign: "center" }}>
+                        <div style={{ fontSize: "1.4rem", fontFamily: "Cormorant Garamond, serif", color: t.amount > 0 ? "var(--sage-dark)" : "var(--light)" }}>{t.amount}</div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--mid)", textTransform: "uppercase" }}>{monthName(t.month)} {t.year}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
-
-            {/* Dodaj tokeny */}
             <p className="form-label" style={{ marginBottom: "0.75rem" }}>Dodaj tokeny</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Liczba</label>
-                <input className="form-input" type="number" min="1" max="30" value={tokenForm.amount}
-                  onChange={e => setTokenForm({ ...tokenForm, amount: +e.target.value })} />
+                <input className="form-input" type="number" min="1" max="30" value={tokenForm.amount} onChange={e => setTokenForm({ ...tokenForm, amount: +e.target.value })} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Miesiąc</label>
@@ -592,29 +662,23 @@ export default function AdminDashboard({ session, profile }) {
               </div>
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Rok</label>
-                <input className="form-input" type="number" min="2024" max="2030" value={tokenForm.year}
-                  onChange={e => setTokenForm({ ...tokenForm, year: +e.target.value })} />
+                <input className="form-input" type="number" min="2024" max="2030" value={tokenForm.year} onChange={e => setTokenForm({ ...tokenForm, year: +e.target.value })} />
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Notatka (opcjonalnie)</label>
-              <input className="form-input" placeholder="np. Opłata gotówką" value={tokenForm.note}
-                onChange={e => setTokenForm({ ...tokenForm, note: e.target.value })} />
+              <label className="form-label">Notatka</label>
+              <input className="form-input" placeholder="np. Gotówka 14.04" value={tokenForm.note} onChange={e => setTokenForm({ ...tokenForm, note: e.target.value })} />
             </div>
             <button className="btn btn-primary btn-full" onClick={handleAddTokens}>
               + Dodaj {tokenForm.amount} token(ów) na {monthName(tokenForm.month)}
             </button>
-
-            {/* Historia */}
-            {tokenHistory.length > 0 && (
+            {userTokenHistory.length > 0 && (
               <>
-                <p className="form-label" style={{ margin: "1.5rem 0 0.75rem" }}>Historia operacji</p>
+                <p className="form-label" style={{ margin: "1.5rem 0 0.75rem" }}>Historia</p>
                 <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8 }}>
-                  {tokenHistory.map(h => (
+                  {userTokenHistory.map(h => (
                     <div key={h.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.6rem 1rem", borderBottom: "1px solid var(--border)", fontSize: "0.8rem" }}>
-                      <span style={{ color: h.amount > 0 ? "var(--sage-dark)" : "var(--clay)" }}>
-                        {h.amount > 0 ? "+" : ""}{h.amount} · {h.note || h.classes?.name || "—"}
-                      </span>
+                      <span style={{ color: h.amount > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{h.amount > 0 ? "+" : ""}{h.amount} · {h.note || h.classes?.name || "—"}</span>
                       <span style={{ color: "var(--light)" }}>{monthName(h.month)} {h.year}</span>
                     </div>
                   ))}
@@ -625,7 +689,7 @@ export default function AdminDashboard({ session, profile }) {
         </div>
       )}
 
-      {/* MODAL - Dodaj uczestnika do zajęć */}
+      {/* MODAL - Dodaj uczestnika */}
       {showAddUserModal && selectedClass && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddUserModal(false)}>
           <div className="modal">
@@ -634,25 +698,23 @@ export default function AdminDashboard({ session, profile }) {
               <button className="modal-close" onClick={() => setShowAddUserModal(false)}>×</button>
             </div>
             <p style={{ color: "var(--mid)", fontSize: "0.875rem", marginBottom: "1rem" }}>
-              Wybierz klientkę do zapisania na: <strong>{selectedClass.name}</strong>
+              Zapisz klientkę na: <strong>{selectedClass.name}</strong>
             </p>
-            {notEnrolled.length === 0 ? (
-              <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Wszystkie klientki są już zapisane.</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 300, overflowY: "auto" }}>
-                {notEnrolled.map(u => (
-                  <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", border: "1px solid var(--border)", borderRadius: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{u.first_name} {u.last_name}</div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{u.email}</div>
+            {notEnrolled.length === 0
+              ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Wszystkie klientki są już zapisane.</p>
+              : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 300, overflowY: "auto" }}>
+                  {notEnrolled.map(u => (
+                    <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", border: "1px solid var(--border)", borderRadius: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{u.first_name} {u.last_name}</div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{u.email}</div>
+                      </div>
+                      <button className="btn btn-primary btn-sm" onClick={() => handleAddUserToClass(u.id, selectedClass.id)}>Zapisz</button>
                     </div>
-                    <button className="btn btn-primary btn-sm" onClick={() => handleAddUserToClass(u.id, selectedClass.id)}>
-                      Zapisz
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>Zamknij</button>
             </div>
@@ -663,7 +725,6 @@ export default function AdminDashboard({ session, profile }) {
   );
 }
 
-// Komponent badge tokenów
 function TokenBadge({ userId, month, year }) {
   const [tokens, setTokens] = useState(null);
   useEffect(() => {
@@ -671,9 +732,5 @@ function TokenBadge({ userId, month, year }) {
       .then(({ data }) => setTokens(data?.amount ?? 0));
   }, [userId, month, year]);
   if (tokens === null) return <span style={{ color: "var(--light)" }}>—</span>;
-  return (
-    <span style={{ fontWeight: 500, color: tokens > 0 ? "var(--sage-dark)" : "var(--light)" }}>
-      🎟️ {tokens}
-    </span>
-  );
+  return <span style={{ fontWeight: 500, color: tokens > 0 ? "var(--sage-dark)" : "var(--light)" }}>🎟️ {tokens}</span>;
 }
