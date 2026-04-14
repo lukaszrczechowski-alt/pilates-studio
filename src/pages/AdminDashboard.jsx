@@ -23,7 +23,7 @@ export default function AdminDashboard({ session, profile }) {
 
     const { data: classData } = await supabase
       .from("classes")
-      .select("*, bookings(count)")
+      .select("*, bookings(*)")
       .order("starts_at", { ascending: true });
 
     const { data: bookingData } = await supabase
