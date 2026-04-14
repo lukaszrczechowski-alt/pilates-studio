@@ -200,7 +200,7 @@ export default function AdminDashboard({ session, profile }) {
                     </thead>
                     <tbody>
                       {upcomingClasses.map(cls => {
-                        const count = cls.bookings?.[0]?.count || 0;
+                        const count = cls.bookings?.length || 0;
                         return (
                           <tr key={cls.id}>
                             <td><strong>{cls.name}</strong></td>
@@ -301,7 +301,7 @@ export default function AdminDashboard({ session, profile }) {
                   </thead>
                   <tbody>
                     {pastClasses.map(cls => {
-                      const count = cls.bookings?.[0]?.count || 0;
+                      const count = cls.bookings?.length || 0;
                       const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
                       return (
                         <tr key={cls.id}>
