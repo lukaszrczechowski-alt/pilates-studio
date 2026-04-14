@@ -18,7 +18,7 @@ export default function ClientDashboard({ session, profile }) {
 
     const { data: classData } = await supabase
       .from("classes")
-      .select("*, bookings(count)")
+      .select("*, bookings(*)")
       .gte("starts_at", now)
       .order("starts_at", { ascending: true });
 
@@ -38,43 +38,36 @@ export default function ClientDashboard({ session, profile }) {
   }
 
   function getBookedCount(cls) {
-    return cls.bookings?.[0]?.count || 0;
+    return cls.bookings?.length || 0;
   }
 
   async function handleBook(cls) {
     setActionLoading(cls.id);
-    const { error } = await supabase.from("bookings").insert({
-      class_id: cls.id,
-      user_id: session.user.id,
-    });
-    if (!error) await fetchData();
+    await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id });
+    await fetchData();
     setActionLoading(null);
   }
 
   async function handleCancel(cls) {
     setActionLoading(cls.id);
-    await supabase.from("bookings")
-      .delete()
-      .eq("class_id", cls.id)
-      .eq("user_id", session.user.id);
+    await supabase.from("bookings").delete().eq("class_id", cls.id).eq("user_id", session.user.id);
     await fetchData();
     setActionLoading(null);
   }
 
   function formatDate(iso) {
-    const d = new Date(iso);
-    return d.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+    return new Date(iso).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
   }
 
   function formatTime(iso) {
-    const d = new Date(iso);
-    return d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
   }
 
   const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date());
 
   return (
     <div className="app-layout">
+      {/* Sidebar - tylko desktop */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <h1>Pilates</h1>
@@ -122,7 +115,6 @@ export default function ClientDashboard({ session, profile }) {
                   const isFull = count >= cls.max_spots;
                   const fillPct = Math.min((count / cls.max_spots) * 100, 100);
                   const almostFull = fillPct >= 80;
-
                   return (
                     <div className="class-card" key={cls.id}>
                       <div className="class-card-header">
@@ -153,26 +145,18 @@ export default function ClientDashboard({ session, profile }) {
                           )}
                         </div>
                         <div className="spots-bar">
-                          <div
-                            className={`spots-fill ${isFull ? "full" : almostFull ? "almost-full" : ""}`}
-                            style={{ width: `${fillPct}%` }}
-                          />
+                          <div className={`spots-fill ${isFull ? "full" : almostFull ? "almost-full" : ""}`}
+                            style={{ width: `${fillPct}%` }} />
                         </div>
                         <p className="spots-text">{count} / {cls.max_spots} miejsc zajętych</p>
                         {booked ? (
-                          <button
-                            className="btn btn-danger btn-full"
-                            onClick={() => handleCancel(cls)}
-                            disabled={actionLoading === cls.id}
-                          >
+                          <button className="btn btn-danger btn-full" onClick={() => handleCancel(cls)}
+                            disabled={actionLoading === cls.id}>
                             {actionLoading === cls.id ? "..." : "Wypisz się"}
                           </button>
                         ) : (
-                          <button
-                            className="btn btn-primary btn-full"
-                            onClick={() => handleBook(cls)}
-                            disabled={isFull || actionLoading === cls.id}
-                          >
+                          <button className="btn btn-primary btn-full" onClick={() => handleBook(cls)}
+                            disabled={isFull || actionLoading === cls.id}>
                             {actionLoading === cls.id ? "..." : isFull ? "Brak miejsc" : "Zapisz się"}
                           </button>
                         )}
@@ -197,42 +181,74 @@ export default function ClientDashboard({ session, profile }) {
                 <p>Nie masz jeszcze żadnych rezerwacji.</p>
               </div>
             ) : (
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Zajęcia</th>
-                      <th>Data</th>
-                      <th>Godzina</th>
-                      <th>Czas trwania</th>
-                      <th>Akcja</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {upcomingMyClasses.map(b => (
-                      <tr key={b.id}>
-                        <td><strong>{b.classes?.name}</strong></td>
-                        <td>{formatDate(b.classes?.starts_at)}</td>
-                        <td>{formatTime(b.classes?.starts_at)}</td>
-                        <td>{b.classes?.duration_min} min</td>
-                        <td>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleCancel(b.classes)}
-                            disabled={actionLoading === b.class_id}
-                          >
-                            Wypisz się
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="cards-grid">
+                {upcomingMyClasses.map(b => (
+                  <div className="class-card" key={b.id}>
+                    <div className="class-card-header">
+                      <span className="class-title">{b.classes?.name}</span>
+                      <span className="class-badge badge-yours">Zapisana</span>
+                    </div>
+                    <div className="class-card-body">
+                      <div className="class-meta">
+                        <div className="meta-item">
+                          <span className="meta-icon">📅</span>
+                          {formatDate(b.classes?.starts_at)}
+                        </div>
+                        <div className="meta-item">
+                          <span className="meta-icon">🕐</span>
+                          {formatTime(b.classes?.starts_at)} · {b.classes?.duration_min} min
+                        </div>
+                      </div>
+                      <button className="btn btn-danger btn-full" onClick={() => handleCancel(b.classes)}
+                        disabled={actionLoading === b.class_id}>
+                        Wypisz się
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>
         )}
+
+        {tab === "account" && (
+          <>
+            <div className="page-header">
+              <h2>Moje konto</h2>
+            </div>
+            <div className="card" style={{ maxWidth: 400 }}>
+              <div className="user-info" style={{ marginBottom: "1.5rem" }}>
+                <div className="user-avatar" style={{ width: 56, height: 56, fontSize: "1.5rem" }}>
+                  {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                </div>
+                <div>
+                  <div className="user-name" style={{ fontSize: "1.1rem" }}>{profile?.first_name} {profile?.last_name}</div>
+                  <div className="user-role">{profile?.email}</div>
+                </div>
+              </div>
+              <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>
+                Wyloguj się
+              </button>
+            </div>
+          </>
+        )}
       </main>
+
+      {/* Dolne menu - tylko mobile */}
+      <nav className="mobile-nav">
+        <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}>
+          <span className="mobile-nav-icon">🗓</span>
+          <span>Zajęcia</span>
+        </div>
+        <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}>
+          <span className="mobile-nav-icon">✦</span>
+          <span>Rezerwacje</span>
+        </div>
+        <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}>
+          <span className="mobile-nav-icon">👤</span>
+          <span>Konto</span>
+        </div>
+      </nav>
     </div>
   );
 }
