@@ -5,6 +5,7 @@ export default function AdminDashboard({ session, profile }) {
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
+  const [allProfiles, setAllProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editClass, setEditClass] = useState(null);
@@ -12,7 +13,6 @@ export default function AdminDashboard({ session, profile }) {
   const [participants, setParticipants] = useState([]);
   const [stats, setStats] = useState({ totalClasses: 0, totalBookings: 0, uniqueClients: 0 });
 
-  // Form state
   const [form, setForm] = useState({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "" });
 
   useEffect(() => { fetchAll(); }, []);
@@ -31,14 +31,20 @@ export default function AdminDashboard({ session, profile }) {
       .select("*, profiles(first_name, last_name, email), classes(name, starts_at)")
       .order("created_at", { ascending: false });
 
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("role", "client")
+      .order("created_at", { ascending: false });
+
     setClasses(classData || []);
     setAllBookings(bookingData || []);
+    setAllProfiles(profileData || []);
 
-    const uniqueClients = new Set((bookingData || []).map(b => b.user_id)).size;
     setStats({
       totalClasses: (classData || []).filter(c => c.starts_at >= now).length,
       totalBookings: (bookingData || []).filter(b => b.classes?.starts_at >= now).length,
-      uniqueClients,
+      uniqueClients: (profileData || []).length,
     });
     setLoading(false);
   }
@@ -151,7 +157,6 @@ export default function AdminDashboard({ session, profile }) {
 
       <main className="main-content">
 
-        {/* STATS */}
         {tab === "classes" && (
           <>
             <div className="page-header">
@@ -227,7 +232,6 @@ export default function AdminDashboard({ session, profile }) {
           </>
         )}
 
-        {/* PARTICIPANTS */}
         {tab === "participants" && selectedClass && (
           <>
             <div className="page-header">
@@ -276,7 +280,6 @@ export default function AdminDashboard({ session, profile }) {
           </>
         )}
 
-        {/* HISTORY */}
         {tab === "history" && (
           <>
             <div className="page-header">
@@ -301,7 +304,6 @@ export default function AdminDashboard({ session, profile }) {
                   </thead>
                   <tbody>
                     {pastClasses.map(cls => {
-                      const count = cls.bookings?.length || 0;
                       const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
                       return (
                         <tr key={cls.id}>
@@ -329,65 +331,50 @@ export default function AdminDashboard({ session, profile }) {
           </>
         )}
 
-        {/* CLIENTS */}
         {tab === "clients" && (
           <>
             <div className="page-header">
               <h2>Klienci</h2>
               <p>Wszyscy zarejestrowani klienci</p>
             </div>
-            {(() => {
-              const clientMap = new Map();
-              allBookings.forEach(b => {
-                if (!clientMap.has(b.user_id)) {
-                  clientMap.set(b.user_id, {
-                    ...b.profiles,
-                    bookings: 0,
-                    lastClass: null,
-                  });
-                }
-                const c = clientMap.get(b.user_id);
-                c.bookings++;
-                if (!c.lastClass || new Date(b.classes?.starts_at) > new Date(c.lastClass)) {
-                  c.lastClass = b.classes?.starts_at;
-                }
-              });
-              const clients = Array.from(clientMap.values());
-              return clients.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">👥</div>
-                  <p>Brak klientów</p>
-                </div>
-              ) : (
-                <div className="table-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Imię i nazwisko</th>
-                        <th>Email</th>
-                        <th>Liczba rezerwacji</th>
-                        <th>Ostatnie zajęcia</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {clients.map((c, i) => (
+            {allProfiles.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">👥</div>
+                <p>Brak klientów</p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Imię i nazwisko</th>
+                      <th>Email</th>
+                      <th>Liczba rezerwacji</th>
+                      <th>Ostatnie zajęcia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allProfiles.map((c, i) => {
+                      const clientBookings = allBookings.filter(b => b.user_id === c.id);
+                      const lastBooking = clientBookings.sort((a, b) =>
+                        new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at))[0];
+                      return (
                         <tr key={i}>
                           <td><strong>{c.first_name} {c.last_name}</strong></td>
                           <td>{c.email}</td>
-                          <td>{c.bookings}</td>
-                          <td>{c.lastClass ? formatDate(c.lastClass) : "—"}</td>
+                          <td>{clientBookings.length}</td>
+                          <td>{lastBooking?.classes?.starts_at ? formatDate(lastBooking.classes.starts_at) : "—"}</td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()}
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
       </main>
 
-      {/* MODAL */}
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
@@ -395,7 +382,6 @@ export default function AdminDashboard({ session, profile }) {
               <h3>{editClass ? "Edytuj zajęcia" : "Nowe zajęcia"}</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
-
             <div className="form-group">
               <label className="form-label">Nazwa zajęć</label>
               <input className="form-input" placeholder="np. Pilates Flow"
@@ -428,7 +414,6 @@ export default function AdminDashboard({ session, profile }) {
               <input className="form-input" placeholder="np. Przynieś matę"
                 value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
             </div>
-
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
               <button className="btn btn-primary" onClick={handleSave}
