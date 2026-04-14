@@ -28,7 +28,7 @@ export default function AdminDashboard({ session, profile }) {
 
     const { data: bookingData } = await supabase
       .from("bookings")
-      .select("*, profiles(first_name, last_name, email), classes(name, starts_at)")
+      .select("id, class_id, user_id, created_at, profiles(first_name, last_name, email), classes(id, name, starts_at)")
       .order("created_at", { ascending: false });
 
     const { data: profileData } = await supabase
@@ -50,9 +50,9 @@ export default function AdminDashboard({ session, profile }) {
   }
 
   async function fetchParticipants(classId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("bookings")
-      .select("*, profiles(first_name, last_name, email)")
+      .select("id, created_at, user_id, profiles(first_name, last_name, email)")
       .eq("class_id", classId);
     setParticipants(data || []);
   }
@@ -356,8 +356,9 @@ export default function AdminDashboard({ session, profile }) {
                   <tbody>
                     {allProfiles.map((c, i) => {
                       const clientBookings = allBookings.filter(b => b.user_id === c.id);
-                      const lastBooking = clientBookings.sort((a, b) =>
-                        new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at))[0];
+                      const sorted = [...clientBookings].sort((a, b) =>
+                        new Date(b.classes?.starts_at || 0) - new Date(a.classes?.starts_at || 0));
+                      const lastBooking = sorted[0];
                       return (
                         <tr key={i}>
                           <td><strong>{c.first_name} {c.last_name}</strong></td>
