@@ -124,6 +124,9 @@ export default function ClientDashboard({ session, profile }) {
           <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}>
             <span className="nav-icon">✦</span> Moje rezerwacje
           </div>
+<div className={`nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}>
+  <span className="nav-icon">👤</span> Moje konto
+</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
