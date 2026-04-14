@@ -105,7 +105,10 @@ export default function ClientDashboard({ session, profile }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <div className="sidebar-logo"><h1>Pilates</h1><p>Studio by Paulina</p></div>
+        <div className="sidebar-logo" onClick={() => setTab("upcoming")} style={{ cursor: "pointer" }}>
+  <h1>Pilates</h1>
+  <p>Studio by Paulina</p>
+</div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}>
             <span className="nav-icon">🗓</span> Zajęcia
