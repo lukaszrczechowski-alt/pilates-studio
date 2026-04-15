@@ -877,3 +877,217 @@ tr:hover td { background: var(--cream); }
 [data-theme="dark"] .user-role { color: #606060; }
 [data-theme="dark"] .empty-state { color: #606060; }
 [data-theme="dark"] select.form-input option { background: #242424; }
+
+
+/* ============================================
+   OPTYMALIZACJA MOBILNA
+   Dodaj na końcu App.css
+   ============================================ */
+
+@media (max-width: 768px) {
+
+  /* Ukryj sidebar na mobile */
+  .sidebar {
+    display: none !important;
+  }
+
+  /* Pełna szerokość głównej treści */
+  .app-layout {
+    grid-template-columns: 1fr !important;
+    padding-bottom: 70px;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding: 1rem !important;
+  }
+
+  /* Dolna nawigacja — większa i wygodniejsza */
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: var(--warm-white);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    padding: 0;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px;
+    cursor: pointer;
+    color: var(--light);
+    font-size: 0.65rem;
+    font-weight: 500;
+    transition: color 0.15s;
+    min-height: 44px; /* minimum touch target */
+  }
+
+  .mobile-nav-item.active {
+    color: var(--sage-dark);
+  }
+
+  .mobile-nav-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  /* Nagłówek strony */
+  .page-header h2 {
+    font-size: 1.4rem !important;
+  }
+
+  /* Karty zajęć — pełna szerokość */
+  .cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .class-card {
+    border-radius: 10px !important;
+  }
+
+  /* Statystyki — 2 kolumny na mobile */
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Tabele — scroll poziomy */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrapper table {
+    min-width: 500px;
+  }
+
+  /* Modalne — pełny ekran na mobile */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 1.5rem 1.25rem !important;
+  }
+
+  /* Przyciski większe na mobile */
+  .btn {
+    min-height: 44px;
+    font-size: 0.9rem !important;
+  }
+
+  .btn-sm {
+    min-height: 36px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .btn-full {
+    min-height: 50px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Formularz */
+  .form-input {
+    min-height: 44px;
+    font-size: 1rem !important; /* zapobiega zoom na iOS */
+  }
+
+  select.form-input {
+    font-size: 1rem !important;
+  }
+
+  /* Kalendarz miesięczny — kompaktowy */
+  .calendar-cell {
+    min-height: 60px !important;
+    padding: 0.2rem !important;
+  }
+
+  /* Sekcja-header — stack na mobile */
+  .section-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Alerty — pełna szerokość */
+  .alert-success, .alert-error {
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    max-width: none !important;
+  }
+
+  /* User info w koncie */
+  .user-info {
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+
+  /* Ukryj kolumny tabeli które są mniej ważne */
+  .table-wrapper th:nth-child(5),
+  .table-wrapper td:nth-child(5) {
+    display: none;
+  }
+
+  /* Nagłówek z przełącznikiem widoku */
+  .view-toggle {
+    width: 100%;
+    justify-content: stretch !important;
+  }
+
+  .view-toggle .btn {
+    flex: 1;
+  }
+}
+
+/* Tablet — średnie ekrany */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar {
+    width: 200px !important;
+  }
+
+  .main-content {
+    margin-left: 200px !important;
+  }
+
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Bardzo małe ekrany (iPhone SE) */
+@media (max-width: 375px) {
+  .main-content {
+    padding: 0.75rem !important;
+  }
+
+  .mobile-nav-item span:last-child {
+    font-size: 0.6rem;
+  }
+
+  .page-header h2 {
+    font-size: 1.2rem !important;
+  }
+}
