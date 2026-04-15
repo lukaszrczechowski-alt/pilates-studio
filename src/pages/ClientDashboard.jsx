@@ -21,6 +21,11 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  const [myRatings, setMyRatings] = useState([]);
+  const [showRatingModal, setShowRatingModal] = useState(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingComment, setRatingComment] = useState("");
+  const [pushEnabled, setPushEnabled] = useState(false);
 
   function getMonday(date) {
     const d = new Date(date);
@@ -44,6 +49,9 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
       .gte("starts_at", startOfMonth.toISOString())
       .or("cancelled.is.null,cancelled.eq.false")
       .order("starts_at", { ascending: true });
+    const { data: ratingsData } = await supabase.from("class_ratings")
+      .select("*").eq("user_id", session.user.id);
+    setMyRatings(ratingsData || []);
     const { data: bookingData } = await supabase.from("bookings").select("*, classes(*)")
       .eq("user_id", session.user.id).order("created_at", { ascending: false });
     const { data: waitlistData } = await supabase.from("waitlist").select("*, classes(*)")
@@ -278,6 +286,51 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
     );
   }
 
+  // Push notifications
+  async function registerPush() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        showMsg("Twoja przeglądarka nie obsługuje powiadomień push.", "error");
+        return;
+      }
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showMsg("Powiadomienia zablokowane — włącz je w ustawieniach przeglądarki.", "error");
+        return;
+      }
+      setPushEnabled(true);
+      showMsg("Powiadomienia push włączone! ✓");
+    } catch (err) {
+      showMsg("Błąd przy włączaniu powiadomień.", "error");
+    }
+  }
+
+  async function checkPushStatus() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (reg && Notification.permission === 'granted') setPushEnabled(true);
+  }
+
+  // Oceny zajęć
+  function hasRated(classId) { return myRatings.some(r => r.class_id === classId); }
+  function getRating(classId) { return myRatings.find(r => r.class_id === classId); }
+
+  async function handleSubmitRating(cls) {
+    const existing = getRating(cls.id);
+    if (existing) {
+      await supabase.from("class_ratings").update({ rating: ratingValue, comment: ratingComment }).eq("id", existing.id);
+    } else {
+      await supabase.from("class_ratings").insert({ class_id: cls.id, user_id: session.user.id, rating: ratingValue, comment: ratingComment });
+    }
+    showMsg("Dziękujemy za ocenę! ✓");
+    setShowRatingModal(null);
+    setRatingValue(5);
+    setRatingComment("");
+    const { data } = await supabase.from("class_ratings").select("*").eq("user_id", session.user.id);
+    setMyRatings(data || []);
+  }
+
   function googleCalendarUrl(cls) {
     const start = new Date(cls.starts_at);
     const end = new Date(start.getTime() + cls.duration_min * 60000);
@@ -429,64 +482,43 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
               : classes.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
               : viewMode === "calendar" ? (
-                /* WIDOK KALENDARZA MIESIĘCZNEGO */
+                /* WIDOK KALENDARZA */
                 <div>
+                  {/* Nawigacja tygodnia */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setCalendarWeek(d); }}>← Poprzedni</button>
-                    <span style={{ fontWeight: 500, fontSize: "1rem" }}>{calendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setCalendarWeek(d); }}>Następny →</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setDate(d.getDate() - 7); setCalendarWeek(d); }}>← Poprzedni tydzień</button>
+                    <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>
+                      {weekDays[0].toLocaleDateString("pl-PL", { day: "numeric", month: "long" })} – {weekDays[6].toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" })}
+                    </span>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setDate(d.getDate() + 7); setCalendarWeek(d); }}>Następny tydzień →</button>
                   </div>
-                  {(() => {
-                    const year = calendarWeek.getFullYear();
-                    const month = calendarWeek.getMonth();
-                    const firstDay = new Date(year, month, 1);
-                    const lastDay = new Date(year, month + 1, 0);
-                    const dayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
-                    let startOffset = firstDay.getDay() - 1;
-                    if (startOffset < 0) startOffset = 6;
-                    const cells = [];
-                    for (let i = 0; i < startOffset; i++) cells.push(null);
-                    for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(year, month, d));
-                    while (cells.length % 7 !== 0) cells.push(null);
-                    return (
-                      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
-                          {dayNames.map(d => <div key={d} style={{ padding: "0.6rem 0.25rem", textAlign: "center", background: "var(--cream)", fontSize: "0.75rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase" }}>{d}</div>)}
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-                          {cells.map((day, i) => {
-                            if (!day) return <div key={i} style={{ minHeight: 80, background: "var(--cream)", opacity: 0.3, borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }} />;
-                            const dayClasses = getClassesForDay(day);
-                            const today = isToday(day);
-                            return (
-                              <div key={i} style={{ minHeight: 80, padding: "0.3rem", borderRight: (i + 1) % 7 !== 0 ? "1px solid var(--border)" : "none", borderBottom: "1px solid var(--border)", background: today ? "rgba(138,158,133,0.06)" : "transparent" }}>
-                                <div style={{ fontSize: "0.8rem", fontWeight: today ? 600 : 400, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: today ? "var(--sage)" : "transparent", color: today ? "white" : "var(--charcoal)", marginBottom: "0.2rem" }}>{day.getDate()}</div>
-                                {dayClasses.map(cls => {
-                                  const booked = isBooked(cls.id);
-                                  const onWaitlist = isOnWaitlist(cls.id);
-                                  const count = getBookedCount(cls);
-                                  const isFull = count >= cls.max_spots;
-                                  const bg = booked ? "#EBF5EA" : onWaitlist ? "#FEF3E8" : isFull ? "#FDE8E8" : "var(--cream)";
-                                  const color = booked ? "#5C7A56" : onWaitlist ? "#B87333" : isFull ? "#C44B4B" : "var(--charcoal)";
-                                  const border = booked ? "#8A9E85" : onWaitlist ? "#E8C5B5" : isFull ? "#F5C6C6" : "var(--border)";
-                                  return (
-                                    <div key={cls.id} onClick={() => setDetailClass(cls)}
-                                      style={{ background: bg, border: `1px solid ${border}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
-                                      onMouseEnter={e => e.currentTarget.style.opacity = "0.75"}
-                                      onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                                      <div style={{ fontSize: "0.68rem", fontWeight: 500, color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatTime(cls.starts_at)} {cls.name}</div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })}
-                        </div>
+
+                  {/* Grid kalendarza */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.5rem", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                    {/* Nagłówki dni */}
+                    {weekDays.map((day, i) => (
+                      <div key={i} style={{ padding: "0.75rem 0.5rem", textAlign: "center", background: isToday(day) ? "var(--sage)" : "var(--cream)", borderBottom: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "0.75rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--mid)", textTransform: "uppercase" }}>{dayNames[i]}</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--charcoal)" }}>{day.getDate()}</div>
                       </div>
-                    );
-                  })()}
+                    ))}
+
+                    {/* Komórki z zajęciami */}
+                    {weekDays.map((day, i) => {
+                      const dayClasses = getClassesForDay(day);
+                      return (
+                        <div key={i} style={{ padding: "0.5rem", minHeight: 100, borderRight: i < 6 ? "1px solid var(--border)" : "none", background: isToday(day) ? "rgba(138,158,133,0.04)" : "transparent" }}>
+                          {dayClasses.length === 0
+                            ? <div style={{ fontSize: "0.7rem", color: "var(--border)", textAlign: "center", marginTop: "1rem" }}>—</div>
+                            : dayClasses.map(cls => <ClassPill key={cls.id} cls={cls} />)}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legenda */}
                   <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                    {[["#EBF5EA","#8A9E85","Zapisana"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["var(--cream)","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
+                    {[["#EBF5EA","#8A9E85","Zapisana"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["white","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
                         <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
                         {label}
@@ -616,20 +648,41 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
               <h3>Historia moich zajęć</h3>
               <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{pastMyClasses.length} zajęć</span>
             </div>
+            {/* Powiadomienia push */}
+            <div className="card" style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <span style={{ fontSize: "1.5rem" }}>🔔</span>
+                <div>
+                  <div style={{ fontWeight: 500 }}>{pushEnabled ? "Powiadomienia włączone" : "Powiadomienia push"}</div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{pushEnabled ? "Otrzymasz powiadomienia o zajęciach" : "Włącz aby dostawać powiadomienia na telefon"}</div>
+                </div>
+              </div>
+              {pushEnabled
+                ? <span style={{ color: "var(--sage-dark)", fontSize: "0.875rem", fontWeight: 500 }}>✅ Aktywne</span>
+                : <button className="btn btn-primary btn-sm" onClick={registerPush}>Włącz</button>}
+            </div>
+
             {pastMyClasses.length === 0
               ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Nie byłaś jeszcze na żadnych zajęciach.</p></div>
               : <div className="table-wrapper"><table>
-                <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Czas</th><th>Płatność</th><th>Cena</th></tr></thead>
-                <tbody>{pastMyClasses.map(b => (
+                <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Płatność</th><th>Cena</th><th>Ocena</th></tr></thead>
+                <tbody>{pastMyClasses.map(b => {
+                  const rated = getRating(b.class_id);
+                  return (
                   <tr key={b.id}>
                     <td><strong>{b.classes?.name}</strong></td>
                     <td>{formatDateShort(b.classes?.starts_at)}</td>
                     <td>{formatTime(b.classes?.starts_at)}</td>
-                    <td>{b.classes?.duration_min} min</td>
                     <td>{b.payment_method === "entries" ? "🎫" : "💵"}</td>
                     <td>{b.classes?.price_pln ? `${b.classes.price_pln} zł` : "—"}</td>
+                    <td>
+                      {rated
+                        ? <span style={{ cursor: "pointer", fontSize: "0.85rem" }} onClick={() => { setShowRatingModal(b.classes); setRatingValue(rated.rating); setRatingComment(rated.comment || ""); }}>{"⭐".repeat(rated.rating)}</span>
+                        : <button className="btn btn-secondary btn-sm" onClick={() => { setShowRatingModal(b.classes); setRatingValue(5); setRatingComment(""); }}>Oceń</button>}
+                    </td>
                   </tr>
-                ))}</tbody></table></div>}
+                  );
+                })}</tbody></table></div>}
           </>
         )}
       </main>
@@ -638,11 +691,49 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
       {showBookModal && <BookModal cls={showBookModal} onClose={() => setShowBookModal(null)} />}
       {showCancelWarning && <CancelWarningModal booking={showCancelWarning} onClose={() => setShowCancelWarning(null)} />}
 
+      {/* Modal oceny zajęć */}
+      {showRatingModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRatingModal(null)}>
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>Oceń zajęcia</h3>
+              <button className="modal-close" onClick={() => setShowRatingModal(null)}>×</button>
+            </div>
+            <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>
+              <strong>{showRatingModal?.name}</strong><br/>
+              {showRatingModal?.starts_at && formatDate(showRatingModal.starts_at)}
+            </p>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label className="form-label">Twoja ocena</label>
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                {[1,2,3,4,5].map(star => (
+                  <button key={star} onClick={() => setRatingValue(star)}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", opacity: star <= ratingValue ? 1 : 0.3, transition: "opacity 0.15s" }}>
+                    ⭐
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginTop: "0.4rem" }}>
+                {["","Słabe","Poniżej oczekiwań","W porządku","Bardzo dobre","Doskonałe!"][ratingValue]}
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Komentarz (opcjonalnie)</label>
+              <textarea className="form-input" rows={3} placeholder="Co Ci się podobało? Co można poprawić?"
+                value={ratingComment} onChange={e => setRatingComment(e.target.value)}
+                style={{ resize: "none" }} />
+            </div>
+            <button className="btn btn-primary btn-full" onClick={() => handleSubmitRating(showRatingModal)}>
+              Wyślij ocenę ⭐
+            </button>
+          </div>
+        </div>
+      )}
+
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>Zajęcia</span></div>
         <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>Rezerwacje</span></div>
         <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
-        <div className="mobile-nav-item" onClick={() => setDarkMode(!darkMode)}><span className="mobile-nav-icon">{darkMode ? "☀️" : "🌙"}</span><span>{darkMode ? "Jasny" : "Ciemny"}</span></div>
       </nav>
     </div>
   );

@@ -30,6 +30,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [cancelReason, setCancelReason] = useState("");
   const [messageText, setMessageText] = useState("");
   const [message, setMessage] = useState(null);
+  const [allRatings, setAllRatings] = useState([]);
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportView, setReportView] = useState("summary");
@@ -72,6 +73,11 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       totalBookings: (bookingData || []).filter(b => b.classes?.starts_at >= now).length,
       uniqueClients: (profileData || []).length,
     });
+    // Pobierz oceny
+    const { data: ratingsData } = await supabase.from("class_ratings")
+      .select("*, profiles(first_name, last_name), classes(name, starts_at))")
+      .order("created_at", { ascending: false });
+    setAllRatings(ratingsData || []);
     setLoading(false);
   }
 
@@ -448,6 +454,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => setTab("stats")}><span className="nav-icon">📊</span> Statystyki</div>
           <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}><span className="nav-icon">📋</span> Historia</div>
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => setTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
+          <div className={`nav-item ${tab === "ratings" ? "active" : ""}`} onClick={() => setTab("ratings")}><span className="nav-icon">⭐</span> Oceny</div>
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => setTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
         </nav>
         <div className="sidebar-footer">
@@ -843,7 +850,54 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 ))}
               </div>
             </div>
-            <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Najpopularniejsze godziny</h3></div>
+            {/* Wykres przychodów miesięcznych */}
+          <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Przychody — ostatnie 6 miesięcy</h3></div>
+          <div className="card" style={{ marginBottom: "2rem", padding: "1.5rem" }}>
+            {(() => {
+              const months = [];
+              for (let i = 5; i >= 0; i--) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const m = d.getMonth() + 1;
+                const y = d.getFullYear();
+                const monthBookings = allBookings.filter(b => {
+                  const bd = new Date(b.classes?.starts_at);
+                  return bd.getMonth() + 1 === m && bd.getFullYear() === y;
+                });
+                const monthClasses = classes.filter(c => {
+                  const cd = new Date(c.starts_at);
+                  return cd.getMonth() + 1 === m && cd.getFullYear() === y;
+                });
+                const revenue = monthBookings.reduce((s, b) => s + (b.classes?.price_pln || 0), 0);
+                const costs = monthClasses.reduce((s, c) => s + (c.venue_cost_pln || 0), 0);
+                months.push({ label: monthName(m).slice(0, 3), revenue, costs, profit: revenue - costs });
+              }
+              const maxVal = Math.max(...months.map(m => m.revenue), 1);
+              return (
+                <div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", height: 180, marginBottom: "0.75rem" }}>
+                    {months.map((m, i) => (
+                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem", height: "100%" }}>
+                        <div style={{ fontSize: "0.7rem", color: "var(--mid)" }}>{m.revenue > 0 ? `${m.revenue}` : ""}</div>
+                        <div style={{ flex: 1, width: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 2 }}>
+                          <div style={{ width: "100%", background: "var(--sage)", borderRadius: "4px 4px 0 0", height: `${(m.revenue / maxVal) * 140}px`, minHeight: m.revenue > 0 ? 4 : 0, transition: "height 0.3s" }} title={`Przychód: ${m.revenue} zł`} />
+                          {m.costs > 0 && <div style={{ width: "100%", background: "var(--clay)", height: `${(m.costs / maxVal) * 140}px`, minHeight: 2 }} title={`Koszt sali: ${m.costs} zł`} />}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--mid)", fontWeight: 500 }}>{m.label}</div>
+                        <div style={{ fontSize: "0.7rem", color: m.profit >= 0 ? "var(--sage-dark)" : "#C44B4B" }}>{m.profit > 0 ? `+${m.profit}` : m.profit} zł</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}><div style={{ width: 12, height: 12, background: "var(--sage)", borderRadius: 2 }} />Przychód</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}><div style={{ width: 12, height: 12, background: "var(--clay)", borderRadius: 2 }} />Koszty sal</div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Najpopularniejsze godziny</h3></div>
             <div className="card">
               {topHours.length === 0 ? <p style={{ color: "var(--mid)" }}>Brak danych</p>
                 : topHours.map(([hour, count], i) => (
@@ -1052,6 +1106,51 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         )}
       </main>
 
+        {/* OCENY */}
+        {tab === "ratings" && (
+          <>
+            <div className="page-header"><h2>Oceny zajęć</h2><p>Opinie klientek po zajęciach</p></div>
+            {allRatings.length === 0
+              ? <div className="empty-state"><div className="empty-icon">⭐</div><p>Brak ocen</p></div>
+              : (
+                <>
+                  {/* Podsumowanie */}
+                  <div className="stats-row" style={{ marginBottom: "1.5rem" }}>
+                    <div className="stat-card">
+                      <div className="stat-value">{allRatings.length}</div>
+                      <div className="stat-label">Wszystkich ocen</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value" style={{ color: "var(--sage-dark)" }}>
+                        {(allRatings.reduce((s, r) => s + r.rating, 0) / allRatings.length).toFixed(1)} ⭐
+                      </div>
+                      <div className="stat-label">Średnia ocena</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{allRatings.filter(r => r.rating === 5).length}</div>
+                      <div className="stat-label">Ocen 5 gwiazdek</div>
+                    </div>
+                  </div>
+
+                  {/* Lista ocen */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {allRatings.map((r, i) => (
+                      <div key={i} className="card" style={{ padding: "1rem 1.25rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{r.profiles?.first_name} {r.profiles?.last_name}</div>
+                            <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{r.classes?.name} · {r.classes?.starts_at ? new Date(r.classes.starts_at).toLocaleDateString("pl-PL") : ""}</div>
+                          </div>
+                          <div style={{ fontSize: "1.2rem" }}>{"⭐".repeat(r.rating)}</div>
+                        </div>
+                        {r.comment && <p style={{ fontSize: "0.875rem", color: "var(--charcoal)", fontStyle: "italic", borderTop: "1px solid var(--border)", paddingTop: "0.5rem", marginTop: "0.5rem" }}>"{r.comment}"</p>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+          </>
+        )}
       {/* Mobile nav */}
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>Kalendarz</span></div>
