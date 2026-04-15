@@ -372,9 +372,10 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <div className="sidebar-logo" onClick={() => setTab("upcoming")} style={{ cursor: "pointer" }}>
-          <img src="/logo.png" alt="Paulina Pilates Studio" style={{ width: "100%", maxWidth: 160, height: "auto" }} />
-        </div>
+        <div className="sidebar-logo" ...>
+  <img src="/logo.png" alt="Paulina Pilates Studio" 
+    style={{ width: "100%", maxWidth: 160, height: "auto" }} />
+</div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>
           <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> Moje rezerwacje</div>
@@ -612,6 +613,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
         <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>Zajęcia</span></div>
         <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>Rezerwacje</span></div>
         <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
+        <div className="mobile-nav-item" onClick={() => setDarkMode(!darkMode)}><span className="mobile-nav-icon">{darkMode ? "☀️" : "🌙"}</span><span>{darkMode ? "Jasny" : "Ciemny"}</span></div>
       </nav>
     </div>
   );

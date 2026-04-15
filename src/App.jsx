@@ -12,7 +12,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
     if (saved !== null) return saved === "true";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return false; // domyślnie tryb jasny
   });
 
   useEffect(() => {

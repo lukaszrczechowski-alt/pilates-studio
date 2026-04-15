@@ -429,9 +429,10 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       <style>{`@media print { .sidebar,.mobile-nav,.no-print{display:none!important} .main-content{margin-left:0!important;padding:0!important} .print-header{display:block!important} } .print-header{display:none}`}</style>
 
       <aside className="sidebar">
-        <div className="sidebar-logo" onClick={() => setTab("classes")} style={{ cursor: "pointer" }}>
-          <img src="/logo.png" alt="Paulina Pilates Studio" style={{ width: "100%", maxWidth: 160, height: "auto" }} />
-        </div>
+        <div className="sidebar-logo" ...>
+  <img src="/logo.png" alt="Paulina Pilates Studio" 
+    style={{ width: "100%", maxWidth: 160, height: "auto" }} />
+</div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => setTab("classes")}><span className="nav-icon">🗓</span> Zajęcia</div>
           <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="nav-icon">📅</span> Kalendarz</div>
@@ -1060,6 +1061,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         </div>
         <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}><span className="mobile-nav-icon">📈</span><span>Raporty</span></div>
         <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => setTab("clients")}><span className="mobile-nav-icon">👥</span><span>Klienci</span></div>
+        <div className="mobile-nav-item" onClick={() => setDarkMode(!darkMode)}><span className="mobile-nav-icon">{darkMode ? "☀️" : "🌙"}</span><span>{darkMode ? "Jasny" : "Ciemny"}</span></div>
       </nav>
 
       {/* MODAL - Nowe/edytuj zajęcia */}
