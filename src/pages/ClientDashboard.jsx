@@ -41,7 +41,6 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   async function fetchData() {
     setLoading(true);
     const now = new Date().toISOString();
-    // Zajęcia od początku bieżącego miesiąca (do kalendarza)
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -187,7 +186,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   function formatDateShort(iso) { return new Date(iso).toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" }); }
   function formatTime(iso) { return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }); }
 
-  const upcomingMyClasses = myBookings.filter(b => b.classes?.starts_at && new Date(b.classes.starts_at) >= new Date());
+  const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date());
   const pastMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) < new Date())
     .sort((a, b) => new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at));
   const currentMonth = new Date().getMonth() + 1;
@@ -290,20 +289,34 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   // Push notifications
   async function registerPush() {
     try {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        showMsg("Twoja przeglądarka nie obsługuje powiadomień push.", "error");
+      // Sprawdź czy to iOS Safari poza PWA
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+      if (isIOS && !isInStandaloneMode) {
+        showMsg("Na iPhone: dodaj aplikację do ekranu głównego przez Safari → 'Dodaj do ekranu początk.' — potem powiadomienia będą działać.", "error");
         return;
       }
+
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        if (isIOS) {
+          showMsg("Powiadomienia push wymagają iOS 16.4+ i dodania aplikacji do ekranu głównego.", "error");
+        } else {
+          showMsg("Twoja przeglądarka nie obsługuje powiadomień push.", "error");
+        }
+        return;
+      }
+
       const reg = await navigator.serviceWorker.register('/sw.js');
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        showMsg("Powiadomienia zablokowane — włącz je w ustawieniach przeglądarki.", "error");
+        showMsg("Powiadomienia zablokowane — włącz je w Ustawienia → Safari → Powiadomienia.", "error");
         return;
       }
       setPushEnabled(true);
       showMsg("Powiadomienia push włączone! ✓");
     } catch (err) {
-      showMsg("Błąd przy włączaniu powiadomień.", "error");
+      showMsg("Błąd przy włączaniu powiadomień: " + err.message, "error");
     }
   }
 
@@ -483,64 +496,43 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
               : classes.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
               : viewMode === "calendar" ? (
-                /* WIDOK KALENDARZA MIESIĘCZNEGO */
+                /* WIDOK KALENDARZA */
                 <div>
+                  {/* Nawigacja tygodnia */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setCalendarWeek(d); }}>← Poprzedni</button>
-                    <span style={{ fontWeight: 500, fontSize: "1rem" }}>{calendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setCalendarWeek(d); }}>Następny →</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setDate(d.getDate() - 7); setCalendarWeek(d); }}>← Poprzedni tydzień</button>
+                    <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>
+                      {weekDays[0].toLocaleDateString("pl-PL", { day: "numeric", month: "long" })} – {weekDays[6].toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" })}
+                    </span>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setDate(d.getDate() + 7); setCalendarWeek(d); }}>Następny tydzień →</button>
                   </div>
-                  {(() => {
-                    const year = calendarWeek.getFullYear();
-                    const month = calendarWeek.getMonth();
-                    const firstDay = new Date(year, month, 1);
-                    const lastDay = new Date(year, month + 1, 0);
-                    const mDayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
-                    let startOffset = firstDay.getDay() - 1;
-                    if (startOffset < 0) startOffset = 6;
-                    const cells = [];
-                    for (let i = 0; i < startOffset; i++) cells.push(null);
-                    for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(year, month, d));
-                    while (cells.length % 7 !== 0) cells.push(null);
-                    return (
-                      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
-                          {mDayNames.map(d => <div key={d} style={{ padding: "0.6rem 0.25rem", textAlign: "center", background: "var(--cream)", fontSize: "0.75rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase" }}>{d}</div>)}
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-                          {cells.map((day, i) => {
-                            if (!day) return <div key={i} style={{ minHeight: 80, background: "var(--cream)", opacity: 0.3, borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)" }} />;
-                            const dayClasses = getClassesForDay(day);
-                            const today = isToday(day);
-                            return (
-                              <div key={i} style={{ minHeight: 80, padding: "0.3rem", borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)", background: today?"rgba(138,158,133,0.06)":"transparent" }}>
-                                <div style={{ fontSize: "0.8rem", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: today?"var(--sage)":"transparent", color: today?"white":"var(--charcoal)", marginBottom: "0.2rem", fontWeight: today?600:400 }}>{day.getDate()}</div>
-                                {dayClasses.map(cls => {
-                                  const booked = isBooked(cls.id);
-                                  const onWaitlist = isOnWaitlist(cls.id);
-                                  const count = getBookedCount(cls);
-                                  const isFull = count >= cls.max_spots;
-                                  const bg = booked?"#EBF5EA":onWaitlist?"#FEF3E8":isFull?"#FDE8E8":"var(--cream)";
-                                  const color = booked?"#5C7A56":onWaitlist?"#B87333":isFull?"#C44B4B":"var(--charcoal)";
-                                  const border = booked?"#8A9E85":onWaitlist?"#E8C5B5":isFull?"#F5C6C6":"var(--border)";
-                                  return (
-                                    <div key={cls.id} onClick={() => setDetailClass(cls)}
-                                      style={{ background: bg, border: `1px solid ${border}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
-                                      onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
-                                      onMouseLeave={e => e.currentTarget.style.opacity="1"}>
-                                      <div style={{ fontSize: "0.68rem", fontWeight: 500, color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatTime(cls.starts_at)} {cls.name}</div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })}
-                        </div>
+
+                  {/* Grid kalendarza */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.5rem", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                    {/* Nagłówki dni */}
+                    {weekDays.map((day, i) => (
+                      <div key={i} style={{ padding: "0.75rem 0.5rem", textAlign: "center", background: isToday(day) ? "var(--sage)" : "var(--cream)", borderBottom: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "0.75rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--mid)", textTransform: "uppercase" }}>{dayNames[i]}</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--charcoal)" }}>{day.getDate()}</div>
                       </div>
-                    );
-                  })()}
+                    ))}
+
+                    {/* Komórki z zajęciami */}
+                    {weekDays.map((day, i) => {
+                      const dayClasses = getClassesForDay(day);
+                      return (
+                        <div key={i} style={{ padding: "0.5rem", minHeight: 100, borderRight: i < 6 ? "1px solid var(--border)" : "none", background: isToday(day) ? "rgba(138,158,133,0.04)" : "transparent" }}>
+                          {dayClasses.length === 0
+                            ? <div style={{ fontSize: "0.7rem", color: "var(--border)", textAlign: "center", marginTop: "1rem" }}>—</div>
+                            : dayClasses.map(cls => <ClassPill key={cls.id} cls={cls} />)}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legenda */}
                   <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                    {[["#EBF5EA","#8A9E85","Zapisana"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["var(--cream)","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
+                    {[["#EBF5EA","#8A9E85","Zapisana"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["white","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
                         <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
                         {label}
@@ -671,18 +663,34 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
               <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{pastMyClasses.length} zajęć</span>
             </div>
             {/* Powiadomienia push */}
-            <div className="card" style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <span style={{ fontSize: "1.5rem" }}>🔔</span>
-                <div>
-                  <div style={{ fontWeight: 500 }}>{pushEnabled ? "Powiadomienia włączone" : "Powiadomienia push"}</div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{pushEnabled ? "Otrzymasz powiadomienia o zajęciach" : "Włącz aby dostawać powiadomienia na telefon"}</div>
+            {(() => {
+              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+              const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+              const iosNotReady = isIOS && !isStandalone;
+              return (
+                <div className="card" style={{ marginBottom: "1.25rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "1.5rem" }}>🔔</span>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{pushEnabled ? "Powiadomienia włączone" : "Powiadomienia push"}</div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>
+                          {pushEnabled ? "Otrzymasz powiadomienia o zajęciach" : iosNotReady ? "Wymaga dodania do ekranu głównego" : "Włącz aby dostawać powiadomienia na telefon"}
+                        </div>
+                      </div>
+                    </div>
+                    {pushEnabled
+                      ? <span style={{ color: "var(--sage-dark)", fontSize: "0.875rem", fontWeight: 500 }}>✅ Aktywne</span>
+                      : <button className="btn btn-primary btn-sm" onClick={registerPush}>Włącz</button>}
+                  </div>
+                  {iosNotReady && !pushEnabled && (
+                    <div style={{ marginTop: "0.75rem", background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", fontSize: "0.8rem", color: "#8B5A2B" }}>
+                      📱 Na iPhone: otwórz w Safari → kliknij <strong>□↑</strong> → <strong>"Dodaj do ekranu głównego"</strong> → otwórz aplikację stamtąd
+                    </div>
+                  )}
                 </div>
-              </div>
-              {pushEnabled
-                ? <span style={{ color: "var(--sage-dark)", fontSize: "0.875rem", fontWeight: 500 }}>✅ Aktywne</span>
-                : <button className="btn btn-primary btn-sm" onClick={registerPush}>Włącz</button>}
-            </div>
+              );
+            })()}
 
             {pastMyClasses.length === 0
               ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Nie byłaś jeszcze na żadnych zajęciach.</p></div>
