@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
-import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
+import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
 
 export default function ClientDashboard({ session, profile }) {
   const [tab, setTab] = useState("upcoming");
+  const [viewMode, setViewMode] = useState("calendar"); // calendar | list
   const [classes, setClasses] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [myWaitlist, setMyWaitlist] = useState([]);
@@ -14,14 +15,27 @@ export default function ClientDashboard({ session, profile }) {
   const [detailClass, setDetailClass] = useState(null);
   const [showCancelWarning, setShowCancelWarning] = useState(null);
   const [showBookModal, setShowBookModal] = useState(null);
+  const [calendarWeek, setCalendarWeek] = useState(getMonday(new Date()));
+
+  function getMonday(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
 
   useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
     setLoading(true);
     const now = new Date().toISOString();
-    const { data: classData } = await supabase.from("classes").select("*, bookings(*), waitlist(*)")
-      .gte("starts_at", now).order("starts_at", { ascending: true });
+    const { data: classData } = await supabase.from("classes")
+      .select("*, bookings(*), waitlist(*)")
+      .gte("starts_at", now)
+      .eq("cancelled", false)
+      .order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings").select("*, classes(*)")
       .eq("user_id", session.user.id).order("created_at", { ascending: false });
     const { data: waitlistData } = await supabase.from("waitlist").select("*, classes(*)")
@@ -65,43 +79,30 @@ export default function ClientDashboard({ session, profile }) {
     setActionLoading(cls.id);
     const month = new Date(cls.starts_at).getMonth() + 1;
     const year = new Date(cls.starts_at).getFullYear();
-
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("amount")
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
       if (!tok || tok.amount <= 0) {
-        showMsg("Nie masz dostępnych wejść na " + monthName(month) + ". Wybierz gotówkę.", "error");
+        showMsg("Brak wejść na " + monthName(month) + ". Wybierz gotówkę.", "error");
         setActionLoading(null); return;
       }
     }
-
-    const { error } = await supabase.from("bookings").insert({
-      class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod,
-    });
+    const { error } = await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod });
     if (error) { showMsg("Błąd przy zapisie.", "error"); setActionLoading(null); return; }
-
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("*")
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis na zajęcia: ${cls.name}` });
+        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis: ${cls.name}` });
       }
     }
-
-    // Email potwierdzenie zapisu
     await sendEmail("booking_confirmed", profile.email, {
-      firstName: profile.first_name,
-      className: cls.name,
-      date: formatEmailDate(cls.starts_at),
-      time: formatEmailTime(cls.starts_at),
-      duration: cls.duration_min,
-      location: cls.location || "",
-      notes: cls.notes || "",
-      paymentMethod,
+      firstName: profile.first_name, className: cls.name,
+      date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at),
+      duration: cls.duration_min, location: cls.location || "", notes: cls.notes || "", paymentMethod,
     });
-
-    showMsg(paymentMethod === "entries" ? "Zapisano! Zdjęto 1 wejście. ✓" : "Zapisano! Płatność gotówką na miejscu. ✓");
+    showMsg(paymentMethod === "entries" ? "Zapisano! Zdjęto 1 wejście. ✓" : "Zapisano! Płatność gotówką. ✓");
     setShowBookModal(null); setDetailClass(null);
     await fetchData(); setActionLoading(null);
   }
@@ -111,13 +112,9 @@ export default function ClientDashboard({ session, profile }) {
     if (!cls) return;
     const status = cancelStatus(cls.starts_at);
     if (status === "after_cutoff" && !force) { setShowCancelWarning(booking); setDetailClass(null); return; }
-
     setActionLoading(booking.class_id || booking.id);
     await supabase.from("bookings").delete().eq("id", booking.id);
-
-    let refunded = false;
-    let lostEntry = false;
-
+    let refunded = false, lostEntry = false;
     if (booking.payment_method === "entries" && status === "free") {
       const month = new Date(cls.starts_at).getMonth() + 1;
       const year = new Date(cls.starts_at).getFullYear();
@@ -125,43 +122,30 @@ export default function ClientDashboard({ session, profile }) {
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount + 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "add", amount: 1, month, year, note: "Zwrot wejścia — anulowanie rezerwacji" });
+        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "add", amount: 1, month, year, note: "Zwrot — anulowanie" });
         refunded = true;
       }
     } else if (booking.payment_method === "entries" && status === "after_cutoff") {
       lostEntry = true;
     }
-
-    // Email anulowanie
     await sendEmail("booking_cancelled", profile.email, {
-      firstName: profile.first_name,
-      className: cls.name,
-      date: formatEmailDate(cls.starts_at),
-      time: formatEmailTime(cls.starts_at),
-      refunded,
-      lostEntry,
+      firstName: profile.first_name, className: cls.name,
+      date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at),
+      refunded, lostEntry,
     });
-
-    if (refunded) showMsg("Anulowano. Wejście wróciło na konto. ✓");
-    else if (lostEntry) showMsg("Anulowano. Wejście przepadło (po 12:00).", "error");
-    else showMsg("Anulowano rezerwację.");
-
-    // Awansuj z kolejki
     const { data: waitlistFirst } = await supabase.from("waitlist").select("*, profiles(first_name, email)")
       .eq("class_id", cls.id).order("created_at", { ascending: true }).limit(1);
     if (waitlistFirst?.length > 0) {
       await supabase.from("bookings").insert({ class_id: cls.id, user_id: waitlistFirst[0].user_id, payment_method: "cash" });
       await supabase.from("waitlist").delete().eq("id", waitlistFirst[0].id);
-      // Email do osoby z kolejki
       await sendEmail("waitlist_promoted", waitlistFirst[0].profiles?.email, {
-        firstName: waitlistFirst[0].profiles?.first_name,
-        className: cls.name,
-        date: formatEmailDate(cls.starts_at),
-        time: formatEmailTime(cls.starts_at),
-        location: cls.location || "",
+        firstName: waitlistFirst[0].profiles?.first_name, className: cls.name,
+        date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at), location: cls.location || "",
       });
     }
-
+    if (refunded) showMsg("Anulowano. Wejście wróciło. ✓");
+    else if (lostEntry) showMsg("Anulowano. Wejście przepadło (po 12:00).", "error");
+    else showMsg("Anulowano rezerwację.");
     setShowCancelWarning(null); setDetailClass(null);
     await fetchData(); setActionLoading(null);
   }
@@ -192,6 +176,42 @@ export default function ClientDashboard({ session, profile }) {
   const currentYear = new Date().getFullYear();
   const currentTokens = myTokens.find(t => t.month === currentMonth && t.year === currentYear);
 
+  // Kalendarz tygodniowy
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(calendarWeek);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const dayNames = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+
+  function getClassesForDay(date) {
+    return classes.filter(cls => {
+      const d = new Date(cls.starts_at);
+      return d.toDateString() === date.toDateString();
+    });
+  }
+
+  function isToday(date) { return date.toDateString() === new Date().toDateString(); }
+
+  function ClassPill({ cls }) {
+    const booked = isBooked(cls.id);
+    const onWaitlist = isOnWaitlist(cls.id);
+    const count = getBookedCount(cls);
+    const isFull = count >= cls.max_spots;
+    let bg = booked ? "#EBF5EA" : onWaitlist ? "#FEF3E8" : isFull ? "#FDE8E8" : "white";
+    let border = booked ? "#8A9E85" : onWaitlist ? "#E8C5B5" : isFull ? "#F5C6C6" : "var(--border)";
+    let color = booked ? "#5C7A56" : onWaitlist ? "#B87333" : isFull ? "#C44B4B" : "var(--charcoal)";
+    return (
+      <div onClick={() => setDetailClass(cls)} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "0.4rem 0.6rem", cursor: "pointer", marginBottom: "0.3rem", transition: "opacity 0.15s" }}
+        onMouseEnter={e => e.currentTarget.style.opacity = "0.85"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+        <div style={{ fontSize: "0.78rem", fontWeight: 500, color }}>{formatTime(cls.starts_at)}</div>
+        <div style={{ fontSize: "0.75rem", color: "var(--charcoal)", fontWeight: booked ? 500 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cls.name}</div>
+        <div style={{ fontSize: "0.7rem", color: "var(--light)", marginTop: 1 }}>{count}/{cls.max_spots} miejsc</div>
+      </div>
+    );
+  }
+
   function BookModal({ cls, onClose }) {
     const [method, setMethod] = useState("cash");
     const month = new Date(cls.starts_at).getMonth() + 1;
@@ -202,7 +222,7 @@ export default function ClientDashboard({ session, profile }) {
         <div className="modal" style={{ maxWidth: 440 }}>
           <div className="modal-header"><h3>Wybierz sposób płatności</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>
-            Zapisujesz się na: <strong>{cls.name}</strong><br/>{formatDate(cls.starts_at)}, {formatTime(cls.starts_at)}{cls.price_pln ? ` · ${cls.price_pln} zł` : ""}
+            <strong>{cls.name}</strong><br/>{formatDate(cls.starts_at)}, {formatTime(cls.starts_at)}{cls.price_pln ? ` · ${cls.price_pln} zł` : ""}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
             <div onClick={() => setMethod("cash")} style={{ border: `2px solid ${method === "cash" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: "pointer", background: method === "cash" ? "#EBF5EA" : "var(--warm-white)", transition: "all 0.15s" }}>
@@ -214,17 +234,13 @@ export default function ClientDashboard({ session, profile }) {
             <div onClick={() => classEntries > 0 && setMethod("entries")} style={{ border: `2px solid ${method === "entries" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: classEntries > 0 ? "pointer" : "not-allowed", background: method === "entries" ? "#EBF5EA" : classEntries === 0 ? "var(--cream)" : "var(--warm-white)", opacity: classEntries === 0 ? 0.6 : 1, transition: "all 0.15s" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>🎫</span>
-                <div><div style={{ fontWeight: 500 }}>Wejście z karnetu</div><div style={{ fontSize: "0.8rem", color: classEntries > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{classEntries > 0 ? `Masz ${classEntries} ${classEntries === 1 ? "wejście" : classEntries < 5 ? "wejścia" : "wejść"} na ${monthName(month)}` : `Brak wejść na ${monthName(month)}`}</div></div>
+                <div><div style={{ fontWeight: 500 }}>Wejście z karnetu</div><div style={{ fontSize: "0.8rem", color: classEntries > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{classEntries > 0 ? `Masz ${classEntries} wejść na ${monthName(month)}` : `Brak wejść na ${monthName(month)}`}</div></div>
               </div>
             </div>
           </div>
-          {method === "entries" && classEntries > 0 && (
-            <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>
-              ⚠️ Zapis od razu zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.
-            </div>
-          )}
+          {method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.</div>}
           <button className="btn btn-primary btn-full" onClick={() => handleBook(cls, method)} disabled={actionLoading === cls.id || (method === "entries" && classEntries === 0)}>
-            {actionLoading === cls.id ? "Zapisuję..." : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka na miejscu)"}
+            {actionLoading === cls.id ? "Zapisuję..." : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka)"}
           </button>
         </div>
       </div>
@@ -239,13 +255,13 @@ export default function ClientDashboard({ session, profile }) {
         <div className="modal" style={{ maxWidth: 420 }}>
           <div className="modal-header"><h3>Uwaga — późne anulowanie</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <div style={{ background: "#FDE8E8", border: "1px solid #F5C6C6", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>Jest po 12:00 w dniu zajęć. {loseEntry ? <strong>Stracisz 1 wejście.</strong> : "Możesz anulować bez konsekwencji."}</p>
+            <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>Po 12:00 w dniu zajęć. {loseEntry ? <strong>Stracisz 1 wejście.</strong> : "Bez konsekwencji."}</p>
           </div>
-          <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>Zajęcia: <strong>{cls?.name}</strong><br/>{cls?.starts_at && formatDate(cls.starts_at)}</p>
+          <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}><strong>{cls?.name}</strong><br/>{cls?.starts_at && formatDate(cls.starts_at)}</p>
           <div style={{ display: "flex", gap: "0.75rem" }}>
             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Zostań zapisana</button>
             <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => handleCancel(booking, true)} disabled={actionLoading === booking.class_id}>
-              {actionLoading === booking.class_id ? "..." : loseEntry ? "Anuluj (stracę wejście)" : "Anuluj"}
+              {loseEntry ? "Anuluj (stracę wejście)" : "Anuluj"}
             </button>
           </div>
         </div>
@@ -267,18 +283,13 @@ export default function ClientDashboard({ session, profile }) {
         <div className="modal" style={{ maxWidth: 500 }}>
           <div className="modal-header"><h3>{cls.name}</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <div style={{ marginBottom: "1.25rem" }}>
-            {booked ? <span className="class-badge badge-yours">Jesteś zapisana · {booking?.payment_method === "entries" ? "🎫 wejście" : "💵 gotówka"}</span>
-              : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>Jesteś w kolejce</span>
+            {booked ? <span className="class-badge badge-yours">Zapisana · {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
+              : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
               : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
               : <span className="class-badge badge-open">Wolne miejsca</span>}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem" }}>
-            {[
-              { icon: "📅", label: "Data", val: formatDate(cls.starts_at) },
-              { icon: "🕐", label: "Godzina", val: `${formatTime(cls.starts_at)} · ${cls.duration_min} min` },
-              cls.location && { icon: "📍", label: "Lokalizacja", val: cls.location },
-              cls.price_pln && { icon: "💰", label: "Cena", val: `${cls.price_pln} zł` },
-            ].filter(Boolean).map((item, i) => (
+            {[{ icon: "📅", label: "Data", val: formatDate(cls.starts_at) }, { icon: "🕐", label: "Godzina", val: `${formatTime(cls.starts_at)} · ${cls.duration_min} min` }, cls.location && { icon: "📍", label: "Lokalizacja", val: cls.location }, cls.price_pln && { icon: "💰", label: "Cena", val: `${cls.price_pln} zł` }].filter(Boolean).map((item, i) => (
               <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                 <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
                 <div><div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div><div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{item.val}</div></div>
@@ -293,21 +304,19 @@ export default function ClientDashboard({ session, profile }) {
               </div>
             </div>
           </div>
-          {cls.notes && (
-            <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
-              <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>📌 Informacje dodatkowe</div>
-              <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{cls.notes}</p>
-            </div>
-          )}
+          {cls.notes && <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
+            <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>📌 Informacje dodatkowe</div>
+            <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{cls.notes}</p>
+          </div>}
           {booked ? (
             <>
               {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
               <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Anuluj rezerwację"}</button>
             </>
           ) : onWaitlist ? (
-            <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}</button>
+            <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)}>{actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}</button>
           ) : isFull ? (
-            <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Dołącz do kolejki"}</button>
+            <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)}>{actionLoading === cls.id ? "..." : "Dołącz do kolejki"}</button>
           ) : (
             <button className="btn btn-primary btn-full" onClick={() => { onClose(); setShowBookModal(cls); }}>Zapisz się →</button>
           )}
@@ -339,16 +348,74 @@ export default function ClientDashboard({ session, profile }) {
 
         {tab === "upcoming" && (
           <>
-            <div className="page-header"><h2>Nadchodzące zajęcia</h2><p>Kliknij w zajęcia, aby zobaczyć szczegóły</p></div>
+            {/* Nagłówek z przełącznikiem widoku */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div className="page-header" style={{ margin: 0 }}>
+                <h2>Nadchodzące zajęcia</h2>
+                <p>Kliknij w zajęcia, aby się zapisać</p>
+              </div>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <button className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("calendar")}>📅 Kalendarz</button>
+                <button className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("list")}>☰ Lista</button>
+              </div>
+            </div>
+
             {currentTokens && currentTokens.amount > 0 && (
               <div className="card" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>🎫</span>
-                <div><div style={{ fontWeight: 500 }}>Wejścia w tym miesiącu: <strong style={{ color: "var(--sage-dark)" }}>{currentTokens.amount}</strong></div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Możesz użyć wejść z karnetu przy zapisie</div></div>
+                <div><div style={{ fontWeight: 500 }}>Wejścia w tym miesiącu: <strong style={{ color: "var(--sage-dark)" }}>{currentTokens.amount}</strong></div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Możesz użyć wejść przy zapisie</div></div>
               </div>
             )}
+
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
               : classes.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
-              : (
+              : viewMode === "calendar" ? (
+                /* WIDOK KALENDARZA */
+                <div>
+                  {/* Nawigacja tygodnia */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setDate(d.getDate() - 7); setCalendarWeek(d); }}>← Poprzedni tydzień</button>
+                    <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>
+                      {weekDays[0].toLocaleDateString("pl-PL", { day: "numeric", month: "long" })} – {weekDays[6].toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" })}
+                    </span>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setDate(d.getDate() + 7); setCalendarWeek(d); }}>Następny tydzień →</button>
+                  </div>
+
+                  {/* Grid kalendarza */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.5rem", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                    {/* Nagłówki dni */}
+                    {weekDays.map((day, i) => (
+                      <div key={i} style={{ padding: "0.75rem 0.5rem", textAlign: "center", background: isToday(day) ? "var(--sage)" : "var(--cream)", borderBottom: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "0.75rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--mid)", textTransform: "uppercase" }}>{dayNames[i]}</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--charcoal)" }}>{day.getDate()}</div>
+                      </div>
+                    ))}
+
+                    {/* Komórki z zajęciami */}
+                    {weekDays.map((day, i) => {
+                      const dayClasses = getClassesForDay(day);
+                      return (
+                        <div key={i} style={{ padding: "0.5rem", minHeight: 100, borderRight: i < 6 ? "1px solid var(--border)" : "none", background: isToday(day) ? "rgba(138,158,133,0.04)" : "transparent" }}>
+                          {dayClasses.length === 0
+                            ? <div style={{ fontSize: "0.7rem", color: "var(--border)", textAlign: "center", marginTop: "1rem" }}>—</div>
+                            : dayClasses.map(cls => <ClassPill key={cls.id} cls={cls} />)}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legenda */}
+                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                    {[["#EBF5EA","#8A9E85","Zapisana"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["white","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
+                        <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* WIDOK LISTY */
                 <div className="cards-grid">
                   {classes.map(cls => {
                     const booked = isBooked(cls.id);
@@ -377,7 +444,6 @@ export default function ClientDashboard({ session, profile }) {
                           <div className="spots-bar"><div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} /></div>
                           <p className="spots-text">{count} / {cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}</p>
                           {cls.notes && <p style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: "0.5rem", fontStyle: "italic" }}>📌 {cls.notes.length > 55 ? cls.notes.slice(0, 55) + "..." : cls.notes}</p>}
-                          <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>Kliknij, aby zobaczyć szczegóły →</p>
                         </div>
                       </div>
                     );
@@ -405,7 +471,7 @@ export default function ClientDashboard({ session, profile }) {
                         <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(b.classes?.starts_at)}</div>
                         <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(b.classes?.starts_at)} · {b.classes?.duration_min} min</div>
                       </div>
-                      {status === "after_cutoff" && <p style={{ fontSize: "0.75rem", color: "var(--clay)", marginTop: "0.5rem" }}>⚠️ Po 12:00 — anulowanie bez zwrotu wejścia</p>}
+                      {status === "after_cutoff" && <p style={{ fontSize: "0.75rem", color: "var(--clay)", marginTop: "0.5rem" }}>⚠️ Po 12:00 — anulowanie bez zwrotu</p>}
                       <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>Kliknij, aby zobaczyć szczegóły →</p>
                     </div>
                   </div>
@@ -442,11 +508,11 @@ export default function ClientDashboard({ session, profile }) {
                 <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
                   <div style={{ flex: 1, background: "var(--cream)", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--sage-dark)" }}>{myBookings.length}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Wszystkich zajęć</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>Wszystkich</div>
                   </div>
                   <div style={{ flex: 1, background: "var(--cream)", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--sage-dark)" }}>{pastMyClasses.length}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ukończonych</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>Ukończonych</div>
                   </div>
                 </div>
                 <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
@@ -459,9 +525,7 @@ export default function ClientDashboard({ session, profile }) {
                     {myTokens.map(t => (
                       <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: "1px solid var(--border)" }}>
                         <span style={{ color: "var(--mid)", fontSize: "0.875rem" }}>{monthName(t.month)} {t.year}</span>
-                        <span style={{ fontWeight: 600, color: t.amount > 0 ? "var(--sage-dark)" : "var(--light)", fontSize: "1.1rem" }}>
-                          {t.amount} {t.amount === 1 ? "wejście" : t.amount < 5 ? "wejścia" : "wejść"}
-                        </span>
+                        <span style={{ fontWeight: 600, color: t.amount > 0 ? "var(--sage-dark)" : "var(--light)", fontSize: "1.1rem" }}>{t.amount} {t.amount === 1 ? "wejście" : t.amount < 5 ? "wejścia" : "wejść"}</span>
                       </div>
                     ))}
                   </div>}
@@ -474,25 +538,18 @@ export default function ClientDashboard({ session, profile }) {
             </div>
             {pastMyClasses.length === 0
               ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Nie byłaś jeszcze na żadnych zajęciach.</p></div>
-              : (
-                <div className="table-wrapper">
-                  <table>
-                    <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Czas</th><th>Płatność</th><th>Cena</th></tr></thead>
-                    <tbody>
-                      {pastMyClasses.map(b => (
-                        <tr key={b.id}>
-                          <td><strong>{b.classes?.name}</strong></td>
-                          <td>{formatDateShort(b.classes?.starts_at)}</td>
-                          <td>{formatTime(b.classes?.starts_at)}</td>
-                          <td>{b.classes?.duration_min} min</td>
-                          <td>{b.payment_method === "entries" ? "🎫 wejście" : "💵 gotówka"}</td>
-                          <td>{b.classes?.price_pln ? `${b.classes.price_pln} zł` : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              : <div className="table-wrapper"><table>
+                <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Czas</th><th>Płatność</th><th>Cena</th></tr></thead>
+                <tbody>{pastMyClasses.map(b => (
+                  <tr key={b.id}>
+                    <td><strong>{b.classes?.name}</strong></td>
+                    <td>{formatDateShort(b.classes?.starts_at)}</td>
+                    <td>{formatTime(b.classes?.starts_at)}</td>
+                    <td>{b.classes?.duration_min} min</td>
+                    <td>{b.payment_method === "entries" ? "🎫" : "💵"}</td>
+                    <td>{b.classes?.price_pln ? `${b.classes.price_pln} zł` : "—"}</td>
+                  </tr>
+                ))}</tbody></table></div>}
           </>
         )}
       </main>
