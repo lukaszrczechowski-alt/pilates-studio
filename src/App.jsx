@@ -9,6 +9,20 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("darkMode");
+    if (saved !== null) return saved === "true";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    localStorage.setItem("darkMode", darkMode);
+  }, [darkMode]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -39,6 +53,6 @@ export default function App() {
   );
 
   if (!session) return <AuthPage />;
-  if (profile?.role === "admin") return <AdminDashboard session={session} profile={profile} />;
-  return <ClientDashboard session={session} profile={profile} />;
+  if (profile?.role === "admin") return <AdminDashboard session={session} profile={profile} darkMode={darkMode} setDarkMode={setDarkMode} />;
+  return <ClientDashboard session={session} profile={profile} darkMode={darkMode} setDarkMode={setDarkMode} />;
 }

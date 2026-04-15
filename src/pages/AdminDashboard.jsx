@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 
-export default function AdminDashboard({ session, profile }) {
+export default function AdminDashboard({ session, profile, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -453,6 +453,10 @@ export default function AdminDashboard({ session, profile }) {
             <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">Administrator</div></div>
           </div>
           <button className="btn-logout" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+          <button onClick={() => setDarkMode(!darkMode)}
+            style={{ marginTop: "0.5rem", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.75rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", width: "100%" }}>
+            {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+          </button>
         </div>
       </aside>
 
