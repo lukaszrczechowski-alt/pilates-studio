@@ -72,6 +72,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       totalBookings: (bookingData || []).filter(b => b.classes?.starts_at >= now).length,
       uniqueClients: (profileData || []).length,
     });
+    const { data: templatesData } = await supabase.from("class_templates").select("*").order("name");
+    setTemplates(templatesData || []);
     setLoading(false);
   }
 
@@ -234,6 +236,92 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
     setShowModal(false);
     await fetchAll();
+  }
+
+  async function handleSaveTemplate() {
+    if (!templateForm.name) return;
+    await supabase.from("class_templates").insert({
+      name: templateForm.name,
+      duration_min: +templateForm.duration_min,
+      max_spots: +templateForm.max_spots,
+      location: templateForm.location,
+      notes: templateForm.notes,
+      price_pln: templateForm.price_pln ? +templateForm.price_pln : null,
+      venue_cost_pln: templateForm.venue_cost_pln ? +templateForm.venue_cost_pln : null,
+    });
+    setShowTemplateModal(false);
+    setTemplateForm({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+    showMsg("Szablon zapisany! ✓");
+    const { data } = await supabase.from("class_templates").select("*").order("name");
+    setTemplates(data || []);
+  }
+
+  async function handleDeleteTemplate(id) {
+    await supabase.from("class_templates").delete().eq("id", id);
+    const { data } = await supabase.from("class_templates").select("*").order("name");
+    setTemplates(data || []);
+  }
+
+  function applyTemplate(template) {
+    setForm(prev => ({
+      ...prev,
+      name: template.name,
+      duration_min: template.duration_min,
+      max_spots: template.max_spots,
+      location: template.location || "",
+      notes: template.notes || "",
+      price_pln: template.price_pln || "",
+      venue_cost_pln: template.venue_cost_pln || "",
+    }));
+    showMsg(`Szablon "${template.name}" wczytany!`);
+  }
+
+  // Eksport listy obecności do PDF (print)
+  function printAttendanceList(cls, participants) {
+    const win = window.open('', '_blank');
+    const date = new Date(cls.starts_at).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    const time = new Date(cls.starts_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+    const rows = participants.map((p, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${p.profiles?.first_name || ""} ${p.profiles?.last_name || ""}</td>
+        <td>${p.payment_method === "entries" ? "Karnet" : "Gotówka"}</td>
+        <td style="width:120px;border-bottom:1px solid #ccc;"></td>
+      </tr>
+    `).join("");
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8"/>
+        <title>Lista obecności — ${cls.name}</title>
+        <style>
+          body { font-family: Georgia, serif; padding: 2rem; color: #2C2C2C; }
+          h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+          .meta { color: #6B6B6B; font-size: 0.9rem; margin-bottom: 2rem; }
+          table { width: 100%; border-collapse: collapse; }
+          th { text-align: left; padding: 0.5rem 1rem; background: #F7F3EE; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 2px solid #E8E0D8; }
+          td { padding: 0.75rem 1rem; border-bottom: 1px solid #E8E0D8; font-size: 0.9rem; }
+          .footer { margin-top: 3rem; font-size: 0.8rem; color: #ADADAD; text-align: center; }
+          @media print { button { display: none; } }
+        </style>
+      </head>
+      <body>
+        <h1>${cls.name}</h1>
+        <div class="meta">${date} · ${time} · ${cls.duration_min} min${cls.location ? " · " + cls.location : ""}</div>
+        <table>
+          <thead><tr><th>#</th><th>Imię i nazwisko</th><th>Płatność</th><th>Podpis</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="footer">Pilates Studio by Paulina · paulapilates.pl · Wygenerowano: ${new Date().toLocaleDateString("pl-PL")}</div>
+        <br/>
+        <button onclick="window.print()">🖨️ Drukuj</button>
+      </body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
   }
 
   async function handleDelete(id) {
@@ -545,8 +633,9 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
             </div>
             <div className="section-header">
               <h3>Lista uczestników ({participants.length} / {selectedClass.max_spots})</h3>
-              <div style={{ display: "flex", gap: "0.75rem" }}>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(selectedClass)}>💬 Wiadomość</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => printAttendanceList(selectedClass, participants)}>🖨️ Lista PDF</button>
                 <button className="btn btn-primary btn-sm" onClick={() => setShowAddUserModal(true)}>+ Dodaj</button>
                 <button className="btn btn-secondary" onClick={() => setTab("classes")}>← Wróć</button>
               </div>
@@ -963,132 +1052,91 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           </>
         )}
 
-        {/* KALENDARZ ADMINA — MIESIĘCZNY */}
+        {/* KALENDARZ ADMINA */}
         {tab === "admin_calendar" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Miesięczny przegląd</p></div>
+              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Tygodniowy przegląd</p></div>
               <button className="btn btn-primary btn-sm" onClick={openCreate}>+ Nowe zajęcia</button>
             </div>
 
-            {/* Nawigacja miesiąca */}
+            {/* Nawigacja tygodnia */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← Poprzedni</button>
-              <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
-              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>Następny →</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setDate(d.getDate() - 7); setAdminCalendarWeek(d); }}>← Poprzedni</button>
+              <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>
+                {(() => { const w = Array.from({length:7},(_,i)=>{ const d=new Date(adminCalendarWeek); d.setDate(d.getDate()+i); return d; }); return `${w[0].toLocaleDateString("pl-PL",{day:"numeric",month:"long"})} – ${w[6].toLocaleDateString("pl-PL",{day:"numeric",month:"long",year:"numeric"})}`; })()}
+              </span>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setDate(d.getDate() + 7); setAdminCalendarWeek(d); }}>Następny →</button>
             </div>
 
-            {/* Grid miesięczny */}
+            {/* Grid */}
             {(() => {
-              const year = adminCalendarWeek.getFullYear();
-              const month = adminCalendarWeek.getMonth();
-              const firstDay = new Date(year, month, 1);
-              const lastDay = new Date(year, month + 1, 0);
+              const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date(adminCalendarWeek); d.setDate(d.getDate()+i); return d; });
               const dayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
               const isToday = d => d.toDateString() === new Date().toDateString();
-              let startOffset = firstDay.getDay() - 1;
-              if (startOffset < 0) startOffset = 6;
-              const cells = [];
-              for (let i = 0; i < startOffset; i++) cells.push(null);
-              for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(year, month, d));
-              while (cells.length % 7 !== 0) cells.push(null);
-
-              // Statystyki miesiąca
-              const monthClasses = classes.filter(c => {
-                const d = new Date(c.starts_at);
-                return d.getMonth() === month && d.getFullYear() === year && !c.cancelled;
-              });
-              const monthBookings = allBookings.filter(b => {
-                const d = new Date(b.classes?.starts_at);
-                return d.getMonth() === month && d.getFullYear() === year;
-              });
-              const monthRevenue = monthBookings.reduce((s, b) => s + (b.classes?.price_pln || 0), 0);
-
               return (
-                <>
-                  {/* Mini statystyki miesiąca */}
-                  <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-                    {[
-                      { label: "Zajęć", val: monthClasses.length },
-                      { label: "Rezerwacji", val: monthBookings.length },
-                      { label: "Przychód", val: `${monthRevenue} zł` },
-                    ].map((s, i) => (
-                      <div key={i} style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        <span style={{ fontWeight: 600, color: "var(--sage-dark)" }}>{s.val}</span>
-                        <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{s.label}</span>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                  {/* Nagłówki */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                    {weekDays.map((day, i) => (
+                      <div key={i} style={{ padding: "0.75rem 0.5rem", textAlign: "center", background: isToday(day) ? "var(--sage)" : "var(--cream)", borderBottom: "1px solid var(--border)", borderRight: i < 6 ? "1px solid var(--border)" : "none" }}>
+                        <div style={{ fontSize: "0.75rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--mid)", textTransform: "uppercase" }}>{dayNames[i]}</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--charcoal)" }}>{day.getDate()}</div>
                       </div>
                     ))}
                   </div>
-
-                  <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
-                    {/* Nagłówki dni */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
-                      {dayNames.map(d => (
-                        <div key={d} style={{ padding: "0.6rem 0.25rem", textAlign: "center", background: "var(--cream)", fontSize: "0.75rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase" }}>{d}</div>
-                      ))}
-                    </div>
-
-                    {/* Komórki */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-                      {cells.map((day, i) => {
-                        if (!day) return <div key={i} style={{ minHeight: 90, background: "var(--cream)", opacity: 0.3, borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)" }} />;
-                        const today = isToday(day);
-                        const dayClasses = classes.filter(cls => {
-                          const d = new Date(cls.starts_at);
-                          return d.toDateString() === day.toDateString() && !cls.cancelled;
-                        });
-                        const totalSpots = dayClasses.reduce((s, c) => s + c.max_spots, 0);
-                        const totalBooked = dayClasses.reduce((s, c) => s + (c.bookings?.length || 0), 0);
-
-                        return (
-                          <div key={i} style={{ minHeight: 90, padding: "0.3rem", borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)", background: today?"rgba(138,158,133,0.06)":"transparent" }}>
-                            {/* Numer dnia */}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
-                              <div style={{ fontSize: "0.8rem", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: today?"var(--sage)":"transparent", color: today?"white":"var(--charcoal)", fontWeight: today?600:400 }}>{day.getDate()}</div>
-                              {dayClasses.length > 0 && <div style={{ fontSize: "0.6rem", color: "var(--light)" }}>{totalBooked}/{totalSpots}</div>}
-                            </div>
-
-                            {/* Zajęcia */}
-                            {dayClasses.map(cls => {
+                  {/* Komórki */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                    {weekDays.map((day, i) => {
+                      const dayClasses = classes.filter(cls => {
+                        const d = new Date(cls.starts_at);
+                        return d.toDateString() === day.toDateString() && !cls.cancelled;
+                      });
+                      return (
+                        <div key={i} style={{ padding: "0.5rem", minHeight: 120, borderRight: i < 6 ? "1px solid var(--border)" : "none", background: isToday(day) ? "rgba(138,158,133,0.04)" : "transparent" }}>
+                          {dayClasses.length === 0
+                            ? <div style={{ fontSize: "0.7rem", color: "var(--border)", textAlign: "center", marginTop: "1rem" }}>—</div>
+                            : dayClasses.map(cls => {
                               const count = cls.bookings?.length || 0;
                               const pct = Math.round((count / cls.max_spots) * 100);
                               const isFull = count >= cls.max_spots;
-                              const bg = isFull ? "#FEF3E8" : pct >= 70 ? "#EBF5EA" : "var(--cream)";
-                              const border = isFull ? "#E8C5B5" : pct >= 70 ? "#8A9E85" : "var(--border)";
-                              const textColor = isFull ? "var(--clay)" : pct >= 70 ? "var(--sage-dark)" : "var(--charcoal)";
+                              const bg = cls.cancelled ? "#FDE8E8" : isFull ? "#FEF3E8" : pct >= 70 ? "#EBF5EA" : "white";
+                              const border = cls.cancelled ? "#F5C6C6" : isFull ? "#E8C5B5" : pct >= 70 ? "#8A9E85" : "var(--border)";
                               return (
                                 <div key={cls.id} onClick={() => openParticipants(cls)}
-                                  style={{ background: bg, border: `1px solid ${border}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
-                                  onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
-                                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
-                                  <div style={{ fontSize: "0.68rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {formatTime(cls.starts_at)} · {cls.name}
+                                  style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "0.4rem 0.6rem", cursor: "pointer", marginBottom: "0.3rem", transition: "opacity 0.15s" }}
+                                  onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
+                                  onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                                  <div style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--sage-dark)" }}>{formatTime(cls.starts_at)}</div>
+                                  <div style={{ fontSize: "0.75rem", color: "var(--charcoal)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cls.name}</div>
+                                  <div style={{ fontSize: "0.7rem", marginTop: 2 }}>
+                                    <span style={{ color: isFull ? "var(--clay)" : "var(--mid)" }}>{count}/{cls.max_spots}</span>
+                                    <span style={{ marginLeft: "0.3rem", color: "var(--light)" }}>{pct}%</span>
                                   </div>
-                                  <div style={{ fontSize: "0.62rem", color: "var(--light)" }}>{count}/{cls.max_spots}</div>
-                                  <div style={{ height: 2, background: "var(--border)", borderRadius: 1, marginTop: 2, overflow: "hidden" }}>
-                                    <div style={{ width: `${pct}%`, height: "100%", background: isFull?"var(--clay)":"var(--sage)" }} />
+                                  {/* Mini pasek obłożenia */}
+                                  <div style={{ height: 3, background: "var(--border)", borderRadius: 2, marginTop: 3, overflow: "hidden" }}>
+                                    <div style={{ width: `${pct}%`, height: "100%", background: isFull ? "var(--clay)" : "var(--sage)", borderRadius: 2 }} />
                                   </div>
                                 </div>
                               );
                             })}
-                          </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  {/* Legenda */}
-                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                    {[["var(--cream)","var(--border)","< 70%"],["#EBF5EA","#8A9E85","≥ 70%"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,border,label]) => (
-                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
-                        <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
-                        {label}
-                      </div>
-                    ))}
-                  </div>
-                </>
+                </div>
               );
             })()}
+
+            {/* Legenda */}
+            <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+              {[["white","var(--border)","< 70% miejsc"],["#EBF5EA","#8A9E85","≥ 70% miejsc"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,border,label]) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
+                  {label}
+                </div>
+              ))}
+            </div>
           </>
         )}
       </main>
@@ -1109,6 +1157,16 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
             <div className="modal-header"><h3>{editClass ? "Edytuj zajęcia" : "Nowe zajęcia"}</h3><button className="modal-close" onClick={() => setShowModal(false)}>×</button></div>
+            {!editClass && templates.length > 0 && (
+              <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
+                <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>Wczytaj szablon</label>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {templates.map(t => (
+                    <button key={t.id} className="btn btn-secondary btn-sm" onClick={() => applyTemplate(t)}>📋 {t.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="form-group"><label className="form-label">Nazwa zajęć</label><input className="form-input" placeholder="np. Pilates Flow" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Data i godzina</label><input className="form-input" type="datetime-local" value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
@@ -1145,8 +1203,11 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 )}
               </div>
             )}
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
+            <div className="modal-actions" style={{ justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
+                {!editClass && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title="Zapisz jako szablon">📋 Zapisz jako szablon</button>}
+              </div>
               <button className="btn btn-primary" onClick={handleSave} disabled={!form.name || !form.starts_at}>{editClass ? "Zapisz" : "Utwórz"}</button>
             </div>
           </div>
@@ -1247,6 +1308,46 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL - Szablon zajęć */}
+      {showTemplateModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowTemplateModal(false)}>
+          <div className="modal" style={{ maxWidth: 460 }}>
+            <div className="modal-header"><h3>📋 Zapisz szablon zajęć</h3><button className="modal-close" onClick={() => setShowTemplateModal(false)}>×</button></div>
+            <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>Szablon pozwoli szybko wypełnić formularz przy tworzeniu nowych zajęć.</p>
+            <div className="form-group"><label className="form-label">Nazwa szablonu</label><input className="form-input" placeholder="np. Pilates Flow" value={templateForm.name} onChange={e => setTemplateForm({ ...templateForm, name: e.target.value })} /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="form-group"><label className="form-label">Czas (min)</label><input className="form-input" type="number" value={templateForm.duration_min} onChange={e => setTemplateForm({ ...templateForm, duration_min: +e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Maks. miejsc</label><input className="form-input" type="number" value={templateForm.max_spots} onChange={e => setTemplateForm({ ...templateForm, max_spots: +e.target.value })} /></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="form-group"><label className="form-label">Cena (zł)</label><input className="form-input" type="number" placeholder="np. 60" value={templateForm.price_pln} onChange={e => setTemplateForm({ ...templateForm, price_pln: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Koszt sali (zł)</label><input className="form-input" type="number" placeholder="np. 100" value={templateForm.venue_cost_pln} onChange={e => setTemplateForm({ ...templateForm, venue_cost_pln: e.target.value })} /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Lokalizacja</label><input className="form-input" placeholder="np. Sala A" value={templateForm.location} onChange={e => setTemplateForm({ ...templateForm, location: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Notatki</label><input className="form-input" placeholder="np. Przynieś matę" value={templateForm.notes} onChange={e => setTemplateForm({ ...templateForm, notes: e.target.value })} /></div>
+
+            {templates.length > 0 && (
+              <>
+                <p className="form-label" style={{ margin: "1rem 0 0.5rem" }}>Istniejące szablony</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: 150, overflowY: "auto" }}>
+                  {templates.map(t => (
+                    <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "var(--cream)", borderRadius: 6 }}>
+                      <span style={{ fontSize: "0.875rem" }}>{t.name} · {t.duration_min} min · {t.price_pln ? t.price_pln + " zł" : "—"}</span>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTemplate(t.id)}>Usuń</button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowTemplateModal(false)}>Anuluj</button>
+              <button className="btn btn-primary" onClick={handleSaveTemplate} disabled={!templateForm.name}>Zapisz szablon</button>
+            </div>
           </div>
         </div>
       )}
