@@ -372,10 +372,9 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <div className="sidebar-logo" ...>
-  <img src="/logo.png" alt="Paulina Pilates Studio" 
-    style={{ width: "100%", maxWidth: 160, height: "auto" }} />
-</div>
+        <div className="sidebar-logo" onClick={() => setTab("upcoming")} style={{ cursor: "pointer" }}>
+          <img src="/logo.png" alt="Paulina Pilates Studio" style={{ width: "100%", maxWidth: 160, height: "auto" }} />
+        </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>
           <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> Moje rezerwacje</div>
