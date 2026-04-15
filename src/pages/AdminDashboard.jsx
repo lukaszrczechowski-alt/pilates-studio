@@ -30,7 +30,6 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [cancelReason, setCancelReason] = useState("");
   const [messageText, setMessageText] = useState("");
   const [message, setMessage] = useState(null);
-  const [allRatings, setAllRatings] = useState([]);
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportView, setReportView] = useState("summary");
@@ -73,11 +72,6 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       totalBookings: (bookingData || []).filter(b => b.classes?.starts_at >= now).length,
       uniqueClients: (profileData || []).length,
     });
-    // Pobierz oceny
-    const { data: ratingsData } = await supabase.from("class_ratings")
-      .select("*, profiles(first_name, last_name), classes(name, starts_at))")
-      .order("created_at", { ascending: false });
-    setAllRatings(ratingsData || []);
     setLoading(false);
   }
 
@@ -454,7 +448,6 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => setTab("stats")}><span className="nav-icon">📊</span> Statystyki</div>
           <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}><span className="nav-icon">📋</span> Historia</div>
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => setTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
-          <div className={`nav-item ${tab === "ratings" ? "active" : ""}`} onClick={() => setTab("ratings")}><span className="nav-icon">⭐</span> Oceny</div>
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => setTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
         </nav>
         <div className="sidebar-footer">
@@ -850,54 +843,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 ))}
               </div>
             </div>
-            {/* Wykres przychodów miesięcznych */}
-          <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Przychody — ostatnie 6 miesięcy</h3></div>
-          <div className="card" style={{ marginBottom: "2rem", padding: "1.5rem" }}>
-            {(() => {
-              const months = [];
-              for (let i = 5; i >= 0; i--) {
-                const d = new Date();
-                d.setMonth(d.getMonth() - i);
-                const m = d.getMonth() + 1;
-                const y = d.getFullYear();
-                const monthBookings = allBookings.filter(b => {
-                  const bd = new Date(b.classes?.starts_at);
-                  return bd.getMonth() + 1 === m && bd.getFullYear() === y;
-                });
-                const monthClasses = classes.filter(c => {
-                  const cd = new Date(c.starts_at);
-                  return cd.getMonth() + 1 === m && cd.getFullYear() === y;
-                });
-                const revenue = monthBookings.reduce((s, b) => s + (b.classes?.price_pln || 0), 0);
-                const costs = monthClasses.reduce((s, c) => s + (c.venue_cost_pln || 0), 0);
-                months.push({ label: monthName(m).slice(0, 3), revenue, costs, profit: revenue - costs });
-              }
-              const maxVal = Math.max(...months.map(m => m.revenue), 1);
-              return (
-                <div>
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", height: 180, marginBottom: "0.75rem" }}>
-                    {months.map((m, i) => (
-                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem", height: "100%" }}>
-                        <div style={{ fontSize: "0.7rem", color: "var(--mid)" }}>{m.revenue > 0 ? `${m.revenue}` : ""}</div>
-                        <div style={{ flex: 1, width: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 2 }}>
-                          <div style={{ width: "100%", background: "var(--sage)", borderRadius: "4px 4px 0 0", height: `${(m.revenue / maxVal) * 140}px`, minHeight: m.revenue > 0 ? 4 : 0, transition: "height 0.3s" }} title={`Przychód: ${m.revenue} zł`} />
-                          {m.costs > 0 && <div style={{ width: "100%", background: "var(--clay)", height: `${(m.costs / maxVal) * 140}px`, minHeight: 2 }} title={`Koszt sali: ${m.costs} zł`} />}
-                        </div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--mid)", fontWeight: 500 }}>{m.label}</div>
-                        <div style={{ fontSize: "0.7rem", color: m.profit >= 0 ? "var(--sage-dark)" : "#C44B4B" }}>{m.profit > 0 ? `+${m.profit}` : m.profit} zł</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}><div style={{ width: 12, height: 12, background: "var(--sage)", borderRadius: 2 }} />Przychód</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}><div style={{ width: 12, height: 12, background: "var(--clay)", borderRadius: 2 }} />Koszty sal</div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Najpopularniejsze godziny</h3></div>
+            <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Najpopularniejsze godziny</h3></div>
             <div className="card">
               {topHours.length === 0 ? <p style={{ color: "var(--mid)" }}>Brak danych</p>
                 : topHours.map(([hour, count], i) => (
@@ -1017,140 +963,136 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           </>
         )}
 
-        {/* KALENDARZ ADMINA */}
+        {/* KALENDARZ ADMINA — MIESIĘCZNY */}
         {tab === "admin_calendar" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Tygodniowy przegląd</p></div>
+              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Miesięczny przegląd</p></div>
               <button className="btn btn-primary btn-sm" onClick={openCreate}>+ Nowe zajęcia</button>
             </div>
 
-            {/* Nawigacja tygodnia */}
+            {/* Nawigacja miesiąca */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setDate(d.getDate() - 7); setAdminCalendarWeek(d); }}>← Poprzedni</button>
-              <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>
-                {(() => { const w = Array.from({length:7},(_,i)=>{ const d=new Date(adminCalendarWeek); d.setDate(d.getDate()+i); return d; }); return `${w[0].toLocaleDateString("pl-PL",{day:"numeric",month:"long"})} – ${w[6].toLocaleDateString("pl-PL",{day:"numeric",month:"long",year:"numeric"})}`; })()}
-              </span>
-              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setDate(d.getDate() + 7); setAdminCalendarWeek(d); }}>Następny →</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← Poprzedni</button>
+              <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>Następny →</button>
             </div>
 
-            {/* Grid */}
+            {/* Grid miesięczny */}
             {(() => {
-              const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date(adminCalendarWeek); d.setDate(d.getDate()+i); return d; });
+              const year = adminCalendarWeek.getFullYear();
+              const month = adminCalendarWeek.getMonth();
+              const firstDay = new Date(year, month, 1);
+              const lastDay = new Date(year, month + 1, 0);
               const dayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
               const isToday = d => d.toDateString() === new Date().toDateString();
+              let startOffset = firstDay.getDay() - 1;
+              if (startOffset < 0) startOffset = 6;
+              const cells = [];
+              for (let i = 0; i < startOffset; i++) cells.push(null);
+              for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(year, month, d));
+              while (cells.length % 7 !== 0) cells.push(null);
+
+              // Statystyki miesiąca
+              const monthClasses = classes.filter(c => {
+                const d = new Date(c.starts_at);
+                return d.getMonth() === month && d.getFullYear() === year && !c.cancelled;
+              });
+              const monthBookings = allBookings.filter(b => {
+                const d = new Date(b.classes?.starts_at);
+                return d.getMonth() === month && d.getFullYear() === year;
+              });
+              const monthRevenue = monthBookings.reduce((s, b) => s + (b.classes?.price_pln || 0), 0);
+
               return (
-                <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
-                  {/* Nagłówki */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-                    {weekDays.map((day, i) => (
-                      <div key={i} style={{ padding: "0.75rem 0.5rem", textAlign: "center", background: isToday(day) ? "var(--sage)" : "var(--cream)", borderBottom: "1px solid var(--border)", borderRight: i < 6 ? "1px solid var(--border)" : "none" }}>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--mid)", textTransform: "uppercase" }}>{dayNames[i]}</div>
-                        <div style={{ fontSize: "1.1rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--charcoal)" }}>{day.getDate()}</div>
+                <>
+                  {/* Mini statystyki miesiąca */}
+                  <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                    {[
+                      { label: "Zajęć", val: monthClasses.length },
+                      { label: "Rezerwacji", val: monthBookings.length },
+                      { label: "Przychód", val: `${monthRevenue} zł` },
+                    ].map((s, i) => (
+                      <div key={i} style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <span style={{ fontWeight: 600, color: "var(--sage-dark)" }}>{s.val}</span>
+                        <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{s.label}</span>
                       </div>
                     ))}
                   </div>
-                  {/* Komórki */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-                    {weekDays.map((day, i) => {
-                      const dayClasses = classes.filter(cls => {
-                        const d = new Date(cls.starts_at);
-                        return d.toDateString() === day.toDateString() && !cls.cancelled;
-                      });
-                      return (
-                        <div key={i} style={{ padding: "0.5rem", minHeight: 120, borderRight: i < 6 ? "1px solid var(--border)" : "none", background: isToday(day) ? "rgba(138,158,133,0.04)" : "transparent" }}>
-                          {dayClasses.length === 0
-                            ? <div style={{ fontSize: "0.7rem", color: "var(--border)", textAlign: "center", marginTop: "1rem" }}>—</div>
-                            : dayClasses.map(cls => {
+
+                  <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                    {/* Nagłówki dni */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
+                      {dayNames.map(d => (
+                        <div key={d} style={{ padding: "0.6rem 0.25rem", textAlign: "center", background: "var(--cream)", fontSize: "0.75rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase" }}>{d}</div>
+                      ))}
+                    </div>
+
+                    {/* Komórki */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={i} style={{ minHeight: 90, background: "var(--cream)", opacity: 0.3, borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)" }} />;
+                        const today = isToday(day);
+                        const dayClasses = classes.filter(cls => {
+                          const d = new Date(cls.starts_at);
+                          return d.toDateString() === day.toDateString() && !cls.cancelled;
+                        });
+                        const totalSpots = dayClasses.reduce((s, c) => s + c.max_spots, 0);
+                        const totalBooked = dayClasses.reduce((s, c) => s + (c.bookings?.length || 0), 0);
+
+                        return (
+                          <div key={i} style={{ minHeight: 90, padding: "0.3rem", borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)", background: today?"rgba(138,158,133,0.06)":"transparent" }}>
+                            {/* Numer dnia */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
+                              <div style={{ fontSize: "0.8rem", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: today?"var(--sage)":"transparent", color: today?"white":"var(--charcoal)", fontWeight: today?600:400 }}>{day.getDate()}</div>
+                              {dayClasses.length > 0 && <div style={{ fontSize: "0.6rem", color: "var(--light)" }}>{totalBooked}/{totalSpots}</div>}
+                            </div>
+
+                            {/* Zajęcia */}
+                            {dayClasses.map(cls => {
                               const count = cls.bookings?.length || 0;
                               const pct = Math.round((count / cls.max_spots) * 100);
                               const isFull = count >= cls.max_spots;
-                              const bg = cls.cancelled ? "#FDE8E8" : isFull ? "#FEF3E8" : pct >= 70 ? "#EBF5EA" : "white";
-                              const border = cls.cancelled ? "#F5C6C6" : isFull ? "#E8C5B5" : pct >= 70 ? "#8A9E85" : "var(--border)";
+                              const bg = isFull ? "#FEF3E8" : pct >= 70 ? "#EBF5EA" : "var(--cream)";
+                              const border = isFull ? "#E8C5B5" : pct >= 70 ? "#8A9E85" : "var(--border)";
+                              const textColor = isFull ? "var(--clay)" : pct >= 70 ? "var(--sage-dark)" : "var(--charcoal)";
                               return (
                                 <div key={cls.id} onClick={() => openParticipants(cls)}
-                                  style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "0.4rem 0.6rem", cursor: "pointer", marginBottom: "0.3rem", transition: "opacity 0.15s" }}
-                                  onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-                                  onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                                  <div style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--sage-dark)" }}>{formatTime(cls.starts_at)}</div>
-                                  <div style={{ fontSize: "0.75rem", color: "var(--charcoal)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cls.name}</div>
-                                  <div style={{ fontSize: "0.7rem", marginTop: 2 }}>
-                                    <span style={{ color: isFull ? "var(--clay)" : "var(--mid)" }}>{count}/{cls.max_spots}</span>
-                                    <span style={{ marginLeft: "0.3rem", color: "var(--light)" }}>{pct}%</span>
+                                  style={{ background: bg, border: `1px solid ${border}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
+                                  onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
+                                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                                  <div style={{ fontSize: "0.68rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {formatTime(cls.starts_at)} · {cls.name}
                                   </div>
-                                  {/* Mini pasek obłożenia */}
-                                  <div style={{ height: 3, background: "var(--border)", borderRadius: 2, marginTop: 3, overflow: "hidden" }}>
-                                    <div style={{ width: `${pct}%`, height: "100%", background: isFull ? "var(--clay)" : "var(--sage)", borderRadius: 2 }} />
+                                  <div style={{ fontSize: "0.62rem", color: "var(--light)" }}>{count}/{cls.max_spots}</div>
+                                  <div style={{ height: 2, background: "var(--border)", borderRadius: 1, marginTop: 2, overflow: "hidden" }}>
+                                    <div style={{ width: `${pct}%`, height: "100%", background: isFull?"var(--clay)":"var(--sage)" }} />
                                   </div>
                                 </div>
                               );
                             })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Legenda */}
-            <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-              {[["white","var(--border)","< 70% miejsc"],["#EBF5EA","#8A9E85","≥ 70% miejsc"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,border,label]) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
-                  <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
-                  {label}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </main>
-
-        {/* OCENY */}
-        {tab === "ratings" && (
-          <>
-            <div className="page-header"><h2>Oceny zajęć</h2><p>Opinie klientek po zajęciach</p></div>
-            {allRatings.length === 0
-              ? <div className="empty-state"><div className="empty-icon">⭐</div><p>Brak ocen</p></div>
-              : (
-                <>
-                  {/* Podsumowanie */}
-                  <div className="stats-row" style={{ marginBottom: "1.5rem" }}>
-                    <div className="stat-card">
-                      <div className="stat-value">{allRatings.length}</div>
-                      <div className="stat-label">Wszystkich ocen</div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-value" style={{ color: "var(--sage-dark)" }}>
-                        {(allRatings.reduce((s, r) => s + r.rating, 0) / allRatings.length).toFixed(1)} ⭐
-                      </div>
-                      <div className="stat-label">Średnia ocena</div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-value">{allRatings.filter(r => r.rating === 5).length}</div>
-                      <div className="stat-label">Ocen 5 gwiazdek</div>
-                    </div>
-                  </div>
-
-                  {/* Lista ocen */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    {allRatings.map((r, i) => (
-                      <div key={i} className="card" style={{ padding: "1rem 1.25rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
-                          <div>
-                            <div style={{ fontWeight: 500 }}>{r.profiles?.first_name} {r.profiles?.last_name}</div>
-                            <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{r.classes?.name} · {r.classes?.starts_at ? new Date(r.classes.starts_at).toLocaleDateString("pl-PL") : ""}</div>
                           </div>
-                          <div style={{ fontSize: "1.2rem" }}>{"⭐".repeat(r.rating)}</div>
-                        </div>
-                        {r.comment && <p style={{ fontSize: "0.875rem", color: "var(--charcoal)", fontStyle: "italic", borderTop: "1px solid var(--border)", paddingTop: "0.5rem", marginTop: "0.5rem" }}>"{r.comment}"</p>}
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Legenda */}
+                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                    {[["var(--cream)","var(--border)","< 70%"],["#EBF5EA","#8A9E85","≥ 70%"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,border,label]) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
+                        <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
+                        {label}
                       </div>
                     ))}
                   </div>
                 </>
-              )}
+              );
+            })()}
           </>
         )}
+      </main>
+
       {/* Mobile nav */}
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>Kalendarz</span></div>
