@@ -37,9 +37,6 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [editingNotes, setEditingNotes] = useState(null); // userId
   const [notesText, setNotesText] = useState("");
   const [adminCalendarWeek, setAdminCalendarWeek] = useState(getMonday(new Date()));
-  const [templates, setTemplates] = useState([]);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -381,7 +378,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       await supabase.from("tokens").insert({ user_id: selectedUser.id, amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, added_by: session.user.id, note: tokenForm.note });
     }
     await supabase.from("token_history").insert({ user_id: selectedUser.id, operation: "add", amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, note: tokenForm.note || "Dodano przez admina" });
-    await supabase.from("notifications").insert({ type: "tokens_added", user_id: selectedUser.id, message: `Dodano ${tokenForm.amount} wejść na ${monthName(tokenForm.month)} ${tokenForm.year}` });
+    const entryWord = tokenForm.amount === 1 ? "wejście" : tokenForm.amount < 5 ? "wejścia" : "wejść";
+    await supabase.from("notifications").insert({ type: "tokens_added", user_id: selectedUser.id, message: `Dodano ${tokenForm.amount} ${entryWord} dla ${selectedUser.first_name} ${selectedUser.last_name} na ${monthName(tokenForm.month)} ${tokenForm.year}` });
     const { data: userProfile } = await supabase.from("profiles").select("email, first_name").eq("id", selectedUser.id).single();
     if (userProfile) {
       await sendEmail("entries_added", userProfile.email, {
@@ -389,7 +387,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         month: monthName(tokenForm.month) + " " + tokenForm.year, note: tokenForm.note || "",
       });
     }
-    showMsg(`Dodano ${tokenForm.amount} wejść! ✓`);
+    const eWord = tokenForm.amount === 1 ? "wejście" : tokenForm.amount < 5 ? "wejścia" : "wejść";
+    showMsg(`Dodano ${tokenForm.amount} ${eWord} dla ${selectedUser.first_name}! ✓`);
     await fetchUserTokens(selectedUser.id);
     await fetchAll();
   }
