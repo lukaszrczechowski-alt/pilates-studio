@@ -34,7 +34,7 @@ export default function ClientDashboard({ session, profile }) {
     const { data: classData } = await supabase.from("classes")
       .select("*, bookings(*), waitlist(*)")
       .gte("starts_at", now)
-      .eq("cancelled", false)
+      .or("cancelled.is.null,cancelled.eq.false")
       .order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings").select("*, classes(*)")
       .eq("user_id", session.user.id).order("created_at", { ascending: false });
@@ -81,7 +81,7 @@ export default function ClientDashboard({ session, profile }) {
     const year = new Date(cls.starts_at).getFullYear();
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("amount")
-        .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
+        .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
       if (!tok || tok.amount <= 0) {
         showMsg("Brak wejść na " + monthName(month) + ". Wybierz gotówkę.", "error");
         setActionLoading(null); return;
@@ -91,7 +91,7 @@ export default function ClientDashboard({ session, profile }) {
     if (error) { showMsg("Błąd przy zapisie.", "error"); setActionLoading(null); return; }
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("*")
-        .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
+        .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
         await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis: ${cls.name}` });
@@ -110,6 +110,7 @@ export default function ClientDashboard({ session, profile }) {
   async function handleCancel(booking, force = false) {
     const cls = booking.classes || classes.find(c => c.id === booking.class_id);
     if (!cls) return;
+    if (!booking.id) { showMsg("Błąd — brak ID rezerwacji.", "error"); return; }
     const status = cancelStatus(cls.starts_at);
     if (status === "after_cutoff" && !force) { setShowCancelWarning(booking); setDetailClass(null); return; }
     setActionLoading(booking.class_id || booking.id);
@@ -119,7 +120,7 @@ export default function ClientDashboard({ session, profile }) {
       const month = new Date(cls.starts_at).getMonth() + 1;
       const year = new Date(cls.starts_at).getFullYear();
       const { data: tok } = await supabase.from("tokens").select("*")
-        .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
+        .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount + 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
         await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "add", amount: 1, month, year, note: "Zwrot — anulowanie" });

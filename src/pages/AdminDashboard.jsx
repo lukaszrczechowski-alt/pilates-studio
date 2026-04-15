@@ -279,7 +279,7 @@ export default function AdminDashboard({ session, profile }) {
 
   async function handleAddTokens() {
     const { data: existing } = await supabase.from("tokens").select("*")
-      .eq("user_id", selectedUser.id).eq("month", tokenForm.month).eq("year", tokenForm.year).single();
+      .eq("user_id", selectedUser.id).eq("month", tokenForm.month).eq("year", tokenForm.year).maybeSingle();
     if (existing) {
       await supabase.from("tokens").update({ amount: existing.amount + tokenForm.amount, updated_at: new Date().toISOString() }).eq("id", existing.id);
     } else {
@@ -303,7 +303,7 @@ export default function AdminDashboard({ session, profile }) {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-    const { data: tok } = await supabase.from("tokens").select("*").eq("user_id", userId).eq("month", month).eq("year", year).single();
+    const { data: tok } = await supabase.from("tokens").select("*").eq("user_id", userId).eq("month", month).eq("year", year).maybeSingle();
     if (!tok || tok.amount <= 0) { showMsg("Brak wejść.", "error"); return; }
     await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
     await supabase.from("token_history").insert({ user_id: userId, class_id: classId, operation: "use", amount: -1, month, year, note: `Zużyto za: ${className}` });
@@ -315,13 +315,23 @@ export default function AdminDashboard({ session, profile }) {
     const d = new Date(startsAt);
     const month = d.getMonth() + 1;
     const year = d.getFullYear();
-    const { data: existing } = await supabase.from("tokens").select("*").eq("user_id", userId).eq("month", month).eq("year", year).single();
-    if (existing) {
-      await supabase.from("tokens").update({ amount: existing.amount, updated_at: new Date().toISOString() }).eq("id", existing.id);
-    } else {
+    const { data: existing } = await supabase.from("tokens").select("*")
+      .eq("user_id", userId).eq("month", month).eq("year", year).maybeSingle();
+
+    if (existing && existing.amount > 0) {
+      // Odejmij wejście jeśli jest saldo
+      await supabase.from("tokens")
+        .update({ amount: existing.amount - 1, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else if (!existing) {
+      // Utwórz rekord z 0 (zaznaczamy że rozliczono bez wejść — gotówka)
       await supabase.from("tokens").insert({ user_id: userId, amount: 0, month, year, added_by: session.user.id });
     }
-    await supabase.from("token_history").insert({ user_id: userId, class_id: classId, operation: "use", amount: -1, month, year, note: `Rozliczono za: ${className}` });
+    // Zawsze zapisz log rozliczenia
+    await supabase.from("token_history").insert({
+      user_id: userId, class_id: classId, operation: "use", amount: -1,
+      month, year, note: `Rozliczono za: ${className}`,
+    });
     showMsg("Rozliczono! ✓");
     await fetchAll();
   }
@@ -1044,7 +1054,9 @@ export default function AdminDashboard({ session, profile }) {
 function TokenBadge({ userId, month, year }) {
   const [tokens, setTokens] = useState(null);
   useEffect(() => {
-    supabase.from("tokens").select("amount").eq("user_id", userId).eq("month", month).eq("year", year).single()
+    supabase.from("tokens").select("amount")
+      .eq("user_id", userId).eq("month", month).eq("year", year)
+      .maybeSingle()
       .then(({ data }) => setTokens(data?.amount ?? 0));
   }, [userId, month, year]);
   if (tokens === null) return <span style={{ color: "var(--light)" }}>—</span>;
