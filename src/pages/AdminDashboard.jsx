@@ -25,6 +25,7 @@ export default function AdminDashboard({ session, profile }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [stats, setStats] = useState({ totalClasses: 0, totalBookings: 0, uniqueClients: 0 });
   const [form, setForm] = useState({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+  const [recurring, setRecurring] = useState({ enabled: false, weeks: 4 });
   const [tokenForm, setTokenForm] = useState({ amount: 1, month: new Date().getMonth() + 1, year: new Date().getFullYear(), note: "" });
   const [cancelReason, setCancelReason] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -188,6 +189,7 @@ export default function AdminDashboard({ session, profile }) {
   function openCreate() {
     setEditClass(null);
     setForm({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+    setRecurring({ enabled: false, weeks: 4 });
     setShowModal(true);
   }
 
@@ -201,15 +203,31 @@ export default function AdminDashboard({ session, profile }) {
 
   async function handleSave() {
     if (!form.name || !form.starts_at) return;
-    const payload = {
+    const basePayload = {
       name: form.name, starts_at: new Date(form.starts_at).toISOString(),
       duration_min: +form.duration_min, max_spots: +form.max_spots,
       location: form.location, notes: form.notes,
       price_pln: form.price_pln ? +form.price_pln : null,
       venue_cost_pln: form.venue_cost_pln ? +form.venue_cost_pln : null,
     };
-    if (editClass) await supabase.from("classes").update(payload).eq("id", editClass.id);
-    else await supabase.from("classes").insert(payload);
+
+    if (editClass) {
+      await supabase.from("classes").update(basePayload).eq("id", editClass.id);
+    } else if (recurring.enabled && recurring.weeks > 1) {
+      // Utwórz serię zajęć
+      const seriesId = crypto.randomUUID();
+      const classesToInsert = [];
+      for (let i = 0; i < recurring.weeks; i++) {
+        const starts = new Date(form.starts_at);
+        starts.setDate(starts.getDate() + i * 7);
+        classesToInsert.push({ ...basePayload, starts_at: starts.toISOString(), series_id: seriesId, series_index: i + 1 });
+      }
+      await supabase.from("classes").insert(classesToInsert);
+      showMsg(`Utworzono ${recurring.weeks} zajęć cyklicznych! ✓`);
+    } else {
+      await supabase.from("classes").insert(basePayload);
+    }
+
     setShowModal(false);
     await fetchAll();
   }
@@ -431,7 +449,7 @@ export default function AdminDashboard({ session, profile }) {
                         const count = cls.bookings?.length || 0;
                         return (
                           <tr key={cls.id}>
-                            <td><strong>{cls.name}</strong></td>
+                            <td><strong>{cls.name}</strong>{cls.series_id && <span style={{ fontSize: "0.7rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.15rem 0.5rem", borderRadius: 20, marginLeft: "0.5rem" }}>🔁 {cls.series_index}</span>}</td>
                             <td>{formatDate(cls.starts_at)}</td>
                             <td>{formatTime(cls.starts_at)}</td>
                             <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
@@ -870,6 +888,30 @@ export default function AdminDashboard({ session, profile }) {
             </div>
             <div className="form-group"><label className="form-label">Lokalizacja</label><input className="form-input" placeholder="np. Sala A" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Notatki dla klientek</label><input className="form-input" placeholder="np. Przynieś matę" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+
+            {/* Zajęcia cykliczne — tylko przy tworzeniu */}
+            {!editClass && (
+              <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "1rem", marginBottom: "0.5rem" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", marginBottom: recurring.enabled ? "0.75rem" : 0 }}>
+                  <input type="checkbox" checked={recurring.enabled} onChange={e => setRecurring({ ...recurring, enabled: e.target.checked })}
+                    style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 Zajęcia cykliczne</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>Powtarzaj co tydzień o tej samej godzinie</div>
+                  </div>
+                </label>
+                {recurring.enabled && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <span style={{ fontSize: "0.875rem", color: "var(--mid)" }}>Powtórz przez</span>
+                    <input type="number" min="2" max="52" value={recurring.weeks}
+                      onChange={e => setRecurring({ ...recurring, weeks: +e.target.value })}
+                      style={{ width: 70, padding: "0.4rem 0.6rem", border: "1px solid var(--border)", borderRadius: 6, fontFamily: "DM Sans, sans-serif", fontSize: "0.875rem" }} />
+                    <span style={{ fontSize: "0.875rem", color: "var(--mid)" }}>tygodni</span>
+                    <span style={{ fontSize: "0.8rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.2rem 0.6rem", borderRadius: 20 }}>= {recurring.weeks} zajęć</span>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={!form.name || !form.starts_at}>{editClass ? "Zapisz" : "Utwórz"}</button>
