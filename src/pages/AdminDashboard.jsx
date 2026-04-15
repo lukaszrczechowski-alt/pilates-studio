@@ -36,7 +36,15 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [clientSearch, setClientSearch] = useState("");
   const [editingNotes, setEditingNotes] = useState(null); // userId
   const [notesText, setNotesText] = useState("");
-  const [adminCalendarWeek, setAdminCalendarWeek] = useState(getMonday(new Date()));
+  const [adminCalendarWeek, setAdminCalendarWeek] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [templates, setTemplates] = useState([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
   const [templates, setTemplates] = useState([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
@@ -560,75 +568,94 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         {message && <div className={`alert ${message.type === "error" ? "alert-error" : "alert-success"}`} style={{ position: "fixed", top: "1rem", right: "1rem", zIndex: 999, maxWidth: 400 }}>{message.text}</div>}
 
         {/* ZAJĘCIA */}
-        {tab === "classes" && (
+
+        {/* KALENDARZ ADMINA — MIESIĘCZNY */}
+        {tab === "admin_calendar" && (
           <>
-            <div className="page-header"><h2>Zarządzanie zajęciami</h2></div>
-            <div className="stats-row">
-              <div className="stat-card"><div className="stat-value">{stats.totalClasses}</div><div className="stat-label">Nadchodzące zajęcia</div></div>
-              <div className="stat-card"><div className="stat-value">{stats.totalBookings}</div><div className="stat-label">Aktywne rezerwacje</div></div>
-              <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">Klientów łącznie</div></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Miesięczny przegląd</p></div>
+              <button className="btn btn-primary btn-sm" onClick={openCreate}>+ Nowe zajęcia</button>
             </div>
-            <div className="section-header"><h3>Nadchodzące zajęcia</h3><button className="btn btn-primary" onClick={openCreate}>+ Nowe zajęcia</button></div>
-            {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
-              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
-              : (
-                <div className="table-wrapper" style={{ marginBottom: "2rem" }}>
-                  <table>
-                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godz.</th><th>Cena</th><th>Sala</th><th>Miejsca</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
-                    <tbody>
-                      {upcomingClasses.map(cls => {
-                        const count = cls.bookings?.length || 0;
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← Poprzedni</button>
+              <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>Następny →</button>
+            </div>
+            {(() => {
+              const year = adminCalendarWeek.getFullYear();
+              const month = adminCalendarWeek.getMonth();
+              const firstDay = new Date(year, month, 1);
+              const lastDay = new Date(year, month + 1, 0);
+              const aDayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
+              const isTodayA = d => d.toDateString() === new Date().toDateString();
+              let startOffset = firstDay.getDay() - 1;
+              if (startOffset < 0) startOffset = 6;
+              const cells = [];
+              for (let i = 0; i < startOffset; i++) cells.push(null);
+              for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(year, month, d));
+              while (cells.length % 7 !== 0) cells.push(null);
+              const mBookings = allBookings.filter(b => { const d = new Date(b.classes?.starts_at); return d.getMonth() === month && d.getFullYear() === year; });
+              const mRevenue = mBookings.reduce((s, b) => s + (b.classes?.price_pln || 0), 0);
+              const mClasses = classes.filter(c => { const d = new Date(c.starts_at); return d.getMonth() === month && d.getFullYear() === year && !c.cancelled; });
+              return (
+                <>
+                  <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                    {[["Zajęć", mClasses.length],["Rezerwacji", mBookings.length],["Przychód", `${mRevenue} zł`]].map(([label, val], i) => (
+                      <div key={i} style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <span style={{ fontWeight: 600, color: "var(--sage-dark)" }}>{val}</span>
+                        <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
+                      {aDayNames.map(d => <div key={d} style={{ padding: "0.6rem 0.25rem", textAlign: "center", background: "var(--cream)", fontSize: "0.75rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase" }}>{d}</div>)}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                      {cells.map((day, i) => {
+                        if (!day) return <div key={i} style={{ minHeight: 90, background: "var(--cream)", opacity: 0.3, borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)" }} />;
+                        const today = isTodayA(day);
+                        const dayClasses = classes.filter(cls => { const d = new Date(cls.starts_at); return d.toDateString() === day.toDateString() && !cls.cancelled; });
                         return (
-                          <tr key={cls.id}>
-                            <td><strong>{cls.name}</strong>{cls.series_id && <span style={{ fontSize: "0.7rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.15rem 0.5rem", borderRadius: 20, marginLeft: "0.5rem" }}>🔁 {cls.series_index}</span>}</td>
-                            <td>{formatDate(cls.starts_at)}</td>
-                            <td>{formatTime(cls.starts_at)}</td>
-                            <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
-                            <td>{cls.venue_cost_pln ? <span style={{ color: "var(--clay)" }}>{cls.venue_cost_pln} zł</span> : "—"}</td>
-                            <td>{count} / {cls.max_spots}</td>
-                            <td>
-                              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => openParticipants(cls)}>Lista ({count})</button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(cls)} title="Wyślij wiadomość">💬</button>
-                              </div>
-                            </td>
-                            <td>
-                              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>Edytuj</button>
-                                <button className="btn btn-danger btn-sm" onClick={() => setShowCancelModal(cls)}>Odwołaj</button>
-                                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(cls.id)}>Usuń</button>
-                              </div>
-                            </td>
-                          </tr>
+                          <div key={i} style={{ minHeight: 90, padding: "0.3rem", borderRight: (i+1)%7!==0?"1px solid var(--border)":"none", borderBottom: "1px solid var(--border)", background: today?"rgba(138,158,133,0.06)":"transparent" }}>
+                            <div style={{ fontSize: "0.8rem", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: today?"var(--sage)":"transparent", color: today?"white":"var(--charcoal)", marginBottom: "0.2rem", fontWeight: today?600:400 }}>{day.getDate()}</div>
+                            {dayClasses.map(cls => {
+                              const count = cls.bookings?.length || 0;
+                              const pct = Math.round((count / cls.max_spots) * 100);
+                              const isFull = count >= cls.max_spots;
+                              const bg = isFull?"#FEF3E8":pct>=70?"#EBF5EA":"var(--cream)";
+                              const bdr = isFull?"#E8C5B5":pct>=70?"#8A9E85":"var(--border)";
+                              const tc = isFull?"var(--clay)":pct>=70?"var(--sage-dark)":"var(--charcoal)";
+                              return (
+                                <div key={cls.id} onClick={() => openParticipants(cls)}
+                                  style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
+                                  onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
+                                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                                  <div style={{ fontSize: "0.68rem", fontWeight: 500, color: tc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatTime(cls.starts_at)} · {cls.name}</div>
+                                  <div style={{ fontSize: "0.62rem", color: "var(--light)" }}>{count}/{cls.max_spots}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-            {cancelledClasses.length > 0 && (
-              <>
-                <div className="section-header" style={{ marginTop: "1rem" }}><h3 style={{ color: "var(--clay)" }}>🚫 Odwołane zajęcia</h3></div>
-                <div className="table-wrapper">
-                  <table>
-                    <thead><tr><th>Nazwa</th><th>Data</th><th>Powód</th></tr></thead>
-                    <tbody>
-                      {cancelledClasses.map(cls => (
-                        <tr key={cls.id} style={{ opacity: 0.6 }}>
-                          <td><strong>{cls.name}</strong></td>
-                          <td>{formatDate(cls.starts_at)}</td>
-                          <td style={{ color: "var(--clay)" }}>{cls.cancel_reason || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                    {[["var(--cream)","var(--border)","< 70%"],["#EBF5EA","#8A9E85","≥ 70%"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,bdr,label]) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
+                        <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${bdr}` }} />
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </>
         )}
 
+        {/* UCZESTNICY + LISTA OBECNOŚCI */}
         {/* UCZESTNICY + LISTA OBECNOŚCI */}
         {tab === "participants" && selectedClass && (
           <>
