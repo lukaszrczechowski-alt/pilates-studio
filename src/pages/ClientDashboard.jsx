@@ -462,7 +462,7 @@ export default function ClientDashboard({ session, profile }) {
               : <div className="cards-grid">{upcomingMyClasses.map(b => {
                 const status = cancelStatus(b.classes?.starts_at);
                 return (
-                  <div className="class-card" key={b.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(b.classes)}>
+                  <div className="class-card" key={b.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(classes.find(c => c.id === b.class_id) || b.classes)}>
                     <div className="class-card-header">
                       <span className="class-title">{b.classes?.name}</span>
                       <span className="class-badge badge-yours">{b.payment_method === "entries" ? "🎫 wejście" : "💵 gotówka"}</span>
