@@ -566,6 +566,73 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         {message && <div className={`alert ${message.type === "error" ? "alert-error" : "alert-success"}`} style={{ position: "fixed", top: "1rem", right: "1rem", zIndex: 999, maxWidth: 400 }}>{message.text}</div>}
 
         {/* ZAJĘCIA */}
+        {tab === "classes" && (
+          <>
+            <div className="page-header"><h2>Zarządzanie zajęciami</h2></div>
+            <div className="stats-row">
+              <div className="stat-card"><div className="stat-value">{stats.totalClasses}</div><div className="stat-label">Nadchodzące zajęcia</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.totalBookings}</div><div className="stat-label">Aktywne rezerwacje</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">Klientów łącznie</div></div>
+            </div>
+            <div className="section-header"><h3>Nadchodzące zajęcia</h3><button className="btn btn-primary" onClick={openCreate}>+ Nowe zajęcia</button></div>
+            {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
+              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
+              : (
+                <div className="table-wrapper" style={{ marginBottom: "2rem" }}>
+                  <table>
+                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godz.</th><th>Cena</th><th>Sala</th><th>Miejsca</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
+                    <tbody>
+                      {upcomingClasses.map(cls => {
+                        const count = cls.bookings?.length || 0;
+                        return (
+                          <tr key={cls.id}>
+                            <td><strong>{cls.name}</strong>{cls.series_id && <span style={{ fontSize: "0.7rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.15rem 0.5rem", borderRadius: 20, marginLeft: "0.5rem" }}>🔁 {cls.series_index}</span>}</td>
+                            <td>{formatDate(cls.starts_at)}</td>
+                            <td>{formatTime(cls.starts_at)}</td>
+                            <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
+                            <td>{cls.venue_cost_pln ? <span style={{ color: "var(--clay)" }}>{cls.venue_cost_pln} zł</span> : "—"}</td>
+                            <td>{count} / {cls.max_spots}</td>
+                            <td>
+                              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                                <button className="btn btn-secondary btn-sm" onClick={() => openParticipants(cls)}>Lista ({count})</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(cls)} title="Wyślij wiadomość">💬</button>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                                <button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>Edytuj</button>
+                                <button className="btn btn-danger btn-sm" onClick={() => setShowCancelModal(cls)}>Odwołaj</button>
+                                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(cls.id)}>Usuń</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            {cancelledClasses.length > 0 && (
+              <>
+                <div className="section-header" style={{ marginTop: "1rem" }}><h3 style={{ color: "var(--clay)" }}>🚫 Odwołane zajęcia</h3></div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead><tr><th>Nazwa</th><th>Data</th><th>Powód</th></tr></thead>
+                    <tbody>
+                      {cancelledClasses.map(cls => (
+                        <tr key={cls.id} style={{ opacity: 0.6 }}>
+                          <td><strong>{cls.name}</strong></td>
+                          <td>{formatDate(cls.starts_at)}</td>
+                          <td style={{ color: "var(--clay)" }}>{cls.cancel_reason || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
 
         {/* KALENDARZ ADMINA — MIESIĘCZNY */}
         {tab === "admin_calendar" && (
