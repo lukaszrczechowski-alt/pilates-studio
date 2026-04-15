@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabase";
+import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 
 export default function AdminDashboard({ session, profile }) {
   const [tab, setTab] = useState("classes");

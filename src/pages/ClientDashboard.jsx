@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
+import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 
 export default function ClientDashboard({ session, profile }) {
   const [tab, setTab] = useState("upcoming");
@@ -64,6 +65,7 @@ export default function ClientDashboard({ session, profile }) {
     setActionLoading(cls.id);
     const month = new Date(cls.starts_at).getMonth() + 1;
     const year = new Date(cls.starts_at).getFullYear();
+
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("amount")
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
@@ -72,8 +74,12 @@ export default function ClientDashboard({ session, profile }) {
         setActionLoading(null); return;
       }
     }
-    const { error } = await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod });
+
+    const { error } = await supabase.from("bookings").insert({
+      class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod,
+    });
     if (error) { showMsg("Błąd przy zapisie.", "error"); setActionLoading(null); return; }
+
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("*")
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).single();
@@ -82,6 +88,19 @@ export default function ClientDashboard({ session, profile }) {
         await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis na zajęcia: ${cls.name}` });
       }
     }
+
+    // Email potwierdzenie zapisu
+    await sendEmail("booking_confirmed", profile.email, {
+      firstName: profile.first_name,
+      className: cls.name,
+      date: formatEmailDate(cls.starts_at),
+      time: formatEmailTime(cls.starts_at),
+      duration: cls.duration_min,
+      location: cls.location || "",
+      notes: cls.notes || "",
+      paymentMethod,
+    });
+
     showMsg(paymentMethod === "entries" ? "Zapisano! Zdjęto 1 wejście. ✓" : "Zapisano! Płatność gotówką na miejscu. ✓");
     setShowBookModal(null); setDetailClass(null);
     await fetchData(); setActionLoading(null);
@@ -92,8 +111,13 @@ export default function ClientDashboard({ session, profile }) {
     if (!cls) return;
     const status = cancelStatus(cls.starts_at);
     if (status === "after_cutoff" && !force) { setShowCancelWarning(booking); setDetailClass(null); return; }
+
     setActionLoading(booking.class_id || booking.id);
     await supabase.from("bookings").delete().eq("id", booking.id);
+
+    let refunded = false;
+    let lostEntry = false;
+
     if (booking.payment_method === "entries" && status === "free") {
       const month = new Date(cls.starts_at).getMonth() + 1;
       const year = new Date(cls.starts_at).getFullYear();
@@ -102,19 +126,42 @@ export default function ClientDashboard({ session, profile }) {
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount + 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
         await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "add", amount: 1, month, year, note: "Zwrot wejścia — anulowanie rezerwacji" });
-        showMsg("Anulowano. Wejście wróciło na Twoje konto. ✓");
+        refunded = true;
       }
     } else if (booking.payment_method === "entries" && status === "after_cutoff") {
-      showMsg("Anulowano. Wejście przepadło (po 12:00).", "error");
-    } else {
-      showMsg("Anulowano rezerwację.");
+      lostEntry = true;
     }
-    const { data: waitlistFirst } = await supabase.from("waitlist").select("*")
+
+    // Email anulowanie
+    await sendEmail("booking_cancelled", profile.email, {
+      firstName: profile.first_name,
+      className: cls.name,
+      date: formatEmailDate(cls.starts_at),
+      time: formatEmailTime(cls.starts_at),
+      refunded,
+      lostEntry,
+    });
+
+    if (refunded) showMsg("Anulowano. Wejście wróciło na konto. ✓");
+    else if (lostEntry) showMsg("Anulowano. Wejście przepadło (po 12:00).", "error");
+    else showMsg("Anulowano rezerwację.");
+
+    // Awansuj z kolejki
+    const { data: waitlistFirst } = await supabase.from("waitlist").select("*, profiles(first_name, email)")
       .eq("class_id", cls.id).order("created_at", { ascending: true }).limit(1);
     if (waitlistFirst?.length > 0) {
       await supabase.from("bookings").insert({ class_id: cls.id, user_id: waitlistFirst[0].user_id, payment_method: "cash" });
       await supabase.from("waitlist").delete().eq("id", waitlistFirst[0].id);
+      // Email do osoby z kolejki
+      await sendEmail("waitlist_promoted", waitlistFirst[0].profiles?.email, {
+        firstName: waitlistFirst[0].profiles?.first_name,
+        className: cls.name,
+        date: formatEmailDate(cls.starts_at),
+        time: formatEmailTime(cls.starts_at),
+        location: cls.location || "",
+      });
     }
+
     setShowCancelWarning(null); setDetailClass(null);
     await fetchData(); setActionLoading(null);
   }
@@ -141,7 +188,6 @@ export default function ClientDashboard({ session, profile }) {
   const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date());
   const pastMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) < new Date())
     .sort((a, b) => new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at));
-
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const currentTokens = myTokens.find(t => t.month === currentMonth && t.year === currentYear);
@@ -174,7 +220,7 @@ export default function ClientDashboard({ session, profile }) {
           </div>
           {method === "entries" && classEntries > 0 && (
             <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>
-              ⚠️ Zapis od razu zdejmie 1 wejście. Anulując przed 12:00 w dniu zajęć — wejście wraca.
+              ⚠️ Zapis od razu zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.
             </div>
           )}
           <button className="btn btn-primary btn-full" onClick={() => handleBook(cls, method)} disabled={actionLoading === cls.id || (method === "entries" && classEntries === 0)}>
@@ -193,7 +239,7 @@ export default function ClientDashboard({ session, profile }) {
         <div className="modal" style={{ maxWidth: 420 }}>
           <div className="modal-header"><h3>Uwaga — późne anulowanie</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <div style={{ background: "#FDE8E8", border: "1px solid #F5C6C6", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>Jest po 12:00 w dniu zajęć. Możesz nadal anulować, ale {loseEntry ? <strong>stracisz 1 wejście</strong> : "bez konsekwencji"}.</p>
+            <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>Jest po 12:00 w dniu zajęć. {loseEntry ? <strong>Stracisz 1 wejście.</strong> : "Możesz anulować bez konsekwencji."}</p>
           </div>
           <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>Zajęcia: <strong>{cls?.name}</strong><br/>{cls?.starts_at && formatDate(cls.starts_at)}</p>
           <div style={{ display: "flex", gap: "0.75rem" }}>
@@ -255,7 +301,7 @@ export default function ClientDashboard({ session, profile }) {
           )}
           {booked ? (
             <>
-              {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — anulowanie możliwe, ale {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
+              {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
               <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Anuluj rezerwację"}</button>
             </>
           ) : onWaitlist ? (
@@ -388,7 +434,6 @@ export default function ClientDashboard({ session, profile }) {
           <>
             <div className="page-header"><h2>Moje konto</h2></div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
-              {/* Profil */}
               <div className="card">
                 <div className="user-info" style={{ marginBottom: "1.5rem" }}>
                   <div className="user-avatar" style={{ width: 56, height: 56, fontSize: "1.5rem" }}>{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
@@ -406,8 +451,6 @@ export default function ClientDashboard({ session, profile }) {
                 </div>
                 <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
               </div>
-
-              {/* Wejścia */}
               <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎫 Moje wejścia</h3>
                 {myTokens.length === 0
@@ -425,30 +468,18 @@ export default function ClientDashboard({ session, profile }) {
                 <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--light)" }}>Anuluj przed 12:00 w dniu zajęć aby odzyskać wejście.</p>
               </div>
             </div>
-
-            {/* Historia zajęć */}
             <div className="section-header" style={{ marginBottom: "1rem" }}>
               <h3>Historia moich zajęć</h3>
               <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{pastMyClasses.length} zajęć</span>
             </div>
-
             {pastMyClasses.length === 0
               ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Nie byłaś jeszcze na żadnych zajęciach.</p></div>
               : (
                 <div className="table-wrapper">
                   <table>
-                    <thead>
-                      <tr>
-                        <th>Zajęcia</th>
-                        <th>Data</th>
-                        <th>Godzina</th>
-                        <th>Czas trwania</th>
-                        <th>Płatność</th>
-                        <th>Cena</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Czas</th><th>Płatność</th><th>Cena</th></tr></thead>
                     <tbody>
-                      {pastMyClasses.map((b, i) => (
+                      {pastMyClasses.map(b => (
                         <tr key={b.id}>
                           <td><strong>{b.classes?.name}</strong></td>
                           <td>{formatDateShort(b.classes?.starts_at)}</td>
