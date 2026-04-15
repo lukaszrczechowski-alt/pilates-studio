@@ -45,9 +45,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [templates, setTemplates] = useState([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
-  const [templates, setTemplates] = useState([]);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+
 
   useEffect(() => { fetchAll(); }, []);
 
