@@ -817,3 +817,151 @@ tr:hover td { background: var(--cream); }
     grid-template-columns: 1fr;
   }
 }
+/* ============================================
+   TRYB CIEMNY — dodaj na końcu App.css
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --warm-white: #1A1A1A;
+    --cream: #242424;
+    --sage: #7A9E75;
+    --sage-light: #5A7A55;
+    --sage-dark: #9ABE95;
+    --charcoal: #E8E8E8;
+    --mid: #A0A0A0;
+    --light: #606060;
+    --border: #333333;
+    --clay: #C4917A;
+    --clay-light: #8B5A2B;
+  }
+
+  body {
+    background: #111111;
+    color: #E8E8E8;
+  }
+
+  .sidebar {
+    background: #1A1A1A;
+    border-right: 1px solid #333;
+  }
+
+  .main-content {
+    background: #111111;
+  }
+
+  .card {
+    background: #1A1A1A;
+    border-color: #333;
+  }
+
+  .class-card {
+    background: #1A1A1A;
+    border-color: #333;
+  }
+
+  .modal {
+    background: #1A1A1A;
+    border: 1px solid #333;
+  }
+
+  .modal-overlay {
+    background: rgba(0, 0, 0, 0.75);
+  }
+
+  .form-input {
+    background: #242424;
+    border-color: #444;
+    color: #E8E8E8;
+  }
+
+  .form-input:focus {
+    border-color: var(--sage);
+    background: #2A2A2A;
+  }
+
+  .table-wrapper table {
+    background: #1A1A1A;
+  }
+
+  .table-wrapper th {
+    background: #242424;
+    color: #A0A0A0;
+    border-bottom-color: #333;
+  }
+
+  .table-wrapper td {
+    border-bottom-color: #2A2A2A;
+    color: #E8E8E8;
+  }
+
+  .table-wrapper tr:hover td {
+    background: #242424;
+  }
+
+  .nav-item {
+    color: #A0A0A0;
+  }
+
+  .nav-item:hover {
+    background: #242424;
+    color: #E8E8E8;
+  }
+
+  .nav-item.active {
+    background: #2A3A2A;
+    color: var(--sage-dark);
+  }
+
+  .btn-secondary {
+    background: #2A2A2A;
+    border-color: #444;
+    color: #E8E8E8;
+  }
+
+  .btn-secondary:hover {
+    background: #333;
+  }
+
+  .stat-card {
+    background: #1A1A1A;
+    border-color: #333;
+  }
+
+  .mobile-nav {
+    background: #1A1A1A;
+    border-top-color: #333;
+  }
+
+  .mobile-nav-item {
+    color: #606060;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--sage-dark);
+  }
+
+  .sidebar-footer {
+    border-top-color: #333;
+  }
+
+  .spots-bar {
+    background: #333;
+  }
+
+  .loading-screen {
+    background: #111111;
+  }
+
+  .alert-success {
+    background: #1A2A1A;
+    border-color: #2A4A2A;
+    color: #9ABE95;
+  }
+
+  .alert-error {
+    background: #2A1A1A;
+    border-color: #4A2A2A;
+    color: #C44B4B;
+  }
+}

@@ -33,6 +33,10 @@ export default function AdminDashboard({ session, profile }) {
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [reportView, setReportView] = useState("summary");
+  const [clientSearch, setClientSearch] = useState("");
+  const [editingNotes, setEditingNotes] = useState(null); // userId
+  const [notesText, setNotesText] = useState("");
+  const [adminCalendarWeek, setAdminCalendarWeek] = useState(getMonday(new Date()));
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -347,6 +351,22 @@ export default function AdminDashboard({ session, profile }) {
     return formatDate(iso);
   }
 
+  function getMonday(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  async function saveNotes(userId) {
+    await supabase.from("profiles").update({ admin_notes: notesText }).eq("id", userId);
+    setAllProfiles(prev => prev.map(p => p.id === userId ? { ...p, admin_notes: notesText } : p));
+    setEditingNotes(null);
+    showMsg("Notatka zapisana! ✓");
+  }
+
   const upcomingClasses = classes.filter(c => new Date(c.starts_at) >= new Date() && !c.cancelled);
   const cancelledClasses = classes.filter(c => c.cancelled);
   const pastClasses = classes.filter(c => new Date(c.starts_at) < new Date() && !c.cancelled);
@@ -412,6 +432,7 @@ export default function AdminDashboard({ session, profile }) {
         <div className="sidebar-logo" onClick={() => setTab("classes")} style={{ cursor: "pointer" }}><h1>Pilates</h1><p>Panel admina</p></div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => setTab("classes")}><span className="nav-icon">🗓</span> Zajęcia</div>
+          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="nav-icon">📅</span> Kalendarz</div>
           <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => setTab("settle")}>
             <span className="nav-icon">💰</span> Do rozliczenia
             {toSettle.length > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{toSettle.length}</span>}
@@ -854,25 +875,179 @@ export default function AdminDashboard({ session, profile }) {
         {tab === "clients" && (
           <>
             <div className="page-header"><h2>Klienci</h2></div>
+
+            {/* Wyszukiwarka */}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <input
+                className="form-input"
+                placeholder="🔍 Szukaj po imieniu lub nazwisku..."
+                value={clientSearch}
+                onChange={e => setClientSearch(e.target.value)}
+                style={{ maxWidth: 360 }}
+              />
+            </div>
+
             {allProfiles.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><p>Brak klientów</p></div>
-              : <div className="table-wrapper"><table>
-                <thead><tr><th>Imię i nazwisko</th><th>Email</th><th>Rezerwacje</th><th>Wejścia ({monthName(currentMonth)})</th><th>Akcje</th></tr></thead>
-                <tbody>{allProfiles.map((c, i) => (
-                  <tr key={i}>
-                    <td><strong>{c.first_name} {c.last_name}</strong></td>
-                    <td>{c.email}</td>
-                    <td>{allBookings.filter(b => b.user_id === c.id).length}</td>
-                    <td><TokenBadge userId={c.id} month={currentMonth} year={currentYear} /></td>
-                    <td><button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 Wejścia</button></td>
-                  </tr>
-                ))}</tbody></table></div>}
+              : (() => {
+                const filtered = allProfiles.filter(c =>
+                  `${c.first_name} ${c.last_name}`.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                  c.email?.toLowerCase().includes(clientSearch.toLowerCase())
+                );
+                return filtered.length === 0
+                  ? <div className="empty-state"><div className="empty-icon">🔍</div><p>Brak wyników dla "{clientSearch}"</p></div>
+                  : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                      {filtered.map((c, i) => (
+                        <div key={i} className="card" style={{ padding: "1rem 1.25rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                              <div className="user-avatar">{c.first_name?.[0]}{c.last_name?.[0]}</div>
+                              <div>
+                                <div style={{ fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
+                                <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{c.email}</div>
+                                <div style={{ fontSize: "0.8rem", color: "var(--mid)", marginTop: 2 }}>
+                                  Rezerwacji: {allBookings.filter(b => b.user_id === c.id).length}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                              <TokenBadge userId={c.id} month={currentMonth} year={currentYear} />
+                              <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 Wejścia</button>
+                            </div>
+                          </div>
+
+                          {/* Notatki admina */}
+                          <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--border)" }}>
+                            {editingNotes === c.id ? (
+                              <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+                                <textarea
+                                  className="form-input"
+                                  value={notesText}
+                                  onChange={e => setNotesText(e.target.value)}
+                                  placeholder="np. kontuzja kolana, preferuje rano, alergia na lateks..."
+                                  rows={2}
+                                  style={{ flex: 1, resize: "vertical", fontSize: "0.85rem" }}
+                                  autoFocus
+                                />
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                                  <button className="btn btn-primary btn-sm" onClick={() => saveNotes(c.id)}>Zapisz</button>
+                                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingNotes(null)}>Anuluj</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+                                <div style={{ flex: 1 }}>
+                                  {c.admin_notes
+                                    ? <p style={{ fontSize: "0.85rem", color: "var(--charcoal)", fontStyle: "italic" }}>📝 {c.admin_notes}</p>
+                                    : <p style={{ fontSize: "0.8rem", color: "var(--light)" }}>Brak notatek</p>}
+                                </div>
+                                <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}
+                                  onClick={() => { setEditingNotes(c.id); setNotesText(c.admin_notes || ""); }}>
+                                  {c.admin_notes ? "Edytuj notatkę" : "Dodaj notatkę"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+              })()}
+          </>
+        )}
+
+        {/* KALENDARZ ADMINA */}
+        {tab === "admin_calendar" && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Tygodniowy przegląd</p></div>
+              <button className="btn btn-primary btn-sm" onClick={openCreate}>+ Nowe zajęcia</button>
+            </div>
+
+            {/* Nawigacja tygodnia */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setDate(d.getDate() - 7); setAdminCalendarWeek(d); }}>← Poprzedni</button>
+              <span style={{ fontWeight: 500, fontSize: "0.95rem" }}>
+                {(() => { const w = Array.from({length:7},(_,i)=>{ const d=new Date(adminCalendarWeek); d.setDate(d.getDate()+i); return d; }); return `${w[0].toLocaleDateString("pl-PL",{day:"numeric",month:"long"})} – ${w[6].toLocaleDateString("pl-PL",{day:"numeric",month:"long",year:"numeric"})}`; })()}
+              </span>
+              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setDate(d.getDate() + 7); setAdminCalendarWeek(d); }}>Następny →</button>
+            </div>
+
+            {/* Grid */}
+            {(() => {
+              const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date(adminCalendarWeek); d.setDate(d.getDate()+i); return d; });
+              const dayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
+              const isToday = d => d.toDateString() === new Date().toDateString();
+              return (
+                <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--warm-white)" }}>
+                  {/* Nagłówki */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                    {weekDays.map((day, i) => (
+                      <div key={i} style={{ padding: "0.75rem 0.5rem", textAlign: "center", background: isToday(day) ? "var(--sage)" : "var(--cream)", borderBottom: "1px solid var(--border)", borderRight: i < 6 ? "1px solid var(--border)" : "none" }}>
+                        <div style={{ fontSize: "0.75rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--mid)", textTransform: "uppercase" }}>{dayNames[i]}</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 500, color: isToday(day) ? "white" : "var(--charcoal)" }}>{day.getDate()}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Komórki */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                    {weekDays.map((day, i) => {
+                      const dayClasses = classes.filter(cls => {
+                        const d = new Date(cls.starts_at);
+                        return d.toDateString() === day.toDateString() && !cls.cancelled;
+                      });
+                      return (
+                        <div key={i} style={{ padding: "0.5rem", minHeight: 120, borderRight: i < 6 ? "1px solid var(--border)" : "none", background: isToday(day) ? "rgba(138,158,133,0.04)" : "transparent" }}>
+                          {dayClasses.length === 0
+                            ? <div style={{ fontSize: "0.7rem", color: "var(--border)", textAlign: "center", marginTop: "1rem" }}>—</div>
+                            : dayClasses.map(cls => {
+                              const count = cls.bookings?.length || 0;
+                              const pct = Math.round((count / cls.max_spots) * 100);
+                              const isFull = count >= cls.max_spots;
+                              const bg = cls.cancelled ? "#FDE8E8" : isFull ? "#FEF3E8" : pct >= 70 ? "#EBF5EA" : "white";
+                              const border = cls.cancelled ? "#F5C6C6" : isFull ? "#E8C5B5" : pct >= 70 ? "#8A9E85" : "var(--border)";
+                              return (
+                                <div key={cls.id} onClick={() => openParticipants(cls)}
+                                  style={{ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "0.4rem 0.6rem", cursor: "pointer", marginBottom: "0.3rem", transition: "opacity 0.15s" }}
+                                  onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
+                                  onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                                  <div style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--sage-dark)" }}>{formatTime(cls.starts_at)}</div>
+                                  <div style={{ fontSize: "0.75rem", color: "var(--charcoal)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cls.name}</div>
+                                  <div style={{ fontSize: "0.7rem", marginTop: 2 }}>
+                                    <span style={{ color: isFull ? "var(--clay)" : "var(--mid)" }}>{count}/{cls.max_spots}</span>
+                                    <span style={{ marginLeft: "0.3rem", color: "var(--light)" }}>{pct}%</span>
+                                  </div>
+                                  {/* Mini pasek obłożenia */}
+                                  <div style={{ height: 3, background: "var(--border)", borderRadius: 2, marginTop: 3, overflow: "hidden" }}>
+                                    <div style={{ width: `${pct}%`, height: "100%", background: isFull ? "var(--clay)" : "var(--sage)", borderRadius: 2 }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Legenda */}
+            <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+              {[["white","var(--border)","< 70% miejsc"],["#EBF5EA","#8A9E85","≥ 70% miejsc"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,border,label]) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
+                  {label}
+                </div>
+              ))}
+            </div>
           </>
         )}
       </main>
 
       {/* Mobile nav */}
       <nav className="mobile-nav">
-        <div className={`mobile-nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => setTab("classes")}><span className="mobile-nav-icon">🗓</span><span>Zajęcia</span></div>
+        <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>Kalendarz</span></div>
         <div className={`mobile-nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => setTab("settle")}>
           <span className="mobile-nav-icon" style={{ position: "relative" }}>💰{toSettle.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--clay)", color: "white", borderRadius: "50%", width: 14, height: 14, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{toSettle.length}</span>}</span>
           <span>Rozlicz</span>

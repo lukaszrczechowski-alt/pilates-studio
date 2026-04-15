@@ -1,7 +1,7 @@
 {
-  "name": "Pilates Studio",
+  "name": "Paulina Pilates Studio",
   "short_name": "Pilates",
-  "description": "System rezerwacji zajęć Pilates",
+  "description": "System rezerwacji zajęć pilates",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F3EE",

@@ -270,6 +270,39 @@ export default function ClientDashboard({ session, profile }) {
     );
   }
 
+  function googleCalendarUrl(cls) {
+    const start = new Date(cls.starts_at);
+    const end = new Date(start.getTime() + cls.duration_min * 60000);
+    const fmt = d => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: `Pilates — ${cls.name}`,
+      dates: `${fmt(start)}/${fmt(end)}`,
+      details: cls.notes || "Zajęcia pilates",
+      location: cls.location || "Paulina Pilates Studio",
+    });
+    return `https://calendar.google.com/calendar/render?${params}`;
+  }
+
+  function appleCalendarUrl(cls) {
+    const start = new Date(cls.starts_at);
+    const end = new Date(start.getTime() + cls.duration_min * 60000);
+    const fmt = d => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      `DTSTART:${fmt(start)}`,
+      `DTEND:${fmt(end)}`,
+      `SUMMARY:Pilates — ${cls.name}`,
+      `DESCRIPTION:${cls.notes || "Zajęcia pilates"}`,
+      `LOCATION:${cls.location || "Paulina Pilates Studio"}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\n");
+    return `data:text/calendar;charset=utf8,${encodeURIComponent(ics)}`;
+  }
+
   function DetailModal({ cls, onClose }) {
     if (!cls) return null;
     const booked = isBooked(cls.id);
@@ -313,6 +346,16 @@ export default function ClientDashboard({ session, profile }) {
             <>
               {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
               <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Anuluj rezerwację"}</button>
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                <a href={googleCalendarUrl(cls)} target="_blank" rel="noopener noreferrer"
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem", border: "1px solid var(--border)", borderRadius: 8, fontSize: "0.8rem", color: "var(--mid)", textDecoration: "none", background: "var(--warm-white)" }}>
+                  📅 Google Calendar
+                </a>
+                <a href={appleCalendarUrl(cls)} target="_blank" rel="noopener noreferrer"
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem", border: "1px solid var(--border)", borderRadius: 8, fontSize: "0.8rem", color: "var(--mid)", textDecoration: "none", background: "var(--warm-white)" }}>
+                  🍎 Apple Calendar
+                </a>
+              </div>
             </>
           ) : onWaitlist ? (
             <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)}>{actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}</button>
