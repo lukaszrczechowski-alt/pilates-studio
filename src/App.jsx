@@ -63,5 +63,5 @@ export default function App() {
     return <LandingPage onLogin={() => setAuthMode("login")} onRegister={() => setAuthMode("register")} />;
   }
   if (profile?.role === "admin") return <AdminDashboard session={session} profile={profile} darkMode={darkMode} setDarkMode={setDarkMode} />;
-  return <ClientDashboard session={session} profile={profile} darkMode={darkMode} setDarkMode={setDarkMode} />;
+  return <ClientDashboard session={session} profile={profile} onProfileUpdate={p => setProfile(prev => ({ ...prev, ...p }))} darkMode={darkMode} setDarkMode={setDarkMode} />;
 }

@@ -3,7 +3,7 @@ import { supabase } from "../supabase";
 import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
-export default function ClientDashboard({ session, profile, darkMode, setDarkMode }) {
+export default function ClientDashboard({ session, profile, onProfileUpdate, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState("calendar"); // calendar | list
   const [classes, setClasses] = useState([]);
@@ -24,8 +24,12 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   const [pushEnabled, setPushEnabled] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [phoneInput, setPhoneInput] = useState(profile?.phone || "");
+  const [phoneInput, setPhoneInput] = useState("");
   const [phoneSaving, setPhoneSaving] = useState(false);
+
+  useEffect(() => {
+    setPhoneInput(profile?.phone || "");
+  }, [profile?.phone]);
 
   function getMonday(date) {
     const d = new Date(date);
@@ -338,9 +342,13 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
 
   async function savePhone() {
     setPhoneSaving(true);
-    const { error } = await supabase.from("profiles").update({ phone: phoneInput.trim() || null }).eq("id", session.user.id);
+    const phone = phoneInput.trim() || null;
+    const { error } = await supabase.from("profiles").update({ phone }).eq("id", session.user.id);
     if (error) showMsg("Błąd zapisu: " + error.message, "error");
-    else showMsg("Numer telefonu zapisany. ✓");
+    else {
+      onProfileUpdate({ phone });
+      showMsg("Numer telefonu zapisany. ✓");
+    }
     setPhoneSaving(false);
   }
 
