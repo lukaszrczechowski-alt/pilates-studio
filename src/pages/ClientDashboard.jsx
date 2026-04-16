@@ -49,6 +49,14 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
 
   useEffect(() => { fetchData(); }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("platnosc") === "ok") {
+      showMsg("Płatność zakończona! Rezerwacja potwierdzona. ✓");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   async function fetchData() {
     setLoading(true);
     const now = new Date().toISOString();
@@ -108,6 +116,32 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   }
 
   async function handleBook(cls, paymentMethod) {
+    // Płatność online przez P24
+    if (paymentMethod === "online") {
+      setActionLoading(cls.id);
+      try {
+        const resp = await fetch("/api/p24-create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ classId: cls.id }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          showMsg(data.error || "Błąd przy inicjowaniu płatności.", "error");
+          setActionLoading(null);
+          return;
+        }
+        window.location.href = data.redirectUrl;
+      } catch (e) {
+        showMsg("Błąd połączenia z bramką płatności.", "error");
+        setActionLoading(null);
+      }
+      return;
+    }
+
     setActionLoading(cls.id);
     const month = new Date(cls.starts_at).getMonth() + 1;
     const year = new Date(cls.starts_at).getFullYear();
@@ -319,9 +353,18 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
                 <div><div style={{ fontWeight: 500 }}>Wejście z karnetu</div><div style={{ fontSize: "0.8rem", color: classEntries > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{classEntries > 0 ? `Masz ${classEntries} wejść na ${monthName(month)}` : `Brak wejść na ${monthName(month)}`}</div></div>
               </div>
             </div>
+            {cls.price_pln > 0 && (
+              <div onClick={() => setMethod("online")} style={{ border: `2px solid ${method === "online" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: "pointer", background: method === "online" ? "#EBF5EA" : "var(--warm-white)", transition: "all 0.15s" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <span style={{ fontSize: "1.5rem" }}>💳</span>
+                  <div><div style={{ fontWeight: 500 }}>Płatność online</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Karta, BLIK, przelew — {cls.price_pln} zł</div></div>
+                </div>
+              </div>
+            )}
           </div>
           {method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.</div>}
-          {cls.series_id && seriesRemaining > 1 && (
+          {method === "online" && <div style={{ background: "#EBF5EA", border: "1px solid var(--sage-light)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "var(--sage-dark)" }}>💳 Zostaniesz przekierowany do bezpiecznej strony Przelewy24.</div>}
+          {cls.series_id && seriesRemaining > 1 && method !== "online" && (
             <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
               <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", fontSize: "0.875rem" }}>
                 <input type="checkbox" checked={bookSeries} onChange={e => setBookSeries(e.target.checked)}
@@ -342,7 +385,9 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
               ? "Zapisuję..."
               : bookSeries
                 ? `Zapisz na ${seriesRemaining} zajęć z serii`
-                : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka)"}
+                : method === "online"
+                  ? `Przejdź do płatności — ${cls.price_pln} zł`
+                  : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka)"}
           </button>
         </div>
       </div>

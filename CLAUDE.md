@@ -100,6 +100,29 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_subscription TEXT;
 - **client** — widzi ClientDashboard: zajęcia, rezerwacje, powiadomienia, konto
 - **admin** (Paulina) — widzi AdminDashboard: kalendarz, klienci, finanse, szablony, powiadomienia
 
+## Przelewy24 (bramka płatności)
+
+- `api/p24-create.js` — POST: rejestruje transakcję P24, tworzy booking "pending", zwraca redirectUrl (wymaga JWT)
+- `api/p24-notify.js` — POST: webhook od P24, weryfikuje podpis + transakcję, ustawia booking "paid"
+- Płatność opcjonalna — pojawia się w BookModal tylko gdy `cls.price_pln > 0`
+- Po płatności P24 przekierowuje na `/?platnosc=ok` → ClientDashboard wyświetla potwierdzenie
+
+### Env vars Vercel
+- `P24_MERCHANT_ID` — numer merchantId z panelu P24
+- `P24_POS_ID` — numer posId (zwykle = merchantId)
+- `P24_CRC_KEY` — klucz CRC (SHA384) z panelu P24
+- `P24_API_KEY` — klucz API do basic auth REST v1
+- `P24_SANDBOX` — `true` dla środowiska testowego
+- `VITE_APP_URL` — adres produkcyjny (np. `https://studiobypaulina.pl`)
+
+### Wymagane kolumny w bookings (SQL)
+```sql
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'free';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_session_id TEXT;
+```
+
+Wartości `payment_status`: `free` (gotówka/karnet), `pending` (oczekuje na P24), `paid` (opłacone online)
+
 ## Push Notifications (Web Push)
 
 - `public/sw.js` — Service Worker obsługuje push events i notificationclick
