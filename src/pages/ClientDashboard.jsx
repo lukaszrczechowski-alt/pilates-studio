@@ -338,8 +338,9 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
 
   async function savePhone() {
     setPhoneSaving(true);
-    await supabase.from("profiles").update({ phone: phoneInput.trim() || null }).eq("id", session.user.id);
-    showMsg("Numer telefonu zapisany. ✓");
+    const { error } = await supabase.from("profiles").update({ phone: phoneInput.trim() || null }).eq("id", session.user.id);
+    if (error) showMsg("Błąd zapisu: " + error.message, "error");
+    else showMsg("Numer telefonu zapisany. ✓");
     setPhoneSaving(false);
   }
 
