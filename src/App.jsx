@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import AuthPage from "./pages/AuthPage";
+import LandingPage from "./pages/LandingPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PublicBooking from "./pages/PublicBooking";
@@ -10,6 +11,8 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // null = landing, "login" = formularz logowania, "register" = formularz rejestracji
+  const [authMode, setAuthMode] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
     if (saved !== null) return saved === "true";
@@ -55,7 +58,10 @@ export default function App() {
     </div>
   );
 
-  if (!session) return <AuthPage />;
+  if (!session) {
+    if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} />;
+    return <LandingPage onLogin={() => setAuthMode("login")} onRegister={() => setAuthMode("register")} />;
+  }
   if (profile?.role === "admin") return <AdminDashboard session={session} profile={profile} darkMode={darkMode} setDarkMode={setDarkMode} />;
   return <ClientDashboard session={session} profile={profile} darkMode={darkMode} setDarkMode={setDarkMode} />;
 }

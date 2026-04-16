@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
 
-export default function AuthPage() {
-  const [mode, setMode] = useState("login"); // login | register | reset
+export default function AuthPage({ initialMode = "login", onBack }) {
+  const [mode, setMode] = useState(initialMode); // login | register | reset
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -68,6 +68,9 @@ export default function AuthPage() {
 
       <div className="auth-form-side">
         <div className="auth-form-box">
+          {onBack && (
+            <button className="auth-back-btn" onClick={onBack}>← Wróć do strony głównej</button>
+          )}
 
           {/* LOGIN */}
           {mode === "login" && (
