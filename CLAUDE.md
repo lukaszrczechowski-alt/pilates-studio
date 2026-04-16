@@ -35,8 +35,16 @@ src/
 ## Baza danych (Supabase)
 
 ### Tabele
-- `profiles` — użytkownicy (first_name, last_name, email, role: client|admin)
+- `profiles` — użytkownicy (first_name, last_name, email, role: client|admin, phone, birth_date, admin_notes, push_subscription)
 - `classes` — zajęcia (name, starts_at, duration_min, max_spots, location, notes, price_pln, venue_cost_pln, cancelled, series_id)
+
+### Wymagane kolumny w profiles (SQL)
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS birth_date DATE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS admin_notes TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_subscription TEXT;
+```
 - `bookings` — rezerwacje (class_id, user_id, payment_method: cash|entries)
 - `waitlist` — lista oczekujących
 - `tokens` — wejścia z karnetu (user_id, month, year, amount)
@@ -91,6 +99,15 @@ src/
 
 - **client** — widzi ClientDashboard: zajęcia, rezerwacje, powiadomienia, konto
 - **admin** (Paulina) — widzi AdminDashboard: kalendarz, klienci, finanse, szablony, powiadomienia
+
+## Push Notifications (Web Push)
+
+- `public/sw.js` — Service Worker obsługuje push events i notificationclick
+- `api/push-subscribe.js` — POST: zapisuje subskrypcję push do `profiles.push_subscription`
+- `api/push-send.js` — POST: wysyła push do listy userIds (używa web-push + VAPID)
+- Env vars Vercel: `VITE_VAPID_PUBLIC_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
+- VAPID subject: `VAPID_SUBJECT` (opcjonalny, default: mailto:admin@studiobypaulina.pl)
+- Subskrypcje kasowane automatycznie gdy endpoint zwróci 410 Gone
 
 ## SMS (SMSAPI)
 

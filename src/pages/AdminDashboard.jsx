@@ -168,7 +168,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       }))
     );
 
-    // 3. Emaile + SMS
+    // 3. Emaile + SMS + Push
+    const userIds = bookingsForClass.map(b => b.user_id);
     for (const booking of bookingsForClass) {
       await sendEmail("class_cancelled", booking.profiles?.email, {
         firstName: booking.profiles?.first_name,
@@ -181,6 +182,18 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       await sendSms(booking.profiles?.phone,
         `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - Pilates Studio`
       );
+    }
+    if (userIds.length > 0) {
+      fetch("/api/push-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIds,
+          title: "Zajęcia odwołane",
+          body: `"${cls.name}" (${formatEmailDate(cls.starts_at)}) zostały odwołane. ${cancelReason}`,
+          url: "/",
+        }),
+      }).catch(() => {});
     }
 
     setShowCancelModal(null);
@@ -226,6 +239,18 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       if (withPhone.length < bookingsForClass.length) {
         const noPhone = bookingsForClass.length - withPhone.length;
         showMsg(`SMS wysłano do ${withPhone.length} os. (${noPhone} bez numeru).`);
+      }
+    }
+
+    // Push
+    if (msgDelivery.app) {
+      const uids = bookingsForClass.map(b => b.user_id);
+      if (uids.length > 0) {
+        fetch("/api/push-send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userIds: uids, title: cls.name, body: messageText, url: "/" }),
+        }).catch(() => {});
       }
     }
 

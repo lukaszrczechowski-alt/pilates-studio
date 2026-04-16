@@ -372,9 +372,10 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   }
 
   // Push notifications
+  const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
   async function registerPush() {
     try {
-      // Sprawdź czy to iOS Safari poza PWA
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
@@ -384,20 +385,31 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
       }
 
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        if (isIOS) {
-          showMsg("Powiadomienia push wymagają iOS 16.4+ i dodania aplikacji do ekranu głównego.", "error");
-        } else {
-          showMsg("Twoja przeglądarka nie obsługuje powiadomień push.", "error");
-        }
+        showMsg(isIOS ? "Powiadomienia push wymagają iOS 16.4+ i dodania aplikacji do ekranu głównego." : "Twoja przeglądarka nie obsługuje powiadomień push.", "error");
         return;
       }
 
       const reg = await navigator.serviceWorker.register('/sw.js');
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        showMsg("Powiadomienia zablokowane — włącz je w Ustawienia → Safari → Powiadomienia.", "error");
+        showMsg("Powiadomienia zablokowane — włącz je w ustawieniach przeglądarki.", "error");
         return;
       }
+
+      // Utwórz subskrypcję Web Push
+      if (VAPID_PUBLIC_KEY) {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: VAPID_PUBLIC_KEY,
+        });
+        // Zapisz subskrypcję przez API
+        await fetch("/api/push-subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: session.user.id, subscription: sub.toJSON() }),
+        });
+      }
+
       setPushEnabled(true);
       showMsg("Powiadomienia push włączone! ✓");
     } catch (err) {
@@ -408,7 +420,10 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   async function checkPushStatus() {
     if (!('serviceWorker' in navigator)) return;
     const reg = await navigator.serviceWorker.getRegistration('/sw.js');
-    if (reg && Notification.permission === 'granted') setPushEnabled(true);
+    if (reg && Notification.permission === 'granted') {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) setPushEnabled(true);
+    }
   }
 
   async function savePhone() {
