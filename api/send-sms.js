@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ to: phone, message: safeMessage, format: "json" }).toString(),
+      body: new URLSearchParams({ to: phone, message: safeMessage, format: "json", encoding: "utf-8" }).toString(),
     });
 
     const data = await response.json();
