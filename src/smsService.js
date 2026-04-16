@@ -5,11 +5,14 @@
 export async function sendSms(to, message) {
   if (!to?.trim()) return;
   try {
-    await fetch("/api/send-sms", {
+    const res = await fetch("/api/send-sms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, message }),
     });
+    const data = await res.json();
+    if (!res.ok) console.error("SMS failed:", data);
+    else console.log("SMS sent to", to);
   } catch (e) {
     console.error("SMS error:", e);
   }
