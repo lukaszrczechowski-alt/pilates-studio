@@ -48,6 +48,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [templates, setTemplates] = useState([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+  const [classRatings, setClassRatings] = useState([]);
+  const [editSeriesAll, setEditSeriesAll] = useState(false);
 
 
   useEffect(() => { fetchAll(); }, []);
@@ -86,6 +88,10 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     });
     const { data: templatesData } = await supabase.from("class_templates").select("*").order("name");
     setTemplates(templatesData || []);
+    const { data: ratingsData } = await supabase.from("class_ratings")
+      .select("*, classes(name, starts_at), profiles(first_name, last_name)")
+      .order("created_at", { ascending: false });
+    setClassRatings(ratingsData || []);
     setLoading(false);
   }
 
@@ -245,6 +251,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
   function openEdit(cls) {
     setEditClass(cls);
+    setEditSeriesAll(false);
     const local = new Date(cls.starts_at);
     const localStr = new Date(local.getTime() - local.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     setForm({ name: cls.name, starts_at: localStr, duration_min: cls.duration_min, max_spots: cls.max_spots, location: cls.location || "", notes: cls.notes || "", price_pln: cls.price_pln || "", venue_cost_pln: cls.venue_cost_pln || "" });
@@ -262,7 +269,15 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     };
 
     if (editClass) {
-      await supabase.from("classes").update(basePayload).eq("id", editClass.id);
+      if (editSeriesAll && editClass.series_id) {
+        // Aktualizuj wszystkie zajęcia z tej serii (bez starts_at — każda ma swoją datę)
+        const { name, duration_min, max_spots, location, notes, price_pln, venue_cost_pln } = basePayload;
+        await supabase.from("classes").update({ name, duration_min, max_spots, location, notes, price_pln, venue_cost_pln })
+          .eq("series_id", editClass.series_id);
+        showMsg("Zaktualizowano wszystkie zajęcia z serii! ✓");
+      } else {
+        await supabase.from("classes").update(basePayload).eq("id", editClass.id);
+      }
     } else if (recurring.enabled && recurring.weeks > 1) {
       // Utwórz serię zajęć
       const seriesId = crypto.randomUUID();
@@ -366,6 +381,32 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 500);
+  }
+
+  function exportCSV(rd) {
+    const rows = [
+      ["Zajęcia", "Data", "Uczestnicy", "Maks.", "Obłożenie %", "Przychód PLN", "Koszt sali PLN", "Dochód PLN"],
+      ...rd.classReports.map(r => [
+        r.cls.name,
+        new Date(r.cls.starts_at).toLocaleDateString("pl-PL"),
+        r.bookings.length,
+        r.cls.max_spots,
+        r.occupancy,
+        r.revenue,
+        r.venueCost,
+        r.profit,
+      ]),
+      [],
+      ["RAZEM", "", rd.classReports.reduce((s,r)=>s+r.bookings.length,0), "", rd.avgOccupancy, rd.totalRevenue, rd.totalCosts, rd.totalProfit],
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pilates-raport-${reportYear}-${String(reportMonth).padStart(2,"0")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleDelete(id) {
@@ -904,14 +945,17 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                   {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                {["summary","classes","clients","entries"].map(v => (
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                {["summary","classes","clients","entries","ratings"].map(v => (
                   <button key={v} className={`btn ${reportView === v ? "btn-primary" : "btn-secondary"} btn-sm`} onClick={() => setReportView(v)}>
-                    {v === "summary" ? "Podsumowanie" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : "Wejścia"}
+                    {v === "summary" ? "Podsumowanie" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : v === "entries" ? "Wejścia" : "⭐ Oceny"}
                   </button>
                 ))}
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => window.print()} style={{ marginLeft: "auto" }}>🖨️ Drukuj</button>
+              <div style={{ display: "flex", gap: "0.5rem", marginLeft: "auto" }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(rd)}>⬇️ CSV</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>🖨️ Drukuj</button>
+              </div>
             </div>
 
             {reportView === "summary" && (
@@ -1024,6 +1068,66 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 )}
               </>
             )}
+
+            {reportView === "ratings" && (() => {
+              // Group ratings by class name for summary
+              const byClass = {};
+              classRatings.forEach(r => {
+                const key = r.classes?.name || "Nieznane";
+                if (!byClass[key]) byClass[key] = { name: key, ratings: [] };
+                byClass[key].ratings.push(r);
+              });
+              const classSummary = Object.values(byClass).map(c => ({
+                name: c.name,
+                count: c.ratings.length,
+                avg: (c.ratings.reduce((s,r) => s+r.rating, 0) / c.ratings.length).toFixed(1),
+                ratings: c.ratings,
+              })).sort((a,b) => b.avg - a.avg);
+              const allCount = classRatings.length;
+              const overallAvg = allCount > 0 ? (classRatings.reduce((s,r) => s+r.rating, 0) / allCount).toFixed(1) : "—";
+              return (
+                <>
+                  <div className="stats-row" style={{ marginBottom: "1.5rem" }}>
+                    <div className="stat-card"><div className="stat-value">{allCount}</div><div className="stat-label">Ocen łącznie</div></div>
+                    <div className="stat-card"><div className="stat-value" style={{ color: "var(--sage-dark)" }}>{overallAvg} ⭐</div><div className="stat-label">Średnia ogólna</div></div>
+                    <div className="stat-card"><div className="stat-value">{classSummary.length}</div><div className="stat-label">Ocenionych zajęć</div></div>
+                  </div>
+                  {classSummary.length === 0
+                    ? <div className="empty-state"><div className="empty-icon">⭐</div><p>Brak ocen</p></div>
+                    : classSummary.map((c, i) => (
+                      <div key={i} className="card" style={{ marginBottom: "1rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                          <div>
+                            <h3 style={{ fontSize: "1rem", margin: 0 }}>{c.name}</h3>
+                            <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{c.count} {c.count === 1 ? "ocena" : c.count < 5 ? "oceny" : "ocen"}</span>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "1.5rem", fontFamily: "Cormorant Garamond, serif", color: "var(--sage-dark)", fontWeight: 600 }}>{c.avg} ⭐</div>
+                            <div style={{ display: "flex", gap: "0.2rem", justifyContent: "flex-end" }}>
+                              {[1,2,3,4,5].map(s => (
+                                <span key={s} style={{ fontSize: "0.9rem", opacity: s <= Math.round(+c.avg) ? 1 : 0.25 }}>⭐</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {c.ratings.filter(r => r.comment).length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                            {c.ratings.filter(r => r.comment).map((r, j) => (
+                              <div key={j} style={{ background: "var(--cream)", borderRadius: 6, padding: "0.6rem 0.75rem", fontSize: "0.85rem" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+                                  <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>{r.profiles?.first_name} {r.profiles?.last_name}</span>
+                                  <span>{"⭐".repeat(r.rating)}</span>
+                                </div>
+                                <p style={{ margin: 0, color: "var(--charcoal)", fontStyle: "italic" }}>"{r.comment}"</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </>
+              );
+            })()}
           </>
         )}
 
@@ -1251,6 +1355,20 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
             </div>
             <div className="form-group"><label className="form-label">Lokalizacja</label><input className="form-input" placeholder="np. Sala A" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Notatki dla klientek</label><input className="form-input" placeholder="np. Przynieś matę" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+
+            {/* Edycja serii — tylko przy edytowaniu zajęć z series_id */}
+            {editClass && editClass.series_id && (
+              <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "0.5rem" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer" }}>
+                  <input type="checkbox" checked={editSeriesAll} onChange={e => setEditSeriesAll(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 Edytuj wszystkie zajęcia z tej serii</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>Nazwa, czas, miejsca, cena i notatki zostaną zmienione we wszystkich — daty pozostaną bez zmian</div>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* Zajęcia cykliczne — tylko przy tworzeniu */}
             {!editClass && (

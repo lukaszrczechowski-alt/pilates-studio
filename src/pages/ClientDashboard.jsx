@@ -27,10 +27,16 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   const [notifFilter, setNotifFilter] = useState("all");
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const [birthInput, setBirthInput] = useState("");
+  const [birthSaving, setBirthSaving] = useState(false);
 
   useEffect(() => {
     setPhoneInput(profile?.phone || "");
   }, [profile?.phone]);
+
+  useEffect(() => {
+    setBirthInput(profile?.birth_date || "");
+  }, [profile?.birth_date]);
 
   function getMonday(date) {
     const d = new Date(date);
@@ -129,6 +135,45 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
       duration: cls.duration_min, location: cls.location || "", notes: cls.notes || "", paymentMethod,
     });
     showMsg(paymentMethod === "entries" ? "Zapisano! Zdjęto 1 wejście. ✓" : "Zapisano! Płatność gotówką. ✓");
+    setShowBookModal(null); setDetailClass(null);
+    await fetchData(); setActionLoading(null);
+  }
+
+  async function handleBookSeries(seriesId, method) {
+    // Znajdź wszystkie przyszłe zajęcia z tej serii, na które użytkownik nie jest jeszcze zapisany
+    const now = new Date();
+    const bookedIds = new Set(myBookings.map(b => b.class_id));
+    const seriesClasses = classes.filter(c =>
+      c.series_id === seriesId &&
+      new Date(c.starts_at) >= now &&
+      !bookedIds.has(c.id) &&
+      !c.cancelled
+    );
+    if (seriesClasses.length === 0) {
+      showMsg("Jesteś już zapisany/a na wszystkie zajęcia z tej serii.", "error");
+      return;
+    }
+    setActionLoading("series");
+    let booked = 0;
+    for (const cls of seriesClasses) {
+      const { error } = await supabase.from("bookings").insert({
+        class_id: cls.id, user_id: session.user.id, payment_method: method,
+      });
+      if (!error) {
+        if (method === "entries") {
+          const month = new Date(cls.starts_at).getMonth() + 1;
+          const year = new Date(cls.starts_at).getFullYear();
+          const { data: tok } = await supabase.from("tokens").select("*")
+            .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
+          if (tok && tok.amount > 0) {
+            await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
+            await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis (seria): ${cls.name}` });
+          }
+        }
+        booked++;
+      }
+    }
+    showMsg(`Zapisano na ${booked} ${booked === 1 ? "zajęcia" : booked < 5 ? "zajęcia" : "zajęć"} z serii! ✓`);
     setShowBookModal(null); setDetailClass(null);
     await fetchData(); setActionLoading(null);
   }
@@ -246,9 +291,14 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
 
   function BookModal({ cls, onClose }) {
     const [method, setMethod] = useState("cash");
+    const [bookSeries, setBookSeries] = useState(false);
     const month = new Date(cls.starts_at).getMonth() + 1;
     const classTokens = myTokens.find(t => t.month === month && t.year === new Date(cls.starts_at).getFullYear());
     const classEntries = classTokens?.amount || 0;
+    const bookedIds = new Set(myBookings.map(b => b.class_id));
+    const seriesRemaining = cls.series_id
+      ? classes.filter(c => c.series_id === cls.series_id && new Date(c.starts_at) >= new Date() && !bookedIds.has(c.id) && !c.cancelled).length
+      : 0;
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 440 }}>
@@ -271,8 +321,28 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
             </div>
           </div>
           {method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.</div>}
-          <button className="btn btn-primary btn-full" onClick={() => handleBook(cls, method)} disabled={actionLoading === cls.id || (method === "entries" && classEntries === 0)}>
-            {actionLoading === cls.id ? "Zapisuję..." : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka)"}
+          {cls.series_id && seriesRemaining > 1 && (
+            <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", fontSize: "0.875rem" }}>
+                <input type="checkbox" checked={bookSeries} onChange={e => setBookSeries(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "var(--sage)", marginTop: 2, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 500 }}>🔁 Zapisz na całą serię</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: 2 }}>
+                    Automatycznie zapisze Cię na {seriesRemaining} nadchodzące zajęcia z tej serii
+                  </div>
+                </div>
+              </label>
+            </div>
+          )}
+          <button className="btn btn-primary btn-full"
+            onClick={() => bookSeries ? handleBookSeries(cls.series_id, method) : handleBook(cls, method)}
+            disabled={actionLoading === cls.id || actionLoading === "series" || (method === "entries" && classEntries === 0)}>
+            {actionLoading === cls.id || actionLoading === "series"
+              ? "Zapisuję..."
+              : bookSeries
+                ? `Zapisz na ${seriesRemaining} zajęć z serii`
+                : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka)"}
           </button>
         </div>
       </div>
@@ -353,6 +423,18 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
     setPhoneSaving(false);
   }
 
+  async function saveBirth() {
+    setBirthSaving(true);
+    const birth_date = birthInput || null;
+    const { error } = await supabase.from("profiles").update({ birth_date }).eq("id", session.user.id);
+    if (error) showMsg("Błąd zapisu: " + error.message, "error");
+    else {
+      onProfileUpdate({ birth_date });
+      showMsg("Data urodzin zapisana. ✓");
+    }
+    setBirthSaving(false);
+  }
+
   async function markNotificationsRead() {
     if (unreadCount === 0) return;
     await supabase.from("notifications").update({ read: true })
@@ -364,6 +446,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   function notifIcon(type) {
     if (type === "class_cancelled") return "❌";
     if (type === "tokens_added") return "🎫";
+    if (type === "birthday") return "🎂";
     return "📢";
   }
 
@@ -760,6 +843,25 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
                   </button>
                 </div>
                 {phoneInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ SMS-y aktywne</p>}
+              </div>
+              <div className="card">
+                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎂 Data urodzin</h3>
+                <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginBottom: "1rem", lineHeight: 1.6 }}>
+                  Podaj datę urodzin, aby otrzymać życzenia w swoim dniu.
+                </p>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={birthInput}
+                    onChange={e => setBirthInput(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button className="btn btn-primary" onClick={saveBirth} disabled={birthSaving}>
+                    {birthSaving ? "..." : "Zapisz"}
+                  </button>
+                </div>
+                {birthInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ Aktywne</p>}
               </div>
               <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎫 Moje wejścia</h3>

@@ -9,6 +9,10 @@
     {
       "path": "/api/remind-classes",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/birthday-wishes",
+      "schedule": "0 8 * * *"
     }
   ]
 }

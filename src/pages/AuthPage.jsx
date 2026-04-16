@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
+import { sendEmail } from "../emailService";
 
 export default function AuthPage({ initialMode = "login", onBack }) {
   const [mode, setMode] = useState(initialMode); // login | register | reset
@@ -39,6 +40,7 @@ export default function AuthPage({ initialMode = "login", onBack }) {
         email: email.trim(),
         role: "client",
       });
+      await sendEmail("welcome", email.trim(), { firstName: firstName.trim() });
       setSuccess("Konto zostało utworzone! Sprawdź email i potwierdź rejestrację.");
       setMode("login");
     }
