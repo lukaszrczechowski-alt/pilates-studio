@@ -21,8 +21,6 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState("");
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   function getMonday(date) {
     const d = new Date(date);
@@ -59,19 +57,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
     setMyBookings(bookingData || []);
     setMyWaitlist(waitlistData || []);
     setMyTokens(tokenData || []);
-    const { data: notifData } = await supabase.from("notifications")
-      .select("*").eq("user_id", session.user.id)
-      .order("created_at", { ascending: false }).limit(30);
-    setNotifications(notifData || []);
-    setUnreadCount((notifData || []).filter(n => !n.read).length);
     setLoading(false);
-  }
-
-  async function markNotificationsRead() {
-    await supabase.from("notifications").update({ read: true })
-      .eq("user_id", session.user.id).eq("read", false);
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadCount(0);
   }
 
   function isBooked(classId) { return myBookings.some(b => b.class_id === classId); }
@@ -198,6 +184,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date());
   const pastMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) < new Date())
     .sort((a, b) => new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at));
+  const upcomingClasses = classes.filter(c => new Date(c.starts_at) >= new Date()); // tylko przyszłe — dla widoku listy
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const currentTokens = myTokens.find(t => t.month === currentMonth && t.year === currentYear);
@@ -463,10 +450,6 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>
           <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> Moje rezerwacje</div>
-          <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }}>
-            <span className="nav-icon">🔔</span> Powiadomienia
-            {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{unreadCount}</span>}
-          </div>
           <div className={`nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="nav-icon">👤</span> Moje konto</div>
         </nav>
         <div className="sidebar-footer">
@@ -507,7 +490,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
             )}
 
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
-              : classes.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
+              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak nadchodzących zajęć.</p></div>
               : viewMode === "calendar" ? (
                 /* WIDOK KALENDARZA MIESIĘCZNEGO */
                 <div>
@@ -577,7 +560,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
               ) : (
                 /* WIDOK LISTY */
                 <div className="cards-grid">
-                  {classes.map(cls => {
+                  {upcomingClasses.map(cls => {
                     const booked = isBooked(cls.id);
                     const booking = getBooking(cls.id);
                     const onWaitlist = isOnWaitlist(cls.id);
@@ -653,32 +636,6 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
                 ))}</div>
               </>
             )}
-          </>
-        )}
-
-        {tab === "notifications" && (
-          <>
-            <div className="page-header"><h2>Powiadomienia</h2></div>
-            {notifications.length === 0
-              ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień.</p></div>
-              : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  {notifications.map(n => (
-                    <div key={n.id} style={{ background: n.read ? "var(--warm-white)" : "#EBF5EA", border: `1px solid ${n.read ? "var(--border)" : "var(--sage-light)"}`, borderRadius: 10, padding: "1rem 1.25rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                      <span style={{ fontSize: "1.3rem", flexShrink: 0 }}>
-                        {n.type === "tokens_added" ? "🎫" : n.type === "class_cancelled" ? "🚫" : n.type === "waitlist_promoted" ? "⬆️" : "🔔"}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: "0.875rem", color: "var(--charcoal)", lineHeight: 1.5, fontWeight: n.read ? 400 : 500 }}>{n.message}</p>
-                        <p style={{ fontSize: "0.75rem", color: "var(--light)", marginTop: "0.25rem" }}>
-                          {new Date(n.created_at).toLocaleDateString("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                      {!n.read && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--sage)", flexShrink: 0, marginTop: 4 }} />}
-                    </div>
-                  ))}
-                </div>
-              )}
           </>
         )}
 
@@ -823,13 +780,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>Zajęcia</span></div>
         <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>Rezerwacje</span></div>
-        <div className={`mobile-nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ position: "relative" }}>
-          <span className="mobile-nav-icon">🔔</span>
-          {unreadCount > 0 && <span style={{ position: "absolute", top: 4, right: "calc(50% - 12px)", background: "var(--clay)", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</span>}
-          <span>Powiadom.</span>
-        </div>
         <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
-        <div className="mobile-nav-item" onClick={() => setDarkMode(!darkMode)}><span className="mobile-nav-icon">{darkMode ? "☀️" : "🌙"}</span><span>{darkMode ? "Jasny" : "Ciemny"}</span></div>
       </nav>
     </div>
   );
