@@ -440,18 +440,25 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
           </div>}
           {booked ? (
             <>
-              {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
-              <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Anuluj rezerwację"}</button>
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-                <a href={googleCalendarUrl(cls)} target="_blank" rel="noopener noreferrer"
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem", border: "1px solid var(--border)", borderRadius: 8, fontSize: "0.8rem", color: "var(--mid)", textDecoration: "none", background: "var(--warm-white)" }}>
-                  📅 Google Calendar
-                </a>
-                <a href={appleCalendarUrl(cls)} target="_blank" rel="noopener noreferrer"
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem", border: "1px solid var(--border)", borderRadius: 8, fontSize: "0.8rem", color: "var(--mid)", textDecoration: "none", background: "var(--warm-white)" }}>
-                  🍎 Apple Calendar
-                </a>
-              </div>
+              {status === "past"
+                ? <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", fontSize: "0.875rem", color: "var(--mid)", textAlign: "center" }}>✓ Zajęcia odbyły się</div>
+                : <>
+                    {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
+                    <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Anuluj rezerwację"}</button>
+                  </>
+              }
+              {status !== "past" && (
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                  <a href={googleCalendarUrl(cls)} target="_blank" rel="noopener noreferrer"
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem", border: "1px solid var(--border)", borderRadius: 8, fontSize: "0.8rem", color: "var(--mid)", textDecoration: "none", background: "var(--warm-white)" }}>
+                    📅 Google Calendar
+                  </a>
+                  <a href={appleCalendarUrl(cls)} target="_blank" rel="noopener noreferrer"
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem", border: "1px solid var(--border)", borderRadius: 8, fontSize: "0.8rem", color: "var(--mid)", textDecoration: "none", background: "var(--warm-white)" }}>
+                    🍎 Apple Calendar
+                  </a>
+                </div>
+              )}
             </>
           ) : onWaitlist ? (
             <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)}>{actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}</button>
