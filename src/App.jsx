@@ -30,10 +30,14 @@ export default function App() {
 
   useEffect(() => {
     if (isPublicRoute) { setLoading(false); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) console.error("getSession error:", error.message);
       setSession(session);
       if (session) fetchProfile(session.user.id);
       else setLoading(false);
+    }).catch(err => {
+      console.error("getSession failed:", err);
+      setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -44,8 +48,9 @@ export default function App() {
   }, []);
 
   async function fetchProfile(userId) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    setProfile(data);
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (error) console.error("fetchProfile error:", error.message);
+    setProfile(data || null);
     setLoading(false);
   }
 

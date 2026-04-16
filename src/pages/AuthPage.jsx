@@ -42,6 +42,7 @@ export default function AuthPage({ initialMode = "login", onBack }) {
       });
       await sendEmail("welcome", email.trim(), { firstName: firstName.trim() });
       setSuccess("Konto zostało utworzone! Sprawdź email i potwierdź rejestrację.");
+      setEmail(""); setPassword(""); setFirstName(""); setLastName("");
       setMode("login");
     }
     setLoading(false);

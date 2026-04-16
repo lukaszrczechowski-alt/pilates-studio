@@ -149,7 +149,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         const month = new Date(cls.starts_at).getMonth() + 1;
         const year = new Date(cls.starts_at).getFullYear();
         const { data: tok } = await supabase.from("tokens").select("*")
-          .eq("user_id", booking.user_id).eq("month", month).eq("year", year).single();
+          .eq("user_id", booking.user_id).eq("month", month).eq("year", year).maybeSingle();
         if (tok) {
           await supabase.from("tokens").update({ amount: tok.amount + 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
           await supabase.from("token_history").insert({
@@ -567,6 +567,12 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     showMsg("Notatka zapisana! ✓");
   }
 
+  // Zmiana zakładki — czyści selectedClass gdy wychodzimy z widoku uczestników
+  function switchTab(t) {
+    if (t !== "participants") setSelectedClass(null);
+    setTab(t);
+  }
+
   const upcomingClasses = classes.filter(c => new Date(c.starts_at) >= new Date() && !c.cancelled);
   const cancelledClasses = classes.filter(c => c.cancelled);
   const pastClasses = classes.filter(c => new Date(c.starts_at) < new Date() && !c.cancelled);
@@ -583,7 +589,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const notifIcon = (type) => ({ booking: "✅", cancel: "❌", waitlist_promoted: "⬆️", tokens_added: "🎫", class_cancelled: "🚫" }[type] || "🔔");
+  const notifIcon = (type) => ({ booking: "✅", cancel: "❌", waitlist_promoted: "⬆️", tokens_added: "🎫", class_cancelled: "🚫", birthday: "🎂" }[type] || "🔔");
   const notEnrolled = selectedClass ? allProfiles.filter(p => !participants.some(part => part.user_id === p.id)) : [];
 
   // Raport
@@ -629,26 +635,26 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       <style>{`@media print { .sidebar,.mobile-nav,.no-print{display:none!important} .main-content{margin-left:0!important;padding:0!important} .print-header{display:block!important} } .print-header{display:none}`}</style>
 
       <aside className="sidebar">
-        <div className="sidebar-logo" onClick={() => setTab("classes")} style={{ cursor: "pointer" }}>
+        <div className="sidebar-logo" onClick={() => switchTab("classes")} style={{ cursor: "pointer" }}>
           <h1>Pilates</h1>
           <p>Panel admina</p>
         </div>
         <nav className="sidebar-nav">
-          <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => setTab("classes")}><span className="nav-icon">🗓</span> Zajęcia</div>
-          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="nav-icon">📅</span> Kalendarz</div>
-          <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => setTab("settle")}>
+          <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><span className="nav-icon">🗓</span> Zajęcia</div>
+          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="nav-icon">📅</span> Kalendarz</div>
+          <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => switchTab("settle")}>
             <span className="nav-icon">💰</span> Do rozliczenia
             {toSettle.length > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{toSettle.length}</span>}
           </div>
-          <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}><span className="nav-icon">📈</span> Raporty</div>
-          <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markAllRead(); }}>
+          <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="nav-icon">📈</span> Raporty</div>
+          <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { switchTab("notifications"); markAllRead(); }}>
             <span className="nav-icon">🔔</span> Powiadomienia
             {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{unreadCount}</span>}
           </div>
-          <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => setTab("stats")}><span className="nav-icon">📊</span> Statystyki</div>
-          <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}><span className="nav-icon">📋</span> Historia</div>
-          <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => setTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
-          {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => setTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
+          <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")}><span className="nav-icon">📊</span> Statystyki</div>
+          <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")}><span className="nav-icon">📋</span> Historia</div>
+          <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
+          {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -835,7 +841,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(selectedClass)}>💬 Wiadomość</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => printAttendanceList(selectedClass, participants)}>🖨️ Lista PDF</button>
                 <button className="btn btn-primary btn-sm" onClick={() => setShowAddUserModal(true)}>+ Dodaj</button>
-                <button className="btn btn-secondary" onClick={() => setTab("classes")}>← Wróć</button>
+                <button className="btn btn-secondary" onClick={() => switchTab("classes")}>← Wróć</button>
               </div>
             </div>
 
@@ -1344,13 +1350,13 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
       {/* Mobile nav */}
       <nav className="mobile-nav">
-        <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => setTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>Kalendarz</span></div>
-        <div className={`mobile-nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => setTab("settle")}>
+        <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>Kalendarz</span></div>
+        <div className={`mobile-nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => switchTab("settle")}>
           <span className="mobile-nav-icon" style={{ position: "relative" }}>💰{toSettle.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--clay)", color: "white", borderRadius: "50%", width: 14, height: 14, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{toSettle.length}</span>}</span>
           <span>Rozlicz</span>
         </div>
-        <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}><span className="mobile-nav-icon">📈</span><span>Raporty</span></div>
-        <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => setTab("clients")}><span className="mobile-nav-icon">👥</span><span>Klienci</span></div>
+        <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="mobile-nav-icon">📈</span><span>Raporty</span></div>
+        <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="mobile-nav-icon">👥</span><span>Klienci</span></div>
       </nav>
 
       {/* MODAL - Nowe/edytuj zajęcia */}

@@ -402,12 +402,11 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
           userVisibleOnly: true,
           applicationServerKey: VAPID_PUBLIC_KEY,
         });
-        // Zapisz subskrypcję przez API
-        await fetch("/api/push-subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: session.user.id, subscription: sub.toJSON() }),
-        });
+        // Zapisz subskrypcję — używamy Supabase client (autoryzacja przez sesję)
+        const { error: saveError } = await supabase.from("profiles")
+          .update({ push_subscription: JSON.stringify(sub.toJSON()) })
+          .eq("id", session.user.id);
+        if (saveError) console.error("Push subscription save error:", saveError.message);
       }
 
       setPushEnabled(true);

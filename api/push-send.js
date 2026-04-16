@@ -20,7 +20,9 @@ export default async function handler(req, res) {
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
   const { userIds, title, body, url = "/" } = req.body;
-  if (!userIds || !title) return res.status(400).json({ error: "Missing userIds or title" });
+  if (!Array.isArray(userIds) || userIds.length === 0 || !title) {
+    return res.status(400).json({ error: "Missing or invalid userIds / title" });
+  }
 
   // Pobierz subskrypcje użytkowników
   const { data: profiles, error } = await supabase

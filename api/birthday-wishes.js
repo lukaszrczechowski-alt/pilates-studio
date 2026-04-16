@@ -32,15 +32,15 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // Dziś w Warszawie — MM-DD
-  const today = new Date().toLocaleDateString("pl-PL", { timeZone: "Europe/Warsaw", month: "2-digit", day: "2-digit" });
-  const [dd, mm] = today.split(".");
+  // Dziś w Warszawie — format "YYYY-MM-DD" (sv-SE zawsze zwraca ISO)
+  const todayISO = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Warsaw" });
+  const [, mm, dd] = todayISO.split("-");
   const todayMMDD = `${mm}-${dd}`;
 
   // Pobierz klientów z urodzinami dzisiaj
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("first_name, email, phone, birth_date")
+    .select("id, first_name, email, phone, birth_date")
     .eq("role", "client")
     .not("birth_date", "is", null);
 
@@ -48,16 +48,23 @@ export default async function handler(req, res) {
 
   const birthdays = (profiles || []).filter(p => {
     if (!p.birth_date) return false;
-    const [year, m, d] = p.birth_date.split("-");
-    return `${m}-${d}` === todayMMDD;
+    const parts = p.birth_date.split("-");
+    return `${parts[1]}-${parts[2]}` === todayMMDD;
   });
 
   let sent = 0, skipped = 0, errors = 0;
 
   for (const p of birthdays) {
-    const message = `Wszystkiego najlepszego, ${p.first_name}! Mamy nadzieje, ze Twoj wyjtakowy dzien bedzie pelny radosci i energii! Pilates Studio by Paulina`;
+    // Powiadomienie w aplikacji (używamy id z zapytania głównego)
+    await supabase.from("notifications").insert({
+      type: "birthday",
+      user_id: p.id,
+      message: `Wszystkiego najlepszego, ${p.first_name}! Zycze Ci duzo zdrowia i energii do cwiczen! Pilates Studio by Paulina`,
+    });
 
+    // SMS (jeśli klient podał numer)
     if (p.phone) {
+      const message = `Wszystkiego najlepszego, ${p.first_name}! Zycze Ci duzo zdrowia i energii do cwiczen! - Pilates Studio by Paulina`;
       try {
         const result = await sendSmsApi(p.phone, message);
         if (result.error) { console.error("Birthday SMS error:", result); errors++; }
@@ -67,17 +74,6 @@ export default async function handler(req, res) {
       }
     } else {
       skipped++;
-    }
-
-    // Powiadomienie w aplikacji
-    const { data: profile } = await supabase.from("profiles")
-      .select("id").eq("email", p.email).maybeSingle();
-    if (profile) {
-      await supabase.from("notifications").insert({
-        type: "birthday",
-        user_id: profile.id,
-        message: `Wszystkiego najlepszego, ${p.first_name}! Zycze Ci duzo zdrowia i energii do cwiczen! 🎂`,
-      });
     }
   }
 
