@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
+import { sendSms, smsDate } from "../smsService";
 
 export default function ClientDashboard({ session, profile, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("upcoming");
@@ -23,6 +24,8 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   const [pushEnabled, setPushEnabled] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [phoneInput, setPhoneInput] = useState(profile?.phone || "");
+  const [phoneSaving, setPhoneSaving] = useState(false);
 
   function getMonday(date) {
     const d = new Date(date);
@@ -152,15 +155,19 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
       date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at),
       refunded, lostEntry,
     });
-    const { data: waitlistFirst } = await supabase.from("waitlist").select("*, profiles(first_name, email)")
+    const { data: waitlistFirst } = await supabase.from("waitlist").select("*, profiles(first_name, email, phone)")
       .eq("class_id", cls.id).order("created_at", { ascending: true }).limit(1);
     if (waitlistFirst?.length > 0) {
-      await supabase.from("bookings").insert({ class_id: cls.id, user_id: waitlistFirst[0].user_id, payment_method: "cash" });
-      await supabase.from("waitlist").delete().eq("id", waitlistFirst[0].id);
-      await sendEmail("waitlist_promoted", waitlistFirst[0].profiles?.email, {
-        firstName: waitlistFirst[0].profiles?.first_name, className: cls.name,
+      const promoted = waitlistFirst[0];
+      await supabase.from("bookings").insert({ class_id: cls.id, user_id: promoted.user_id, payment_method: "cash" });
+      await supabase.from("waitlist").delete().eq("id", promoted.id);
+      await sendEmail("waitlist_promoted", promoted.profiles?.email, {
+        firstName: promoted.profiles?.first_name, className: cls.name,
         date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at), location: cls.location || "",
       });
+      await sendSms(promoted.profiles?.phone,
+        `${promoted.profiles?.first_name}, zwolniło się miejsce na zajęciach "${cls.name}" (${smsDate(cls.starts_at)}). Masz rezerwację! — Pilates Studio`
+      );
     }
     if (refunded) showMsg("Anulowano. Wejście wróciło. ✓");
     else if (lostEntry) showMsg("Anulowano. Wejście przepadło (po 12:00).", "error");
@@ -327,6 +334,13 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
     if (!('serviceWorker' in navigator)) return;
     const reg = await navigator.serviceWorker.getRegistration('/sw.js');
     if (reg && Notification.permission === 'granted') setPushEnabled(true);
+  }
+
+  async function savePhone() {
+    setPhoneSaving(true);
+    await supabase.from("profiles").update({ phone: phoneInput.trim() || null }).eq("id", session.user.id);
+    showMsg("Numer telefonu zapisany. ✓");
+    setPhoneSaving(false);
   }
 
   async function markNotificationsRead() {
@@ -695,6 +709,26 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
                   </div>
                 </div>
                 <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+              </div>
+              <div className="card">
+                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>📱 Powiadomienia SMS</h3>
+                <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginBottom: "1rem", lineHeight: 1.6 }}>
+                  Podaj numer, aby otrzymywać SMS-y o odwołanych zajęciach, awansie z kolejki i przypomnieniach dzień przed zajęciami.
+                </p>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    className="form-input"
+                    type="tel"
+                    placeholder="+48 500 000 000"
+                    value={phoneInput}
+                    onChange={e => setPhoneInput(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button className="btn btn-primary" onClick={savePhone} disabled={phoneSaving}>
+                    {phoneSaving ? "..." : "Zapisz"}
+                  </button>
+                </div>
+                {phoneInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ SMS-y aktywne</p>}
               </div>
               <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎫 Moje wejścia</h3>

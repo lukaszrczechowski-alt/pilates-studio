@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
+import { sendSms, smsDate } from "../smsService";
 
 export default function AdminDashboard({ session, profile, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("classes");
@@ -164,6 +165,11 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         reason: cancelReason,
         refunded: booking.payment_method === "entries",
       });
+
+      // SMS
+      await sendSms(booking.profiles?.phone,
+        `Zajęcia "${cls.name}" (${smsDate(cls.starts_at)}) zostały odwołane.${booking.payment_method === "entries" ? " Wejście zwrócono." : ""} — Pilates Studio`
+      );
     }
 
     setShowCancelModal(null);
