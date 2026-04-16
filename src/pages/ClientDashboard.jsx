@@ -200,7 +200,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   function formatDateShort(iso) { return new Date(iso).toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" }); }
   function formatTime(iso) { return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }); }
 
-  const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date());
+  const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date() && !b.classes?.cancelled);
   const pastMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) < new Date())
     .sort((a, b) => new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at));
   const upcomingClasses = classes.filter(c => new Date(c.starts_at) >= new Date()); // tylko przyszłe — dla widoku listy
