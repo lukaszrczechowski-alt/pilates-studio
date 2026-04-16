@@ -21,6 +21,8 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState("");
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   function getMonday(date) {
     const d = new Date(date);
@@ -53,10 +55,15 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
       .eq("user_id", session.user.id);
     const { data: tokenData } = await supabase.from("tokens").select("*")
       .eq("user_id", session.user.id).order("year", { ascending: false }).order("month", { ascending: false });
+    const { data: notifData } = await supabase.from("notifications")
+      .select("*").eq("user_id", session.user.id)
+      .order("created_at", { ascending: false });
     setClasses(classData || []);
     setMyBookings(bookingData || []);
     setMyWaitlist(waitlistData || []);
     setMyTokens(tokenData || []);
+    setNotifications(notifData || []);
+    setUnreadCount((notifData || []).filter(n => !n.read).length);
     setLoading(false);
   }
 
@@ -272,7 +279,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
           </div>
           <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}><strong>{cls?.name}</strong><br/>{cls?.starts_at && formatDate(cls.starts_at)}</p>
           <div style={{ display: "flex", gap: "0.75rem" }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Zostań zapisana</button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Nie anuluj</button>
             <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => handleCancel(booking, true)} disabled={actionLoading === booking.class_id}>
               {loseEntry ? "Anuluj (stracę wejście)" : "Anuluj"}
             </button>
@@ -320,6 +327,24 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
     if (!('serviceWorker' in navigator)) return;
     const reg = await navigator.serviceWorker.getRegistration('/sw.js');
     if (reg && Notification.permission === 'granted') setPushEnabled(true);
+  }
+
+  async function markNotificationsRead() {
+    if (unreadCount === 0) return;
+    await supabase.from("notifications").update({ read: true })
+      .eq("user_id", session.user.id).eq("read", false);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  }
+
+  function notifIcon(type) {
+    if (type === "class_cancelled") return "❌";
+    if (type === "tokens_added") return "🎫";
+    return "📢";
+  }
+
+  function formatNotifDate(iso) {
+    return new Date(iso).toLocaleDateString("pl-PL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 
   // Oceny zajęć
@@ -388,7 +413,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
         <div className="modal" style={{ maxWidth: 500 }}>
           <div className="modal-header"><h3>{cls.name}</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <div style={{ marginBottom: "1.25rem" }}>
-            {booked ? <span className="class-badge badge-yours">Zapisana · {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
+            {booked ? <span className="class-badge badge-yours">Zapisano · {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
               : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
               : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
               : <span className="class-badge badge-open">Wolne miejsca</span>}
@@ -450,6 +475,10 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>
           <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> Moje rezerwacje</div>
+          <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ justifyContent: "space-between" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}><span className="nav-icon">🔔</span> Powiadomienia</span>
+            {unreadCount > 0 && <span style={{ background: "var(--clay)", color: "white", borderRadius: 20, fontSize: "0.7rem", padding: "0.1rem 0.45rem", fontWeight: 600 }}>{unreadCount}</span>}
+          </div>
           <div className={`nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="nav-icon">👤</span> Moje konto</div>
         </nav>
         <div className="sidebar-footer">
@@ -549,7 +578,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
                     );
                   })()}
                   <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                    {[["#EBF5EA","#8A9E85","Zapisana"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["var(--cream)","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
+                    {[["#EBF5EA","#8A9E85","Moje zajęcia"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["var(--cream)","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
                         <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
                         {label}
@@ -572,7 +601,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
                       <div className="class-card" key={cls.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(cls)}>
                         <div className="class-card-header">
                           <span className="class-title">{cls.name}</span>
-                          {booked ? <span className="class-badge badge-yours">Zapisana {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
+                          {booked ? <span className="class-badge badge-yours">Zapisano {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
                             : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
                             : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
                             : <span className="class-badge badge-open">Wolne miejsca</span>}
@@ -710,7 +739,7 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
             })()}
 
             {pastMyClasses.length === 0
-              ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Nie byłaś jeszcze na żadnych zajęciach.</p></div>
+              ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak historii zajęć.</p></div>
               : <div className="table-wrapper"><table>
                 <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Płatność</th><th>Cena</th><th>Ocena</th></tr></thead>
                 <tbody>{pastMyClasses.map(b => {
@@ -730,6 +759,25 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
                   </tr>
                   );
                 })}</tbody></table></div>}
+          </>
+        )}
+        {tab === "notifications" && (
+          <>
+            <div className="page-header"><h2>Powiadomienia</h2></div>
+            {notifications.length === 0
+              ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień.</p></div>
+              : <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 600 }}>
+                  {notifications.map(n => (
+                    <div key={n.id} className="card" style={{ display: "flex", gap: "1rem", alignItems: "flex-start", opacity: n.read ? 0.65 : 1, borderLeft: n.read ? "3px solid var(--border)" : "3px solid var(--sage)" }}>
+                      <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>{notifIcon(n.type)}</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: "0.875rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{n.message}</p>
+                        <p style={{ fontSize: "0.75rem", color: "var(--light)", marginTop: "0.3rem" }}>{formatNotifDate(n.created_at)}</p>
+                      </div>
+                      {!n.read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--sage)", flexShrink: 0, marginTop: 6 }} />}
+                    </div>
+                  ))}
+                </div>}
           </>
         )}
       </main>
@@ -780,6 +828,11 @@ export default function ClientDashboard({ session, profile, darkMode, setDarkMod
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>Zajęcia</span></div>
         <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>Rezerwacje</span></div>
+        <div className={`mobile-nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ position: "relative" }}>
+          <span className="mobile-nav-icon">🔔</span>
+          {unreadCount > 0 && <span style={{ position: "absolute", top: 6, right: "50%", marginRight: -18, background: "var(--clay)", color: "white", borderRadius: 20, fontSize: "0.6rem", padding: "0.05rem 0.35rem", fontWeight: 600, minWidth: 16, textAlign: "center" }}>{unreadCount}</span>}
+          <span>Powiad.</span>
+        </div>
         <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
       </nav>
     </div>

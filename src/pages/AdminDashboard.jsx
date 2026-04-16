@@ -168,7 +168,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
     setShowCancelModal(null);
     setCancelReason("");
-    showMsg(`Zajęcia odwołane. Powiadomiono ${bookingsForClass.length} uczestniczek.`);
+    showMsg(`Zajęcia odwołane. Powiadomiono ${bookingsForClass.length} uczestników.`);
     await fetchAll();
   }
 
@@ -191,7 +191,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
     setShowMessageModal(null);
     setMessageText("");
-    showMsg(`Wiadomość wysłana do ${bookingsForClass.length} uczestniczek!`);
+    showMsg(`Wiadomość wysłana do ${bookingsForClass.length} uczestników!`);
     await fetchAll();
   }
 
@@ -1233,7 +1233,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
               <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>
                 Odwołujesz zajęcia: <strong>{showCancelModal.name}</strong><br/>
                 {formatDate(showCancelModal.starts_at)} o {formatTime(showCancelModal.starts_at)}<br/>
-                Zapisanych: <strong>{allBookings.filter(b => b.class_id === showCancelModal.id).length} uczestniczek</strong><br/>
+                Zapisanych: <strong>{allBookings.filter(b => b.class_id === showCancelModal.id).length} uczestników</strong><br/>
                 Wejścia zostaną automatycznie zwrócone.
               </p>
             </div>
@@ -1244,7 +1244,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => { setShowCancelModal(null); setCancelReason(""); }}>Anuluj</button>
               <button className="btn btn-danger" onClick={() => handleCancelClass(showCancelModal)} disabled={!cancelReason.trim()}>
-                Odwołaj i powiadom uczestniczki
+                Odwołaj i powiadom uczestników
               </button>
             </div>
           </div>
@@ -1268,7 +1268,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 style={{ resize: "vertical", minHeight: 100 }} />
             </div>
             <p style={{ fontSize: "0.78rem", color: "var(--mid)", marginBottom: "1rem" }}>
-              Wiadomość pojawi się w zakładce Powiadomienia u każdej uczestniczki.
+              Wiadomość pojawi się w zakładce Powiadomienia u każdej uczestników.
             </p>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => { setShowMessageModal(null); setMessageText(""); }}>Anuluj</button>
