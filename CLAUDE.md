@@ -92,6 +92,15 @@ src/
 - **client** — widzi ClientDashboard: zajęcia, rezerwacje, powiadomienia, konto
 - **admin** (Paulina) — widzi AdminDashboard: kalendarz, klienci, finanse, szablony, powiadomienia
 
+## SMS (SMSAPI)
+
+- `api/send-sms.js` — Vercel serverless, wywołuje SMSAPI, ukrywa token
+- `api/remind-classes.js` — Vercel Cron, codziennie 07:00 UTC (9:00 PL), wysyła przypomnienia na jutro
+- `src/smsService.js` — helper frontendowy (`sendSms`, `smsDate`)
+- Pole `phone` w tabeli `profiles` — opt-in: klient wpisuje numer w zakładce Konto
+- Triggery SMS: odwołanie zajęć (admin), awans z kolejki, przypomnienie dzień przed
+- Env vars: `SMSAPI_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` (Vercel), `CRON_SECRET` (opcjonalny)
+
 ## Znane szczegóły
 
 - Anulowanie zajęć po 12:00 w dniu zajęć = utrata wejścia z karnetu
