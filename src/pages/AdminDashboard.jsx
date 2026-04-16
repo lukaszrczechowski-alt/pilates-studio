@@ -30,6 +30,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [tokenForm, setTokenForm] = useState({ amount: 1, month: new Date().getMonth() + 1, year: new Date().getFullYear(), note: "" });
   const [cancelReason, setCancelReason] = useState("");
   const [messageText, setMessageText] = useState("");
+  const [msgDelivery, setMsgDelivery] = useState({ app: true, email: false, sms: false });
+  const [notifFilter, setNotifFilter] = useState("all");
   const [message, setMessage] = useState(null);
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
@@ -135,6 +137,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
     // Zwróć wejścia wszystkim zapisanym z metodą "entries"
     const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
+    // 1. Zwroty wejść (indywidualne — zależą od stanu konta)
     for (const booking of bookingsForClass) {
       if (booking.payment_method === "entries") {
         const month = new Date(cls.starts_at).getMonth() + 1;
@@ -149,14 +152,18 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           });
         }
       }
+    }
 
-      // Powiadomienie w aplikacji
-      await supabase.from("notifications").insert({
-        type: "class_cancelled", class_id: cls.id, user_id: booking.user_id,
-        message: `Zajęcia "${cls.name}" (${formatEmailDate(cls.starts_at)}) zostały odwołane. Powód: ${cancelReason}${booking.payment_method === "entries" ? " Wejście zwrócono." : ""}`,
-      });
+    // 2. Powiadomienia w aplikacji — jeden batch insert
+    await supabase.from("notifications").insert(
+      bookingsForClass.map(b => ({
+        type: "class_cancelled", class_id: cls.id, user_id: b.user_id,
+        message: `Zajęcia "${cls.name}" (${formatEmailDate(cls.starts_at)}) zostały odwołane. Powód: ${cancelReason}${b.payment_method === "entries" ? " Wejście zwrócono." : ""}`,
+      }))
+    );
 
-      // Email
+    // 3. Emaile + SMS
+    for (const booking of bookingsForClass) {
       await sendEmail("class_cancelled", booking.profiles?.email, {
         firstName: booking.profiles?.first_name,
         className: cls.name,
@@ -165,10 +172,8 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         reason: cancelReason,
         refunded: booking.payment_method === "entries",
       });
-
-      // SMS
       await sendSms(booking.profiles?.phone,
-        `Zajęcia "${cls.name}" (${smsDate(cls.starts_at)}) zostały odwołane.${booking.payment_method === "entries" ? " Wejście zwrócono." : ""} — Pilates Studio`
+        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - Pilates Studio`
       );
     }
 
@@ -181,22 +186,46 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   async function handleSendMessage(cls) {
     if (!messageText.trim()) { showMsg("Wpisz wiadomość.", "error"); return; }
     const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
+    const notifMsg = `📢 Wiadomość dot. zajęć "${cls.name}": ${messageText}`;
 
     // Zapisz wiadomość
     await supabase.from("class_messages").insert({
       class_id: cls.id, message: messageText, sent_by: session.user.id,
     });
 
-    // Powiadomienie w aplikacji dla każdego uczestnika
-    for (const booking of bookingsForClass) {
-      await supabase.from("notifications").insert({
-        type: "booking", class_id: cls.id, user_id: booking.user_id,
-        message: `📢 Wiadomość dot. zajęć "${cls.name}": ${messageText}`,
-      });
+    // Powiadomienia w aplikacji — jeden batch insert
+    if (msgDelivery.app) {
+      await supabase.from("notifications").insert(
+        bookingsForClass.map(b => ({ type: "booking", class_id: cls.id, user_id: b.user_id, message: notifMsg }))
+      );
+    }
+
+    // Email
+    if (msgDelivery.email) {
+      for (const b of bookingsForClass) {
+        if (b.profiles?.email) {
+          await sendEmail("message", b.profiles.email, {
+            firstName: b.profiles.first_name, className: cls.name, message: messageText,
+          });
+        }
+      }
+    }
+
+    // SMS
+    if (msgDelivery.sms) {
+      const withPhone = bookingsForClass.filter(b => b.profiles?.phone);
+      for (const b of withPhone) {
+        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - Pilates Studio`);
+      }
+      if (withPhone.length < bookingsForClass.length) {
+        const noPhone = bookingsForClass.length - withPhone.length;
+        showMsg(`SMS wysłano do ${withPhone.length} os. (${noPhone} bez numeru).`);
+      }
     }
 
     setShowMessageModal(null);
     setMessageText("");
+    setMsgDelivery({ app: true, email: false, sms: false });
     showMsg(`Wiadomość wysłana do ${bookingsForClass.length} uczestników!`);
     await fetchAll();
   }
@@ -1001,16 +1030,43 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         {/* POWIADOMIENIA */}
         {tab === "notifications" && (
           <>
-            <div className="page-header"><h2>Powiadomienia</h2></div>
-            {notifications.length === 0 ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień</p></div>
-              : <div className="table-wrapper"><table><thead><tr><th>Typ</th><th>Wiadomość</th><th>Kiedy</th></tr></thead><tbody>
-                {notifications.map(n => (
-                  <tr key={n.id} style={{ background: n.read ? "transparent" : "rgba(138,158,133,0.06)" }}>
-                    <td style={{ fontSize: "1.2rem" }}>{notifIcon(n.type)}</td>
-                    <td style={{ fontWeight: n.read ? 400 : 500 }}>{n.message}</td>
-                    <td style={{ color: "var(--mid)", whiteSpace: "nowrap" }}>{formatRelative(n.created_at)}</td>
-                  </tr>
-                ))}</tbody></table></div>}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div className="page-header" style={{ margin: 0 }}><h2>Powiadomienia</h2></div>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                {[
+                  { key: "all", label: "Wszystkie" },
+                  { key: "unread", label: `Nieprzeczytane${notifications.filter(n => !n.read).length > 0 ? ` (${notifications.filter(n => !n.read).length})` : ""}` },
+                  { key: "class_cancelled", label: "Odwołania" },
+                  { key: "booking", label: "Wiadomości" },
+                  { key: "tokens_added", label: "Wejścia" },
+                ].map(f => (
+                  <button key={f.key} onClick={() => setNotifFilter(f.key)}
+                    className={`btn btn-sm ${notifFilter === f.key ? "btn-primary" : "btn-secondary"}`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {(() => {
+              const filtered = notifications.filter(n =>
+                notifFilter === "unread" ? !n.read :
+                notifFilter === "class_cancelled" ? n.type === "class_cancelled" :
+                notifFilter === "tokens_added" ? n.type === "tokens_added" :
+                notifFilter === "booking" ? n.type === "booking" :
+                true
+              );
+              return filtered.length === 0
+                ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień{notifFilter !== "all" ? " w tej kategorii" : ""}.</p></div>
+                : <div className="table-wrapper"><table><thead><tr><th>Typ</th><th>Wiadomość</th><th>Kiedy</th></tr></thead><tbody>
+                    {filtered.map(n => (
+                      <tr key={n.id} style={{ background: n.read ? "transparent" : "rgba(138,158,133,0.06)" }}>
+                        <td style={{ fontSize: "1.2rem" }}>{notifIcon(n.type)}</td>
+                        <td style={{ fontWeight: n.read ? 400 : 500 }}>{n.message}</td>
+                        <td style={{ color: "var(--mid)", whiteSpace: "nowrap" }}>{formatRelative(n.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody></table></div>;
+            })()}
           </>
         )}
 
@@ -1273,11 +1329,26 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 value={messageText} onChange={e => setMessageText(e.target.value)}
                 style={{ resize: "vertical", minHeight: 100 }} />
             </div>
-            <p style={{ fontSize: "0.78rem", color: "var(--mid)", marginBottom: "1rem" }}>
-              Wiadomość pojawi się w zakładce Powiadomienia u każdej uczestników.
-            </p>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label className="form-label" style={{ marginBottom: "0.6rem", display: "block" }}>Kanały wysyłki</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {[
+                  { key: "app", label: "📱 Powiadomienie w aplikacji", always: true },
+                  { key: "email", label: "✉️ Email" },
+                  { key: "sms", label: "💬 SMS (tylko osoby z numerem)" },
+                ].map(ch => (
+                  <label key={ch.key} style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.875rem", cursor: ch.always ? "default" : "pointer" }}>
+                    <input type="checkbox" checked={msgDelivery[ch.key]}
+                      disabled={ch.always}
+                      onChange={e => setMsgDelivery(prev => ({ ...prev, [ch.key]: e.target.checked }))}
+                      style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
+                    {ch.label}{ch.always && <span style={{ fontSize: "0.75rem", color: "var(--light)", marginLeft: 4 }}>(zawsze)</span>}
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => { setShowMessageModal(null); setMessageText(""); }}>Anuluj</button>
+              <button className="btn btn-secondary" onClick={() => { setShowMessageModal(null); setMessageText(""); setMsgDelivery({ app: true, email: false, sms: false }); }}>Anuluj</button>
               <button className="btn btn-primary" onClick={() => handleSendMessage(showMessageModal)} disabled={!messageText.trim()}>
                 Wyślij do wszystkich
               </button>

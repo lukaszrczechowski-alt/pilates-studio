@@ -24,6 +24,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   const [pushEnabled, setPushEnabled] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifFilter, setNotifFilter] = useState("all");
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneSaving, setPhoneSaving] = useState(false);
 
@@ -495,6 +496,27 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
     );
   }
 
+  function NotifFilters({ notifications, filter, setFilter }) {
+    const unread = notifications.filter(n => !n.read).length;
+    const filters = [
+      { key: "all", label: "Wszystkie" },
+      { key: "unread", label: `Nieprzeczytane${unread > 0 ? ` (${unread})` : ""}` },
+      { key: "class_cancelled", label: "Odwołania" },
+      { key: "booking", label: "Wiadomości" },
+      { key: "tokens_added", label: "Wejścia" },
+    ];
+    return (
+      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+        {filters.map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)}
+            className={`btn btn-sm ${filter === f.key ? "btn-primary" : "btn-secondary"}`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -813,21 +835,33 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
         )}
         {tab === "notifications" && (
           <>
-            <div className="page-header"><h2>Powiadomienia</h2></div>
-            {notifications.length === 0
-              ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień.</p></div>
-              : <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 600 }}>
-                  {notifications.map(n => (
-                    <div key={n.id} className="card" style={{ display: "flex", gap: "1rem", alignItems: "flex-start", opacity: n.read ? 0.65 : 1, borderLeft: n.read ? "3px solid var(--border)" : "3px solid var(--sage)" }}>
-                      <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>{notifIcon(n.type)}</span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: "0.875rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{n.message}</p>
-                        <p style={{ fontSize: "0.75rem", color: "var(--light)", marginTop: "0.3rem" }}>{formatNotifDate(n.created_at)}</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div className="page-header" style={{ margin: 0 }}><h2>Powiadomienia</h2></div>
+              <NotifFilters notifications={notifications} filter={notifFilter} setFilter={setNotifFilter} />
+            </div>
+            {(() => {
+              const filtered = notifications.filter(n =>
+                notifFilter === "unread" ? !n.read :
+                notifFilter === "class_cancelled" ? n.type === "class_cancelled" :
+                notifFilter === "tokens_added" ? n.type === "tokens_added" :
+                notifFilter === "booking" ? n.type === "booking" :
+                true
+              );
+              return filtered.length === 0
+                ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień{notifFilter !== "all" ? " w tej kategorii" : ""}.</p></div>
+                : <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 600 }}>
+                    {filtered.map(n => (
+                      <div key={n.id} className="card" style={{ display: "flex", gap: "1rem", alignItems: "flex-start", opacity: n.read ? 0.65 : 1, borderLeft: n.read ? "3px solid var(--border)" : "3px solid var(--sage)" }}>
+                        <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>{notifIcon(n.type)}</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: "0.875rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{n.message}</p>
+                          <p style={{ fontSize: "0.75rem", color: "var(--light)", marginTop: "0.3rem" }}>{formatNotifDate(n.created_at)}</p>
+                        </div>
+                        {!n.read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--sage)", flexShrink: 0, marginTop: 6 }} />}
                       </div>
-                      {!n.read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--sage)", flexShrink: 0, marginTop: 6 }} />}
-                    </div>
-                  ))}
-                </div>}
+                    ))}
+                  </div>;
+            })()}
           </>
         )}
       </main>

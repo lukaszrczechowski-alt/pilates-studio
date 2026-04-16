@@ -8,6 +8,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing to or message" });
   }
 
+  // Zamień znaki spoza GSM-7 na bezpieczne odpowiedniki
+  const safeMessage = message
+    .replace(/—|–/g, "-")
+    .replace(/„|"|"/g, '"')
+    .replace(/'|'/g, "'")
+    .replace(/…/g, "...");
+
   const token = process.env.SMSAPI_TOKEN;
   if (!token) {
     return res.status(500).json({ error: "SMSAPI_TOKEN not configured" });
@@ -26,7 +33,7 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ to: phone, message, format: "json" }).toString(),
+      body: new URLSearchParams({ to: phone, message: safeMessage, format: "json" }).toString(),
     });
 
     const data = await response.json();
