@@ -9,6 +9,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           <span className="landing-nav-name">Pilates <em>by Paulina</em></span>
         </div>
         <div className="landing-nav-actions">
+          <a href="/zapisy" className="btn btn-secondary btn-sm">Harmonogram</a>
           <button className="btn btn-secondary btn-sm" onClick={onLogin}>Zaloguj się</button>
           <button className="btn btn-primary btn-sm" onClick={onRegister}>Dołącz</button>
         </div>
@@ -30,9 +31,9 @@ export default function LandingPage({ onLogin, onRegister }) {
             <button className="btn btn-primary landing-btn-lg" onClick={onRegister}>
               Zarezerwuj miejsce
             </button>
-            <button className="btn btn-secondary landing-btn-lg" onClick={onLogin}>
-              Mam już konto
-            </button>
+            <a href="/zapisy" className="btn btn-secondary landing-btn-lg">
+              Zobacz harmonogram
+            </a>
           </div>
         </div>
         <div className="landing-hero-deco">
