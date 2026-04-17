@@ -87,7 +87,7 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
                 <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_admin@studiova.app"); setPassword("DemoAdmin2024!"); }}>
                   Zaloguj jako Admin
                 </button>
-                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_user@studiova.app"); setPassword("DemoKlient2024!"); }}>
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_user@studiova.app"); setPassword("DemoUser2024!"); }}>
                   Zaloguj jako Klient
                 </button>
               </div>
