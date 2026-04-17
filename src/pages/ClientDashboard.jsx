@@ -52,7 +52,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     return d;
   }
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (studioId) fetchData(); }, [studioId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

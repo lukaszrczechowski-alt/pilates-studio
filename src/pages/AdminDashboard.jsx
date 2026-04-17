@@ -73,7 +73,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [newClientContext, setNewClientContext] = useState("clients");
 
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
 
   function showMsg(text, type = "success") {
     setMessage({ text, type });
