@@ -17,6 +17,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
   const [showCancelWarning, setShowCancelWarning] = useState(null);
   const [showBookModal, setShowBookModal] = useState(null);
   const [calendarWeek, setCalendarWeek] = useState(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
+  const [mobileCalStart, setMobileCalStart] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   const [myRatings, setMyRatings] = useState([]);
   const [showRatingModal, setShowRatingModal] = useState(null);
   const [ratingValue, setRatingValue] = useState(5);
@@ -715,8 +716,76 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
               : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak nadchodzących zajęć.</p></div>
               : viewMode === "calendar" ? (
-                /* WIDOK KALENDARZA MIESIĘCZNEGO */
+                /* WIDOK KALENDARZA */
                 <div>
+                  {/* === MOBILNY WIDOK 4-DNI === */}
+                  {(() => {
+                    const DAYS = 4;
+                    const days = Array.from({ length: DAYS }, (_, i) => {
+                      const d = new Date(mobileCalStart);
+                      d.setDate(d.getDate() + i);
+                      return d;
+                    });
+                    const rangeLabel = (() => {
+                      const s = days[0], e = days[DAYS - 1];
+                      if (s.getMonth() === e.getMonth())
+                        return `${s.getDate()}–${e.getDate()} ${e.toLocaleDateString("pl-PL", { month: "long" })}`;
+                      return `${s.getDate()} ${s.toLocaleDateString("pl-PL",{month:"short"})} – ${e.getDate()} ${e.toLocaleDateString("pl-PL",{month:"short"})}`;
+                    })();
+                    const shiftDays = (n) => {
+                      const d = new Date(mobileCalStart);
+                      d.setDate(d.getDate() + n);
+                      setMobileCalStart(d);
+                    };
+                    return (
+                      <div className="cal-mobile">
+                        <div className="cal-mobile-nav">
+                          <button className="btn btn-secondary btn-sm" onClick={() => shiftDays(-DAYS)}>←</button>
+                          <span className="cal-mobile-range">{rangeLabel}</span>
+                          <button className="btn btn-secondary btn-sm" onClick={() => shiftDays(DAYS)}>→</button>
+                        </div>
+                        <div className="cal-mobile-grid">
+                          {days.map((day, di) => {
+                            const isToday = day.toDateString() === new Date().toDateString();
+                            const dayClasses = classes.filter(c => new Date(c.starts_at).toDateString() === day.toDateString());
+                            const dayName = day.toLocaleDateString("pl-PL", { weekday: "short" });
+                            return (
+                              <div key={di} className={`cal-mobile-col${isToday ? " today" : ""}`}>
+                                <div className="cal-mobile-col-head">
+                                  <span className="cal-mobile-dayname">{dayName}</span>
+                                  <span className="cal-mobile-daynum">{day.getDate()}</span>
+                                </div>
+                                <div className="cal-mobile-chips">
+                                  {dayClasses.length === 0
+                                    ? <div className="cal-mobile-empty">·</div>
+                                    : dayClasses.map(cls => {
+                                        const booked = isBooked(cls.id);
+                                        const onWaitlist = isOnWaitlist(cls.id);
+                                        const isFull = getBookedCount(cls) >= cls.max_spots;
+                                        const chipCls = booked ? "chip-booked" : onWaitlist ? "chip-waitlist" : isFull ? "chip-full" : "chip-open";
+                                        return (
+                                          <div key={cls.id} className={`cal-mobile-chip ${chipCls}`} onClick={() => setDetailClass(cls)}>
+                                            <span className="chip-time">{new Date(cls.starts_at).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}</span>
+                                            <span className="chip-name">{cls.name}</span>
+                                          </div>
+                                        );
+                                      })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="cal-mobile-legend">
+                          {[["chip-booked","Moje"],["chip-waitlist","Kolejka"],["chip-full","Brak"],["chip-open","Wolne"]].map(([cls,label]) => (
+                            <div key={label} className="cal-legend-item"><span className={`cal-legend-dot ${cls}`} />{label}</div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* === DESKTOPOWY KALENDARZ MIESIĘCZNY === */}
+                  <div className="cal-desktop">
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                     <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setCalendarWeek(d); }}>← Poprzedni</button>
                     <span style={{ fontWeight: 500, fontSize: "1rem" }}>{calendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
@@ -779,6 +848,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
                       </div>
                     ))}
                   </div>
+                  </div>{/* /cal-desktop */}
                 </div>
               ) : (
                 /* WIDOK LISTY — grupowany po dniach */

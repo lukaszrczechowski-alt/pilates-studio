@@ -386,6 +386,88 @@ h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
 .spots-fill.full { background: #C44B4B; }
 .spots-text { font-size: 0.8rem; color: var(--mid); margin-bottom: 1rem; }
 
+/* Mobile calendar 4-day strip */
+.cal-mobile { display: none; }
+.cal-desktop { display: block; }
+
+@media (max-width: 768px) {
+  .cal-mobile { display: block; margin-bottom: 0; }
+  .cal-desktop { display: none; }
+}
+
+.cal-mobile-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.cal-mobile-range {
+  font-size: 0.9rem; font-weight: 500; color: var(--charcoal);
+  text-align: center;
+}
+.cal-mobile-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; background: var(--warm-white);
+}
+.cal-mobile-col {
+  border-right: 1px solid var(--border); padding: 0;
+  min-height: 100px;
+}
+.cal-mobile-col:last-child { border-right: none; }
+.cal-mobile-col.today { background: rgba(138,158,133,0.06); }
+.cal-mobile-col-head {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0.5rem 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream);
+}
+.cal-mobile-col.today .cal-mobile-col-head { background: rgba(138,158,133,0.12); }
+.cal-mobile-dayname {
+  font-size: 0.65rem; font-weight: 500; color: var(--mid);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.cal-mobile-daynum {
+  width: 26px; height: 26px; display: flex; align-items: center;
+  justify-content: center; border-radius: 50%;
+  font-size: 0.9rem; font-weight: 500; color: var(--charcoal);
+  margin-top: 0.15rem;
+}
+.cal-mobile-col.today .cal-mobile-daynum {
+  background: var(--sage); color: white; font-weight: 600;
+}
+.cal-mobile-chips { padding: 0.35rem 0.3rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.cal-mobile-empty { text-align: center; color: var(--border); font-size: 1.1rem; padding: 0.3rem 0; }
+.cal-mobile-chip {
+  display: flex; flex-direction: column;
+  border-radius: 4px; padding: 0.25rem 0.3rem;
+  cursor: pointer; transition: opacity 0.15s;
+  border-left: 2px solid transparent;
+  overflow: hidden;
+}
+.cal-mobile-chip:hover { opacity: 0.75; }
+.chip-time { font-size: 0.62rem; font-weight: 600; line-height: 1.2; }
+.chip-name { font-size: 0.62rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-booked  { background: #EBF5EA; border-left-color: #8A9E85; }
+.chip-booked .chip-time, .chip-booked .chip-name { color: #5C7A56; }
+.chip-waitlist { background: #FEF3E8; border-left-color: #E8A87C; }
+.chip-waitlist .chip-time, .chip-waitlist .chip-name { color: #B87333; }
+.chip-full { background: #FDE8E8; border-left-color: #F5C6C6; }
+.chip-full .chip-time, .chip-full .chip-name { color: #C44B4B; }
+.chip-open { background: var(--cream); border-left-color: var(--border); }
+.chip-open .chip-time, .chip-open .chip-name { color: var(--charcoal); }
+
+.cal-mobile-legend {
+  display: flex; gap: 0.75rem; flex-wrap: wrap;
+  margin-top: 0.6rem; font-size: 0.72rem; color: var(--mid);
+}
+.cal-legend-item { display: flex; align-items: center; gap: 0.3rem; }
+.cal-legend-dot {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}
+.cal-legend-dot.chip-booked  { background: #EBF5EA; border: 1px solid #8A9E85; }
+.cal-legend-dot.chip-waitlist { background: #FEF3E8; border: 1px solid #E8A87C; }
+.cal-legend-dot.chip-full { background: #FDE8E8; border: 1px solid #F5C6C6; }
+.cal-legend-dot.chip-open { background: var(--cream); border: 1px solid var(--border); }
+
 /* Class List (grouped by day) */
 .day-section-header {
   display: flex; align-items: center; gap: 0.75rem;
