@@ -20,7 +20,7 @@ export function StudioProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const hostname = window.location.hostname;
+    const hostname = window.location.hostname.replace(/^www\./, "");
 
     fetch(`/api/get-studio?domain=${hostname}`)
       .then(r => r.ok ? r.json() : null)
