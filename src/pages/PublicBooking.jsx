@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
-export default function PublicBooking() {
+export default function PublicBooking({ studioId }) {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -16,11 +16,13 @@ export default function PublicBooking() {
 
   async function fetchClasses() {
     const now = new Date().toISOString();
-    const { data } = await supabase.from("classes")
+    let query = supabase.from("classes")
       .select("*, bookings(id)")
       .gte("starts_at", now)
       .or("cancelled.is.null,cancelled.eq.false")
       .order("starts_at", { ascending: true });
+    if (studioId) query = query.eq("studio_id", studioId);
+    const { data } = await query;
     setClasses(data || []);
     setLoading(false);
   }

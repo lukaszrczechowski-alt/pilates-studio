@@ -3,7 +3,7 @@ import { supabase } from "../supabase";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
-export default function AdminDashboard({ session, profile, darkMode, setDarkMode }) {
+export default function AdminDashboard({ session, profile, studioId, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -171,7 +171,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           await supabase.from("tokens").update({ amount: tok.amount + 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
           await supabase.from("token_history").insert({
             user_id: booking.user_id, class_id: cls.id, operation: "add", amount: 1,
-            month, year, note: `Zwrot — zajęcia odwołane: ${cls.name}`,
+            month, year, note: `Zwrot — zajęcia odwołane: ${cls.name}`, studio_id: studioId,
           });
         }
       }
@@ -180,7 +180,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     // 2. Powiadomienia w aplikacji — jeden batch insert
     await supabase.from("notifications").insert(
       bookingsForClass.map(b => ({
-        type: "class_cancelled", class_id: cls.id, user_id: b.user_id,
+        type: "class_cancelled", class_id: cls.id, user_id: b.user_id, studio_id: studioId,
         message: `Zajęcia "${cls.name}" (${formatEmailDate(cls.starts_at)}) zostały odwołane. Powód: ${cancelReason}${b.payment_method === "entries" ? " Wejście zwrócono." : ""}`,
       }))
     );
@@ -226,13 +226,13 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
     // Zapisz wiadomość
     await supabase.from("class_messages").insert({
-      class_id: cls.id, message: messageText, sent_by: session.user.id,
+      class_id: cls.id, message: messageText, sent_by: session.user.id, studio_id: studioId,
     });
 
     // Powiadomienia w aplikacji — jeden batch insert
     if (msgDelivery.app) {
       await supabase.from("notifications").insert(
-        bookingsForClass.map(b => ({ type: "booking", class_id: cls.id, user_id: b.user_id, message: notifMsg }))
+        bookingsForClass.map(b => ({ type: "booking", class_id: cls.id, user_id: b.user_id, message: notifMsg, studio_id: studioId }))
       );
     }
 
@@ -327,12 +327,12 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       for (let i = 0; i < recurring.weeks; i++) {
         const starts = new Date(form.starts_at);
         starts.setDate(starts.getDate() + i * 7);
-        classesToInsert.push({ ...basePayload, starts_at: starts.toISOString(), series_id: seriesId, series_index: i + 1 });
+        classesToInsert.push({ ...basePayload, starts_at: starts.toISOString(), series_id: seriesId, series_index: i + 1, studio_id: studioId });
       }
       await supabase.from("classes").insert(classesToInsert);
       showMsg(`Utworzono ${recurring.weeks} zajęć cyklicznych! ✓`);
     } else {
-      await supabase.from("classes").insert(basePayload);
+      await supabase.from("classes").insert({ ...basePayload, studio_id: studioId });
     }
 
     setShowModal(false);
@@ -349,6 +349,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       notes: templateForm.notes,
       price_pln: templateForm.price_pln ? +templateForm.price_pln : null,
       venue_cost_pln: templateForm.venue_cost_pln ? +templateForm.venue_cost_pln : null,
+      studio_id: studioId,
     });
     setShowTemplateModal(false);
     setTemplateForm({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
@@ -460,7 +461,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   }
 
   async function handleAddUserToClass(userId, classId) {
-    const { error } = await supabase.from("bookings").insert({ class_id: classId, user_id: userId, payment_method: "cash" });
+    const { error } = await supabase.from("bookings").insert({ class_id: classId, user_id: userId, payment_method: "cash", studio_id: studioId });
     if (error) { showMsg("Użytkownik już jest zapisany.", "error"); return; }
     showMsg("Zapisano! ✓");
     const cls = classes.find(c => c.id === classId);
@@ -496,11 +497,11 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     if (existing) {
       await supabase.from("tokens").update({ amount: existing.amount + tokenForm.amount, updated_at: new Date().toISOString() }).eq("id", existing.id);
     } else {
-      await supabase.from("tokens").insert({ user_id: selectedUser.id, amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, added_by: session.user.id, note: tokenForm.note });
+      await supabase.from("tokens").insert({ user_id: selectedUser.id, amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, added_by: session.user.id, note: tokenForm.note, studio_id: studioId });
     }
-    await supabase.from("token_history").insert({ user_id: selectedUser.id, operation: "add", amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, note: tokenForm.note || "Dodano przez admina" });
+    await supabase.from("token_history").insert({ user_id: selectedUser.id, operation: "add", amount: tokenForm.amount, month: tokenForm.month, year: tokenForm.year, note: tokenForm.note || "Dodano przez admina", studio_id: studioId });
     const entryWord = tokenForm.amount === 1 ? "wejście" : tokenForm.amount < 5 ? "wejścia" : "wejść";
-    await supabase.from("notifications").insert({ type: "tokens_added", user_id: selectedUser.id, message: `Dodano ${tokenForm.amount} ${entryWord} dla ${selectedUser.first_name} ${selectedUser.last_name} na ${monthName(tokenForm.month)} ${tokenForm.year}` });
+    await supabase.from("notifications").insert({ type: "tokens_added", user_id: selectedUser.id, studio_id: studioId, message: `Dodano ${tokenForm.amount} ${entryWord} dla ${selectedUser.first_name} ${selectedUser.last_name} na ${monthName(tokenForm.month)} ${tokenForm.year}` });
     const { data: userProfile } = await supabase.from("profiles").select("email, first_name").eq("id", selectedUser.id).single();
     if (userProfile) {
       await sendEmail("entries_added", userProfile.email, {
@@ -521,7 +522,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     const { data: tok } = await supabase.from("tokens").select("*").eq("user_id", userId).eq("month", month).eq("year", year).maybeSingle();
     if (!tok || tok.amount <= 0) { showMsg("Brak wejść.", "error"); return; }
     await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-    await supabase.from("token_history").insert({ user_id: userId, class_id: classId, operation: "use", amount: -1, month, year, note: `Zużyto za: ${className}` });
+    await supabase.from("token_history").insert({ user_id: userId, class_id: classId, operation: "use", amount: -1, month, year, note: `Zużyto za: ${className}`, studio_id: studioId });
     showMsg("Wejście zużyte! ✓");
     await fetchAll();
   }
@@ -540,12 +541,12 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         .eq("id", existing.id);
     } else if (!existing) {
       // Utwórz rekord z 0 (zaznaczamy że rozliczono bez wejść — gotówka)
-      await supabase.from("tokens").insert({ user_id: userId, amount: 0, month, year, added_by: session.user.id });
+      await supabase.from("tokens").insert({ user_id: userId, amount: 0, month, year, added_by: session.user.id, studio_id: studioId });
     }
     // Zawsze zapisz log rozliczenia
     await supabase.from("token_history").insert({
       user_id: userId, class_id: classId, operation: "use", amount: -1,
-      month, year, note: `Rozliczono za: ${className}`,
+      month, year, note: `Rozliczono za: ${className}`, studio_id: studioId,
     });
     showMsg("Rozliczono! ✓");
     await fetchAll();
@@ -574,7 +575,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   async function handleAddParticipant() {
     if (!addParticipantId || !editClass) return;
     setAddingParticipant(true);
-    await supabase.from("bookings").insert({ class_id: editClass.id, user_id: addParticipantId, payment_method: addParticipantMethod });
+    await supabase.from("bookings").insert({ class_id: editClass.id, user_id: addParticipantId, payment_method: addParticipantMethod, studio_id: studioId });
     await fetchAll();
     setAddParticipantId("");
     setAddingParticipant(false);
@@ -588,12 +589,12 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     const res = await fetch("/api/create-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ first_name, last_name, email, phone, birth_date }),
+      body: JSON.stringify({ first_name, last_name, email, phone, birth_date, studioId }),
     });
     const data = await res.json();
     if (!res.ok) { showMsg(data.error || "Błąd tworzenia konta.", "error"); setNewClientLoading(false); return; }
     if (newClientContext === "class" && editClass) {
-      await supabase.from("bookings").insert({ class_id: editClass.id, user_id: data.id, payment_method: addParticipantMethod });
+      await supabase.from("bookings").insert({ class_id: editClass.id, user_id: data.id, payment_method: addParticipantMethod, studio_id: studioId });
     }
     await fetchAll();
     showMsg(`Konto dla ${first_name} ${last_name} utworzone! ✓`);
@@ -650,7 +651,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
       targetUsers = allProfiles.filter(p => userIds.has(p.id));
     }
     if (bulkMsgChannels.app && targetUsers.length > 0) {
-      await supabase.from("notifications").insert(targetUsers.map(u => ({ user_id: u.id, type: "booking", message: bulkMsgText })));
+      await supabase.from("notifications").insert(targetUsers.map(u => ({ user_id: u.id, type: "booking", message: bulkMsgText, studio_id: studioId })));
     }
     if (bulkMsgChannels.push && targetUsers.length > 0) {
       fetch("/api/push-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: targetUsers.map(u => u.id), title: "Pilates Studio", body: bulkMsgText, url: "/" }) }).catch(() => {});

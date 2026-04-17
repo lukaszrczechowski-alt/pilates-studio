@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { first_name, last_name, email, phone, birth_date } = req.body;
+  const { first_name, last_name, email, phone, birth_date, studioId } = req.body;
   if (!first_name || !last_name || !email) {
     return res.status(400).json({ error: "Imię, nazwisko i email są wymagane." });
   }
@@ -35,6 +35,7 @@ export default async function handler(req, res) {
     phone: phone || null,
     birth_date: birth_date || null,
     role: "client",
+    ...(studioId ? { studio_id: studioId } : {}),
   });
 
   return res.status(200).json({ id: data.user.id });

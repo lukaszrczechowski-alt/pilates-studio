@@ -3,7 +3,7 @@ import { supabase } from "../supabase";
 import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
-export default function ClientDashboard({ session, profile, onProfileUpdate, darkMode, setDarkMode }) {
+export default function ClientDashboard({ session, profile, studioId, onProfileUpdate, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
@@ -154,14 +154,14 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
         setActionLoading(null); return;
       }
     }
-    const { error } = await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod });
+    const { error } = await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod, studio_id: studioId });
     if (error) { showMsg("Błąd przy zapisie.", "error"); setActionLoading(null); return; }
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("*")
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis: ${cls.name}` });
+        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis: ${cls.name}`, studio_id: studioId });
       }
     }
     await sendEmail("booking_confirmed", profile.email, {
@@ -192,7 +192,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
     let booked = 0;
     for (const cls of seriesClasses) {
       const { error } = await supabase.from("bookings").insert({
-        class_id: cls.id, user_id: session.user.id, payment_method: method,
+        class_id: cls.id, user_id: session.user.id, payment_method: method, studio_id: studioId,
       });
       if (!error) {
         if (method === "entries") {
@@ -202,7 +202,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
             .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
           if (tok && tok.amount > 0) {
             await supabase.from("tokens").update({ amount: tok.amount - 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-            await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis (seria): ${cls.name}` });
+            await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "use", amount: -1, month, year, note: `Zapis (seria): ${cls.name}`, studio_id: studioId });
           }
         }
         booked++;
@@ -229,7 +229,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
       if (tok) {
         await supabase.from("tokens").update({ amount: tok.amount + 1, updated_at: new Date().toISOString() }).eq("id", tok.id);
-        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "add", amount: 1, month, year, note: "Zwrot — anulowanie" });
+        await supabase.from("token_history").insert({ user_id: session.user.id, class_id: cls.id, operation: "add", amount: 1, month, year, note: "Zwrot — anulowanie", studio_id: studioId });
         refunded = true;
       }
     } else if (booking.payment_method === "entries" && status === "after_cutoff") {
@@ -244,7 +244,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
       .eq("class_id", cls.id).order("created_at", { ascending: true }).limit(1);
     if (waitlistFirst?.length > 0) {
       const promoted = waitlistFirst[0];
-      await supabase.from("bookings").insert({ class_id: cls.id, user_id: promoted.user_id, payment_method: "cash" });
+      await supabase.from("bookings").insert({ class_id: cls.id, user_id: promoted.user_id, payment_method: "cash", studio_id: studioId });
       await supabase.from("waitlist").delete().eq("id", promoted.id);
       await sendEmail("waitlist_promoted", promoted.profiles?.email, {
         firstName: promoted.profiles?.first_name, className: cls.name,
@@ -263,7 +263,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
 
   async function handleJoinWaitlist(cls) {
     setActionLoading(cls.id);
-    const { error } = await supabase.from("waitlist").insert({ class_id: cls.id, user_id: session.user.id });
+    const { error } = await supabase.from("waitlist").insert({ class_id: cls.id, user_id: session.user.id, studio_id: studioId });
     if (error) showMsg("Już jesteś w kolejce.", "error");
     else { showMsg("Zapisano do kolejki! ✓"); setDetailClass(null); }
     await fetchData(); setActionLoading(null);
@@ -523,7 +523,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
     if (existing) {
       await supabase.from("class_ratings").update({ rating: ratingValue, comment: ratingComment }).eq("id", existing.id);
     } else {
-      await supabase.from("class_ratings").insert({ class_id: cls.id, user_id: session.user.id, rating: ratingValue, comment: ratingComment });
+      await supabase.from("class_ratings").insert({ class_id: cls.id, user_id: session.user.id, rating: ratingValue, comment: ratingComment, studio_id: studioId });
     }
     showMsg("Dziękujemy za ocenę! ✓");
     setShowRatingModal(null);
