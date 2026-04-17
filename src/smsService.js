@@ -4,6 +4,7 @@
  */
 export async function sendSms(to, message) {
   if (!to?.trim()) return;
+  if (window.__isDemo) return;
   try {
     const res = await fetch("/api/send-sms", {
       method: "POST",

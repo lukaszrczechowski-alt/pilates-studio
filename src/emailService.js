@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
 export async function sendEmail(type, to, data) {
+  if (window.__isDemo) return;
   try {
     const { data: result, error } = await supabase.functions.invoke("send-email", {
       body: { type, to, data },

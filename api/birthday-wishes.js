@@ -55,6 +55,7 @@ export default async function handler(req, res) {
   let sent = 0, skipped = 0, errors = 0;
 
   for (const p of birthdays) {
+    if (p.studios?.features?.is_demo) { skipped++; continue; }
     const sig = p.studios?.branding?.sms_signature || p.studios?.name || "Studio";
     await supabase.from("notifications").insert({
       type: "birthday",

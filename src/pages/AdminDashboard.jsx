@@ -8,6 +8,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const { studio } = useStudio();
   const studioName = studio?.name || "Studio";
   const smsSig = studio?.branding?.sms_signature || studioName;
+  const isDemo = studio?.features?.is_demo === true;
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -204,7 +205,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - ${smsSig}`
       );
     }
-    if (userIds.length > 0) {
+    if (userIds.length > 0 && !isDemo) {
       fetch("/api/push-send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,7 +267,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     // Push
     if (msgDelivery.app) {
       const uids = bookingsForClass.map(b => b.user_id);
-      if (uids.length > 0) {
+      if (uids.length > 0 && !isDemo) {
         fetch("/api/push-send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -657,7 +658,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     if (bulkMsgChannels.app && targetUsers.length > 0) {
       await supabase.from("notifications").insert(targetUsers.map(u => ({ user_id: u.id, type: "booking", message: bulkMsgText, studio_id: studioId })));
     }
-    if (bulkMsgChannels.push && targetUsers.length > 0) {
+    if (bulkMsgChannels.push && targetUsers.length > 0 && !isDemo) {
       fetch("/api/push-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: targetUsers.map(u => u.id), title: "Pilates Studio", body: bulkMsgText, url: "/" }) }).catch(() => {});
     }
     if (bulkMsgChannels.sms) {

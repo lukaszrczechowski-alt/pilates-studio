@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       hour: "2-digit", minute: "2-digit", timeZone: "Europe/Warsaw",
     });
     const location = cls.location ? ` (${cls.location})` : "";
+    if (cls.studios?.features?.is_demo) { skipped += (cls.bookings || []).length; continue; }
     const sig = cls.studios?.branding?.sms_signature || cls.studios?.name || "Studio";
 
     for (const booking of cls.bookings || []) {

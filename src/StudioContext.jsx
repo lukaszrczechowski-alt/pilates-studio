@@ -27,6 +27,7 @@ export function StudioProvider({ children }) {
       .then(data => {
         setStudio(data || { id: null, features: {}, branding: {} });
         if (data?.branding) applyBranding(data.branding);
+        window.__isDemo = data?.features?.is_demo === true;
         setLoading(false);
       })
       .catch(() => {
