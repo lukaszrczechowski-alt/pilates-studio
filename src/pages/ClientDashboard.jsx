@@ -586,10 +586,16 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
               : <span className="class-badge badge-open">Wolne miejsca</span>}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem" }}>
-            {[{ icon: "📅", label: "Data", val: formatDate(cls.starts_at) }, { icon: "🕐", label: "Godzina", val: `${formatTime(cls.starts_at)} · ${cls.duration_min} min` }, cls.location && { icon: "📍", label: "Lokalizacja", val: cls.location }, cls.price_pln && { icon: "💰", label: "Cena", val: `${cls.price_pln} zł` }].filter(Boolean).map((item, i) => (
+            {[{ icon: "📅", label: "Data", val: formatDate(cls.starts_at) }, { icon: "🕐", label: "Godzina", val: `${formatTime(cls.starts_at)} · ${cls.duration_min} min` }, cls.location && { icon: "📍", label: "Lokalizacja", val: cls.location, maps: true }, cls.price_pln && { icon: "💰", label: "Cena", val: `${cls.price_pln} zł` }].filter(Boolean).map((item, i) => (
               <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                 <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
-                <div><div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div><div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{item.val}</div></div>
+                <div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 500, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    {item.val}
+                    {item.maps && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.val)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.7rem", color: "var(--sage-dark)", textDecoration: "none", border: "1px solid var(--sage)", borderRadius: 10, padding: "0.1rem 0.45rem", whiteSpace: "nowrap" }}>Nawiguj →</a>}
+                  </div>
+                </div>
               </div>
             ))}
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -891,7 +897,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
                                     <div className="class-row-info">
                                       <div className="class-row-name">{cls.name}</div>
                                       <div className="class-row-meta">
-                                        {cls.location && <span>📍 {cls.location}</span>}
+                                        {cls.location && <span>📍 {cls.location} <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cls.location)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ color: "var(--sage-dark)", textDecoration: "none", fontSize: "0.7rem", border: "1px solid var(--sage)", borderRadius: 10, padding: "0.05rem 0.4rem" }}>↗</a></span>}
                                         {cls.price_pln ? <span>💰 {cls.price_pln} zł</span> : null}
                                         <span style={{ color: isFull ? "#C44B4B" : "inherit" }}>
                                           {count}/{cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}

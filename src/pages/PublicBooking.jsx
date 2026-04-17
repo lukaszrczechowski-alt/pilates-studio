@@ -98,7 +98,7 @@ export default function PublicBooking() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.75rem" }}>
                     <div style={{ fontSize: "0.85rem", color: "#6B6B6B" }}>📅 {formatDate(cls.starts_at)}</div>
                     <div style={{ fontSize: "0.85rem", color: "#6B6B6B" }}>🕐 {formatTime(cls.starts_at)} · {cls.duration_min} min</div>
-                    {cls.location && <div style={{ fontSize: "0.85rem", color: "#6B6B6B" }}>📍 {cls.location}</div>}
+                    {cls.location && <div style={{ fontSize: "0.85rem", color: "#6B6B6B", display: "flex", alignItems: "center", gap: "0.5rem" }}>📍 {cls.location}<a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cls.location)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: "0.72rem", color: "#8A9E85", textDecoration: "none", border: "1px solid #8A9E85", borderRadius: 10, padding: "0.1rem 0.45rem", whiteSpace: "nowrap" }}>Nawiguj →</a></div>}
                     {cls.price_pln && <div style={{ fontSize: "0.85rem", color: "#6B6B6B" }}>💰 {cls.price_pln} zł</div>}
                   </div>
                   <div style={{ height: 4, background: "#E8E0D8", borderRadius: 2, overflow: "hidden", marginBottom: "0.4rem" }}>
@@ -171,14 +171,17 @@ export default function PublicBooking() {
               {[
                 { icon: "📅", label: "Data", val: formatDate(selectedClass.starts_at) },
                 { icon: "🕐", label: "Godzina", val: `${formatTime(selectedClass.starts_at)} · ${selectedClass.duration_min} min` },
-                selectedClass.location && { icon: "📍", label: "Lokalizacja", val: selectedClass.location },
+                selectedClass.location && { icon: "📍", label: "Lokalizacja", val: selectedClass.location, maps: true },
                 selectedClass.price_pln && { icon: "💰", label: "Cena", val: `${selectedClass.price_pln} zł` },
               ].filter(Boolean).map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: "0.75rem" }}>
                   <span>{item.icon}</span>
                   <div>
                     <div style={{ fontSize: "0.75rem", color: "#ADADAD", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
-                    <div style={{ fontWeight: 500 }}>{item.val}</div>
+                    <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      {item.val}
+                      {item.maps && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.val)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", color: "#8A9E85", textDecoration: "none", border: "1px solid #8A9E85", borderRadius: 10, padding: "0.1rem 0.45rem", whiteSpace: "nowrap" }}>Nawiguj →</a>}
+                    </div>
                   </div>
                 </div>
               ))}
