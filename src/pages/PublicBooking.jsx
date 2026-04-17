@@ -32,11 +32,20 @@ export default function PublicBooking() {
     e.preventDefault();
     if (!contactName.trim() || !contactMsg.trim()) return;
     setContactSending(true);
-    await fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg }),
-    }).catch(() => {});
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg }),
+      });
+      const json = await res.json();
+      console.log("contact response:", res.status, json);
+      if (!res.ok) { alert("Błąd: " + (json.error || res.status)); setContactSending(false); return; }
+    } catch (err) {
+      alert("Błąd połączenia: " + err.message);
+      setContactSending(false);
+      return;
+    }
     setContactSending(false);
     setContactSent(true);
   }
