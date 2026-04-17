@@ -84,14 +84,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       .order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings")
       .select("id, class_id, user_id, created_at, payment_method, profiles(first_name, last_name, email, phone), classes(id, name, starts_at, price_pln, venue_cost_pln, duration_min, max_spots)")
-      .order("created_at", { ascending: false });
+      .eq("studio_id", studioId).order("created_at", { ascending: false });
     const { data: profileData } = await supabase.from("profiles").select("*")
       .eq("role", "client").eq("studio_id", studioId).order("created_at", { ascending: false });
     const { data: notifData } = await supabase.from("notifications").select("*")
-      .order("created_at", { ascending: false }).limit(50);
+      .eq("studio_id", studioId).order("created_at", { ascending: false }).limit(50);
     const { data: histData } = await supabase.from("token_history")
       .select("*, classes(name, starts_at, price_pln), profiles(first_name, last_name)")
-      .order("created_at", { ascending: false });
+      .eq("studio_id", studioId).order("created_at", { ascending: false });
     setClasses(classData || []);
     setAllBookings(bookingData || []);
     setAllProfiles(profileData || []);
@@ -103,11 +103,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       totalBookings: (bookingData || []).filter(b => b.classes?.starts_at >= now).length,
       uniqueClients: (profileData || []).length,
     });
-    const { data: templatesData } = await supabase.from("class_templates").select("*").order("name");
+    const { data: templatesData } = await supabase.from("class_templates").select("*").eq("studio_id", studioId).order("name");
     setTemplates(templatesData || []);
     const { data: ratingsData } = await supabase.from("class_ratings")
       .select("*, classes(name, starts_at), profiles(first_name, last_name)")
-      .order("created_at", { ascending: false });
+      .eq("studio_id", studioId).order("created_at", { ascending: false });
     setClassRatings(ratingsData || []);
     setLoading(false);
   }
@@ -279,7 +279,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   }
 
   async function markAllRead() {
-    await supabase.from("notifications").update({ read: true }).eq("read", false);
+    await supabase.from("notifications").update({ read: true }).eq("read", false).eq("studio_id", studioId);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   }
