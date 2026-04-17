@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../supabase";
 import { sendEmail } from "../emailService";
 
-export default function AuthPage({ initialMode = "login", onBack }) {
+export default function AuthPage({ initialMode = "login", onBack, studioId }) {
   const [mode, setMode] = useState(initialMode); // login | register | reset
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,12 +33,13 @@ export default function AuthPage({ initialMode = "login", onBack }) {
     });
     if (error) { setError(error.message); setLoading(false); return; }
     if (data.user) {
-      await supabase.from("profiles").insert({
+      await supabase.from("profiles").upsert({
         id: data.user.id,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim(),
         role: "client",
+        ...(studioId ? { studio_id: studioId } : {}),
       });
       await sendEmail("welcome", email.trim(), { firstName: firstName.trim() });
       setSuccess("Konto zostało utworzone! Sprawdź email i potwierdź rejestrację.");

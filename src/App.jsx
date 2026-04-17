@@ -49,6 +49,11 @@ function AppInner() {
   async function fetchProfile(userId) {
     const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
     if (error) console.error("fetchProfile error:", error.message);
+    // Jeśli profil nie ma studio_id a wiemy z domeny — przypisz
+    if (data && !data.studio_id && studio?.id) {
+      await supabase.from("profiles").update({ studio_id: studio.id }).eq("id", userId);
+      data.studio_id = studio.id;
+    }
     setProfile(data || null);
     setLoading(false);
   }
@@ -64,7 +69,7 @@ function AppInner() {
   );
 
   if (!session) {
-    if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} />;
+    if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} studioId={studio?.id} />;
     return <LandingPage onLogin={() => setAuthMode("login")} onRegister={() => setAuthMode("register")} />;
   }
 
