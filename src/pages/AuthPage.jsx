@@ -79,6 +79,21 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
             <button className="auth-back-btn" onClick={onBack}>← Wróć do strony głównej</button>
           )}
 
+          {/* DEMO SHORTCUTS */}
+          {studio?.slug === "demo" && mode === "login" && (
+            <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--cream)", borderRadius: "0.75rem", border: "1px solid var(--border)" }}>
+              <p style={{ fontSize: "0.75rem", color: "var(--mid)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Wypróbuj demo</p>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_admin@studiova.app"); setPassword("DemoAdmin2024!"); }}>
+                  Zaloguj jako Admin
+                </button>
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_user@studiova.app"); setPassword("DemoKlient2024!"); }}>
+                  Zaloguj jako Klient
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* LOGIN */}
           {mode === "login" && (
             <>
