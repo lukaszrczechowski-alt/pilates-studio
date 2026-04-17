@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
 import { sendEmail } from "../emailService";
+import { useStudio } from "../StudioContext";
 
 export default function AuthPage({ initialMode = "login", onBack, studioId }) {
+  const { studio } = useStudio();
+  const studioName = studio?.name || "Studio";
+  const letter = studioName[0] || "S";
   const [mode, setMode] = useState(initialMode); // login | register | reset
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,9 +68,8 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
     <div className="auth-page">
       <div className="auth-visual">
         <div className="auth-visual-content">
-          <div className="auth-big-letter">P</div>
-          <h1>Pilates</h1>
-          <p>Studio by Paulina</p>
+          <div className="auth-big-letter">{letter}</div>
+          <h1>{studioName}</h1>
         </div>
       </div>
 
@@ -116,7 +119,7 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
           {mode === "register" && (
             <>
               <h2>Nowe konto</h2>
-              <p>Dołącz do studia Pilates Pauliny</p>
+              <p>Dołącz do {studioName}</p>
               {error && <div className="alert alert-error">{error}</div>}
               <form onSubmit={handleRegister}>
                 <div className="form-group">

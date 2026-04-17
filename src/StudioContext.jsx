@@ -6,6 +6,15 @@ export function useStudio() {
   return useContext(StudioContext);
 }
 
+function applyBranding(branding) {
+  if (!branding) return;
+  const root = document.documentElement;
+  const colors = branding.colors || {};
+  Object.entries(colors).forEach(([key, value]) => {
+    root.style.setProperty(`--${key}`, value);
+  });
+}
+
 export function StudioProvider({ children }) {
   const [studio, setStudio] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,8 +24,15 @@ export function StudioProvider({ children }) {
 
     fetch(`/api/get-studio?domain=${hostname}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { setStudio(data || { id: null, features: {} }); setLoading(false); })
-      .catch(() => { setStudio({ id: null, features: {} }); setLoading(false); });
+      .then(data => {
+        setStudio(data || { id: null, features: {}, branding: {} });
+        if (data?.branding) applyBranding(data.branding);
+        setLoading(false);
+      })
+      .catch(() => {
+        setStudio({ id: null, features: {}, branding: {} });
+        setLoading(false);
+      });
   }, []);
 
   return (

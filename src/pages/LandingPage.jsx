@@ -1,12 +1,19 @@
+import { useStudio } from "../StudioContext";
+
 export default function LandingPage({ onLogin, onRegister }) {
+  const { studio } = useStudio();
+  const b = studio?.branding || {};
+  const name = studio?.name || "Studio";
+  const letter = name[0] || "S";
+
   return (
     <div className="landing">
 
       {/* NAV */}
       <nav className="landing-nav">
         <div className="landing-nav-logo">
-          <span className="landing-nav-letter">P</span>
-          <span className="landing-nav-name">Pilates <em>by Paulina</em></span>
+          <span className="landing-nav-letter">{letter}</span>
+          <span className="landing-nav-name">{b.nav_name || name}</span>
         </div>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">Harmonogram</a>
@@ -19,13 +26,12 @@ export default function LandingPage({ onLogin, onRegister }) {
       <section className="landing-hero">
         <div className="landing-hero-bg" />
         <div className="landing-hero-content">
-          <p className="landing-hero-eyebrow">Studio by Paulina</p>
+          <p className="landing-hero-eyebrow">{b.hero_eyebrow || name}</p>
           <h1 className="landing-hero-title">
-            Zadbaj<br />o siebie.
+            {b.hero_title || "Zadbaj o siebie."}
           </h1>
           <p className="landing-hero-sub">
-            Pilates dla każdego — zajęcia w małych grupach,<br />
-            zapis online w kilku kliknięciach.
+            {b.hero_sub || "Zajęcia w małych grupach, zapis online w kilku kliknięciach."}
           </p>
           <div className="landing-hero-ctas">
             <button className="btn btn-primary landing-btn-lg" onClick={onRegister}>
@@ -39,7 +45,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div className="landing-hero-deco">
           <div className="landing-hero-circle landing-hero-circle-1" />
           <div className="landing-hero-circle landing-hero-circle-2" />
-          <div className="landing-hero-big-p">P</div>
+          <div className="landing-hero-big-p">{letter}</div>
         </div>
       </section>
 
@@ -51,17 +57,17 @@ export default function LandingPage({ onLogin, onRegister }) {
           <div className="landing-cards">
             <div className="landing-card">
               <div className="landing-card-icon">🌱</div>
-              <h3>Pilates dla początkujących</h3>
+              <h3>Zajęcia dla początkujących</h3>
               <p>Idealne do startu — spokojne tempo, nauka poprawnej techniki i fundamentów pracy z ciałem.</p>
             </div>
             <div className="landing-card">
               <div className="landing-card-icon">✨</div>
-              <h3>Pilates ogólnorozwojowy</h3>
+              <h3>Zajęcia ogólnorozwojowe</h3>
               <p>Pełna praca ciała, wzmacnianie core, elastyczność. Dla każdego kto chce czuć się lepiej każdego dnia.</p>
             </div>
             <div className="landing-card">
               <div className="landing-card-icon">🔥</div>
-              <h3>Pilates zaawansowany</h3>
+              <h3>Zajęcia zaawansowane</h3>
               <p>Intensywniejszy trening dla osób z doświadczeniem — wyzwanie dla ciała i umysłu.</p>
             </div>
           </div>
@@ -89,7 +95,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             <div className="landing-step">
               <div className="landing-step-num">3</div>
               <h3>Przyjdź i ćwicz</h3>
-              <p>Dostaniesz potwierdzenie. Reszta należy do Ciebie — do zobaczenia na macie!</p>
+              <p>Dostaniesz potwierdzenie. Reszta należy do Ciebie — do zobaczenia!</p>
             </div>
           </div>
         </div>
@@ -98,8 +104,8 @@ export default function LandingPage({ onLogin, onRegister }) {
       {/* CTA */}
       <section className="landing-cta-section">
         <div className="landing-container landing-cta-inner">
-          <h2>Gotowa, żeby zacząć?</h2>
-          <p>Dołącz do studia — pierwsze kroki są najważniejsze.</p>
+          <h2>{b.cta_title || "Gotowa, żeby zacząć?"}</h2>
+          <p>{b.cta_sub || "Dołącz do studia — pierwsze kroki są najważniejsze."}</p>
           <button className="btn btn-primary landing-btn-lg" onClick={onRegister}>
             Zarejestruj się za darmo
           </button>
@@ -109,7 +115,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       {/* FOOTER */}
       <footer className="landing-footer">
         <div className="landing-container landing-footer-inner">
-          <span className="landing-footer-logo">Pilates <em>by Paulina</em></span>
+          <span className="landing-footer-logo">{b.nav_name || name}</span>
           <span className="landing-footer-copy">© {new Date().getFullYear()}</span>
         </div>
       </footer>

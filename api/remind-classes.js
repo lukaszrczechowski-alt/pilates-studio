@@ -46,7 +46,7 @@ export default async function handler(req, res) {
   // Pobierz jutrzejsze zajęcia z rezerwacjami i numerami telefonów
   const { data: classes, error } = await supabase
     .from("classes")
-    .select("id, name, starts_at, location, bookings(user_id, profiles(first_name, phone))")
+    .select("id, name, starts_at, location, studio_id, studios(name, branding), bookings(user_id, profiles(first_name, phone))")
     .gte("starts_at", start.toISOString())
     .lte("starts_at", end.toISOString())
     .or("cancelled.is.null,cancelled.eq.false");
@@ -65,13 +65,14 @@ export default async function handler(req, res) {
       hour: "2-digit", minute: "2-digit", timeZone: "Europe/Warsaw",
     });
     const location = cls.location ? ` (${cls.location})` : "";
+    const sig = cls.studios?.branding?.sms_signature || cls.studios?.name || "Studio";
 
     for (const booking of cls.bookings || []) {
       const phone = booking.profiles?.phone;
       if (!phone) { skipped++; continue; }
 
       const name = booking.profiles?.first_name || "Cześć";
-      const message = `${name}, jutro o ${time} czekają na Ciebie zajęcia "${cls.name}"${location}. Do zobaczenia! — Pilates Studio`;
+      const message = `${name}, jutro o ${time} czekają na Ciebie zajęcia "${cls.name}"${location}. Do zobaczenia! — ${sig}`;
 
       try {
         const result = await sendSmsApi(phone, message);

@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   // Najpierw szukaj po custom domain
   let { data: studio } = await supabase
     .from("studios")
-    .select("id, name, slug, domain, features")
+    .select("id, name, slug, domain, features, branding")
     .eq("domain", domain)
     .maybeSingle();
 
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     if (sub !== domain) {
       ({ data: studio } = await supabase
         .from("studios")
-        .select("id, name, slug, domain, features")
+        .select("id, name, slug, domain, features, branding")
         .eq("slug", sub)
         .maybeSingle());
     }

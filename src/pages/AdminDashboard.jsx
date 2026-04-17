@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
+import { useStudio } from "../StudioContext";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
 export default function AdminDashboard({ session, profile, studioId, darkMode, setDarkMode }) {
+  const { studio } = useStudio();
+  const studioName = studio?.name || "Studio";
+  const smsSig = studio?.branding?.sms_signature || studioName;
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -197,7 +201,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         refunded: booking.payment_method === "entries",
       });
       await sendSms(booking.profiles?.phone,
-        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - Paula Pilates Studio`
+        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - ${smsSig}`
       );
     }
     if (userIds.length > 0) {
@@ -251,7 +255,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     if (msgDelivery.sms) {
       const withPhone = bookingsForClass.filter(b => b.profiles?.phone);
       for (const b of withPhone) {
-        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - Paula Pilates Studio`);
+        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - ${smsSig}`);
       }
       if (withPhone.length < bookingsForClass.length) {
         const noPhone = bookingsForClass.length - withPhone.length;
@@ -415,7 +419,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <thead><tr><th>#</th><th>Imię i nazwisko</th><th>Płatność</th><th>Podpis</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="footer">Pilates Studio by Paulina · paulapilates.pl · Wygenerowano: ${new Date().toLocaleDateString("pl-PL")}</div>
+        <div class="footer">${studioName} · Wygenerowano: ${new Date().toLocaleDateString("pl-PL")}</div>
         <br/>
         <button onclick="window.print()">🖨️ Drukuj</button>
       </body>

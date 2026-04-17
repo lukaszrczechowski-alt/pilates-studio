@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
+import { useStudio } from "../StudioContext";
 import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
 export default function ClientDashboard({ session, profile, studioId, onProfileUpdate, darkMode, setDarkMode }) {
+  const { studio } = useStudio();
+  const studioName = studio?.name || "Studio";
+  const studioLetter = studioName[0] || "S";
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
@@ -251,7 +255,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at), location: cls.location || "",
       });
       await sendSms(promoted.profiles?.phone,
-        `${promoted.profiles?.first_name}, zwolniło się miejsce na zajęciach "${cls.name}" (${smsDate(cls.starts_at)}). Masz rezerwację! — Paula Pilates Studio`
+        `${promoted.profiles?.first_name}, zwolniło się miejsce na zajęciach "${cls.name}" (${smsDate(cls.starts_at)}). Masz rezerwację! — ${studioName}`
       );
     }
     if (refunded) showMsg("Anulowano. Wejście wróciło. ✓");
@@ -539,10 +543,10 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     const fmt = d => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
     const params = new URLSearchParams({
       action: "TEMPLATE",
-      text: `Pilates — ${cls.name}`,
+      text: `${studioName} — ${cls.name}`,
       dates: `${fmt(start)}/${fmt(end)}`,
       details: cls.notes || "Zajęcia pilates",
-      location: cls.location || "Paulina Pilates Studio",
+      location: cls.location || studioName,
     });
     return `https://calendar.google.com/calendar/render?${params}`;
   }
@@ -559,7 +563,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
       `DTEND:${fmt(end)}`,
       `SUMMARY:Pilates — ${cls.name}`,
       `DESCRIPTION:${cls.notes || "Zajęcia pilates"}`,
-      `LOCATION:${cls.location || "Paulina Pilates Studio"}`,
+      `LOCATION:${cls.location || studioName}`,
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\n");
@@ -670,8 +674,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-logo" onClick={() => setTab("upcoming")} style={{ cursor: "pointer" }}>
-          <h1>Pilates</h1>
-          <p>Studio by Paulina</p>
+          <h1>{studioName}</h1>
         </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>
