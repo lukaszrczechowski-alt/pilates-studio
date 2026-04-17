@@ -985,6 +985,9 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
                     <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>Ukończonych</div>
                   </div>
                 </div>
+                <button onClick={() => setDarkMode(!darkMode)} className="btn btn-secondary btn-full" style={{ marginBottom: "0.75rem" }}>
+                  {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+                </button>
                 <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
               </div>
               <div className="card">
