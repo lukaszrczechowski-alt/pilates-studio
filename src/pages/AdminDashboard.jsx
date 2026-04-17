@@ -50,6 +50,13 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
   const [classRatings, setClassRatings] = useState([]);
   const [editSeriesAll, setEditSeriesAll] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [clientForm, setClientForm] = useState({ first_name: "", last_name: "", phone: "", birth_date: "", role: "client" });
+  const [renamingVenue, setRenamingVenue] = useState(null);
+  const [renameVenueTo, setRenameVenueTo] = useState("");
+  const [addParticipantId, setAddParticipantId] = useState("");
+  const [addParticipantMethod, setAddParticipantMethod] = useState("cash");
+  const [addingParticipant, setAddingParticipant] = useState(false);
 
 
   useEffect(() => { fetchAll(); }, []);
@@ -558,6 +565,44 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     d.setDate(diff);
     d.setHours(0, 0, 0, 0);
     return d;
+  }
+
+  async function handleAddParticipant() {
+    if (!addParticipantId || !editClass) return;
+    setAddingParticipant(true);
+    await supabase.from("bookings").insert({ class_id: editClass.id, user_id: addParticipantId, payment_method: addParticipantMethod });
+    await fetchAll();
+    setAddParticipantId("");
+    setAddingParticipant(false);
+    showMsg("Uczestnik dodany ✓");
+  }
+
+  async function handleRemoveParticipant(bookingId) {
+    await supabase.from("bookings").delete().eq("id", bookingId);
+    await fetchAll();
+  }
+
+  function openEditClient(client) {
+    setEditingClient(client);
+    setClientForm({ first_name: client.first_name || "", last_name: client.last_name || "", phone: client.phone || "", birth_date: client.birth_date || "", role: client.role || "client" });
+  }
+
+  async function saveEditClient() {
+    if (!editingClient) return;
+    await supabase.from("profiles").update({ first_name: clientForm.first_name, last_name: clientForm.last_name, phone: clientForm.phone || null, birth_date: clientForm.birth_date || null, role: clientForm.role }).eq("id", editingClient.id);
+    setAllProfiles(prev => prev.map(p => p.id === editingClient.id ? { ...p, ...clientForm } : p));
+    setEditingClient(null);
+    showMsg("Dane klienta zaktualizowane ✓");
+  }
+
+  async function handleRenameVenue() {
+    const newName = renameVenueTo.trim();
+    if (!renamingVenue || !newName || newName === renamingVenue) return;
+    await supabase.from("classes").update({ location: newName }).eq("location", renamingVenue);
+    setClasses(prev => prev.map(c => c.location === renamingVenue ? { ...c, location: newName } : c));
+    setRenamingVenue(null);
+    setRenameVenueTo("");
+    showMsg(`Sala zmieniona: „${renamingVenue}" → „${newName}" ✓`);
   }
 
   async function saveNotes(userId) {
@@ -1106,7 +1151,22 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                         <div key={v.name} className="venue-card">
                           <div className="venue-card-header" style={{ borderColor: color }}>
                             <div className="venue-card-dot" style={{ background: color }} />
-                            <span className="venue-card-name">{v.name}</span>
+                            {renamingVenue === v.name ? (
+                              <div style={{ display: "flex", gap: "0.4rem", flex: 1, alignItems: "center" }}>
+                                <input className="form-input" style={{ flex: 1, padding: "0.25rem 0.5rem", fontSize: "0.9rem" }}
+                                  value={renameVenueTo} onChange={e => setRenameVenueTo(e.target.value)}
+                                  onKeyDown={e => { if (e.key === "Enter") handleRenameVenue(); if (e.key === "Escape") setRenamingVenue(null); }}
+                                  autoFocus />
+                                <button className="btn btn-primary btn-sm" onClick={handleRenameVenue}>Zapisz</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setRenamingVenue(null)}>✕</button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="venue-card-name">{v.name}</span>
+                                <button className="btn btn-secondary btn-sm" style={{ marginLeft: "auto", marginRight: "0.5rem", fontSize: "0.72rem", padding: "0.15rem 0.5rem" }}
+                                  onClick={() => { setRenamingVenue(v.name); setRenameVenueTo(v.name); }}>✏️ Zmień</button>
+                              </>
+                            )}
                             <span className="venue-card-classes">{v.classes.length} {v.classes.length === 1 ? "zajęcia" : v.classes.length < 5 ? "zajęcia" : "zajęć"}</span>
                           </div>
                           <div className="venue-card-body">
@@ -1428,6 +1488,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                             </div>
                             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                               <TokenBadge userId={c.id} month={currentMonth} year={currentYear} />
+                              <button className="btn btn-secondary btn-sm" onClick={() => openEditClient(c)}>✏️ Edytuj</button>
                               <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 Wejścia</button>
                             </div>
                           </div>
@@ -1506,6 +1567,39 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         <div className={`mobile-nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
       </nav>
 
+      {/* MODAL - Edycja klienta */}
+      {editingClient && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingClient(null)}>
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Edytuj klienta</h3>
+              <button className="modal-close" onClick={() => setEditingClient(null)}>×</button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem", padding: "0.75rem", background: "var(--cream)", borderRadius: 8 }}>
+              <div className="user-avatar">{clientForm.first_name?.[0]}{clientForm.last_name?.[0]}</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{editingClient.email}</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="form-group"><label className="form-label">Imię</label><input className="form-input" value={clientForm.first_name} onChange={e => setClientForm({ ...clientForm, first_name: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">Nazwisko</label><input className="form-input" value={clientForm.last_name} onChange={e => setClientForm({ ...clientForm, last_name: e.target.value })} /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Telefon</label><input className="form-input" type="tel" placeholder="+48 500 000 000" value={clientForm.phone} onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Data urodzin</label><input className="form-input" type="date" value={clientForm.birth_date} onChange={e => setClientForm({ ...clientForm, birth_date: e.target.value })} /></div>
+            <div className="form-group">
+              <label className="form-label">Rola</label>
+              <select className="form-input" value={clientForm.role} onChange={e => setClientForm({ ...clientForm, role: e.target.value })}>
+                <option value="client">Klient</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+            <div className="modal-actions" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-secondary" onClick={() => setEditingClient(null)}>Anuluj</button>
+              <button className="btn btn-primary" onClick={saveEditClient} disabled={!clientForm.first_name || !clientForm.last_name}>Zapisz</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL - Nowe/edytuj zajęcia */}
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
@@ -1571,6 +1665,47 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 )}
               </div>
             )}
+            {/* Zarządzanie uczestnikami — tylko przy edycji istniejących zajęć */}
+            {editClass && (() => {
+              const classBookings = allBookings.filter(b => b.class_id === editClass.id);
+              const bookedUserIds = new Set(classBookings.map(b => b.user_id));
+              const availableProfiles = allProfiles.filter(p => p.role === "client" && !bookedUserIds.has(p.id));
+              return (
+                <div style={{ borderTop: "1px solid var(--border)", marginTop: "1rem", paddingTop: "1rem" }}>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
+                    Uczestnicy ({classBookings.length}/{editClass.max_spots})
+                  </div>
+                  {classBookings.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", marginBottom: "0.75rem" }}>
+                      {classBookings.map(b => (
+                        <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--cream)", borderRadius: 7, padding: "0.4rem 0.75rem" }}>
+                          <span style={{ fontSize: "0.85rem" }}>{b.profiles?.first_name} {b.profiles?.last_name}
+                            <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", color: "var(--mid)" }}>{b.payment_method === "entries" ? "🎫" : "💵"}</span>
+                          </span>
+                          <button className="btn btn-danger btn-sm" style={{ padding: "0.2rem 0.5rem", fontSize: "0.72rem" }} onClick={() => handleRemoveParticipant(b.id)}>Usuń</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {availableProfiles.length > 0 && (
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      <select className="form-input" style={{ flex: 1, minWidth: 140 }} value={addParticipantId} onChange={e => setAddParticipantId(e.target.value)}>
+                        <option value="">Dodaj uczestnika…</option>
+                        {availableProfiles.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
+                      </select>
+                      <select className="form-input" style={{ width: 110 }} value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
+                        <option value="cash">💵 Gotówka</option>
+                        <option value="entries">🎫 Wejście</option>
+                      </select>
+                      <button className="btn btn-primary btn-sm" onClick={handleAddParticipant} disabled={!addParticipantId || addingParticipant}>
+                        {addingParticipant ? "…" : "+ Dodaj"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="modal-actions" style={{ justifyContent: "space-between" }}>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
