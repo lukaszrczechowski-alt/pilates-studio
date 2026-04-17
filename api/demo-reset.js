@@ -52,7 +52,12 @@ export default async function handler(req, res) {
     .single();
 
   if (studioErr || !studio) {
-    return res.status(404).json({ error: "Studio demo nie istnieje. Dodaj rekord do tabeli studios z slug='demo'." });
+    return res.status(404).json({
+      error: "Studio demo nie istnieje.",
+      supabase_error: studioErr,
+      url: process.env.VITE_SUPABASE_URL ? "URL ok" : "BRAK URL",
+      key: process.env.SUPABASE_SERVICE_ROLE_KEY ? "KEY ok" : "BRAK KEY",
+    });
   }
 
   const studioId = studio.id;
