@@ -15,15 +15,19 @@ export default async function handler(req, res) {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
-  const { data: admins } = await supabase.from("profiles").select("id").eq("role", "admin");
+  const { data: admins, error: adminsError } = await supabase.from("profiles").select("id").eq("role", "admin");
+  if (adminsError) return res.status(500).json({ error: adminsError.message });
+
   if (admins?.length) {
-    await supabase.from("notifications").insert(
+    const { error: insertError } = await supabase.from("notifications").insert(
       admins.map(a => ({
         user_id: a.id,
-        type: "contact",
+        type: "booking",
+        class_id: null,
         message: `📩 Wiadomość z /zapisy od ${name}${contact ? ` (${contact})` : ""}: ${message}`,
       }))
     );
+    if (insertError) return res.status(500).json({ error: insertError.message });
   }
 
   res.status(200).json({ ok: true });
