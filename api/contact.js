@@ -11,12 +11,14 @@ export default async function handler(req, res) {
   const { name, contact, message } = req.body || {};
   if (!name || !message) return res.status(400).json({ error: "Brak wymaganych pól" });
 
+  const debug = {};
   const msgText = `📩 Wiadomość z /zapisy\n\nOd: ${name}${contact ? `\nKontakt: ${contact}` : ""}\n\nTreść:\n${message}`;
 
   // 1. Email via Gmail SMTP
   const gmailUser = process.env.GMAIL_USER;
   const gmailPass = process.env.GMAIL_APP_PASSWORD;
   const contactEmail = process.env.CONTACT_EMAIL || gmailUser;
+  debug.emailEnvSet = !!(gmailUser && gmailPass);
 
   if (gmailUser && gmailPass && contactEmail) {
     try {
@@ -37,27 +39,41 @@ export default async function handler(req, res) {
           <p style="white-space:pre-wrap">${message}</p>
         </div>`,
       });
+      debug.emailSent = true;
     } catch (err) {
-      console.error("Email error:", err.message);
+      debug.emailError = err.message;
     }
   }
 
   // 2. Powiadomienie w aplikacji (in-app)
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-  const { data: admins } = await supabase.from("profiles").select("id").eq("role", "admin");
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  debug.supabaseUrlSet = !!supabaseUrl;
+  debug.supabaseKeySet = !!supabaseKey;
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: admins, error: adminsError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin");
+
+  debug.adminsFound = admins?.length ?? 0;
+  if (adminsError) debug.adminsError = adminsError.message;
+
   if (admins?.length) {
-    await supabase.from("notifications").insert(
+    const { error: notifError } = await supabase.from("notifications").insert(
       admins.map(a => ({
         user_id: a.id,
-        type: "booking",
+        type: "contact",
         class_id: null,
         message: `📩 Wiadomość z /zapisy od ${name}${contact ? ` (${contact})` : ""}: ${message}`,
+        read: false,
       }))
     );
+    if (notifError) debug.notifError = notifError.message;
+    else debug.notifInserted = admins.length;
   }
 
-  res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true, debug });
 }

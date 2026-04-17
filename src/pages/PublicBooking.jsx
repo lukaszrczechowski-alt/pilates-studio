@@ -41,6 +41,7 @@ export default function PublicBooking() {
       const json = await res.json();
       console.log("contact response:", res.status, json);
       if (!res.ok) { alert("Błąd: " + (json.error || res.status)); setContactSending(false); return; }
+      alert("DEBUG odpowiedź:\n" + JSON.stringify(json.debug, null, 2));
     } catch (err) {
       alert("Błąd połączenia: " + err.message);
       setContactSending(false);
