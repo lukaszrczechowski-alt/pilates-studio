@@ -1882,21 +1882,25 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                       ))}
                     </div>
                   )}
-                  {availableProfiles.length > 0 && (
-                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                      <select className="form-input" style={{ flex: 1, minWidth: 140 }} value={addParticipantId} onChange={e => setAddParticipantId(e.target.value)}>
-                        <option value="">Dodaj uczestnika…</option>
-                        {availableProfiles.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
-                      </select>
-                      <select className="form-input" style={{ width: 110 }} value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
-                        <option value="cash">💵 Gotówka</option>
-                        <option value="entries">🎫 Wejście</option>
-                      </select>
-                      <button className="btn btn-primary btn-sm" onClick={handleAddParticipant} disabled={!addParticipantId || addingParticipant}>
-                        {addingParticipant ? "…" : "+ Dodaj"}
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    {availableProfiles.length === 0 ? (
+                      <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Wszyscy klienci są już zapisani.</span>
+                    ) : (
+                      <>
+                        <select className="form-input" style={{ flex: 1, minWidth: 140 }} value={addParticipantId} onChange={e => setAddParticipantId(e.target.value)}>
+                          <option value="">Wybierz uczestnika…</option>
+                          {availableProfiles.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
+                        </select>
+                        <select className="form-input" style={{ width: 110 }} value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
+                          <option value="cash">💵 Gotówka</option>
+                          <option value="entries">🎫 Wejście</option>
+                        </select>
+                        <button className="btn btn-primary btn-sm" onClick={handleAddParticipant} disabled={!addParticipantId || addingParticipant}>
+                          {addingParticipant ? "…" : "+ Dodaj"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })()}
