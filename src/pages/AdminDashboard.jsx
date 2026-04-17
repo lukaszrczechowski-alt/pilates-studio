@@ -1346,6 +1346,26 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
           </>
         )}
 
+        {tab === "admin_account" && (
+          <>
+            <div className="page-header"><h2>Konto</h2></div>
+            <div className="card" style={{ maxWidth: 420 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
+                <div className="user-avatar" style={{ width: 52, height: 52, fontSize: "1.2rem" }}>{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>{profile?.first_name} {profile?.last_name}</div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--mid)" }}>Administrator</div>
+                  <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{profile?.email}</div>
+                </div>
+              </div>
+              <button onClick={() => setDarkMode(!darkMode)} className="btn btn-secondary btn-full" style={{ marginBottom: "0.75rem" }}>
+                {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+              </button>
+              <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+            </div>
+          </>
+        )}
+
       </main>
 
       {/* Mobile nav */}
@@ -1357,6 +1377,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         </div>
         <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="mobile-nav-icon">📈</span><span>Raporty</span></div>
         <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="mobile-nav-icon">👥</span><span>Klienci</span></div>
+        <div className={`mobile-nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
       </nav>
 
       {/* MODAL - Nowe/edytuj zajęcia */}
