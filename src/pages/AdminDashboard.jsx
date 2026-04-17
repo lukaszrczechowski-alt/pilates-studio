@@ -977,9 +977,9 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 </select>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {["summary","classes","clients","entries","ratings"].map(v => (
+                {["summary","venues","classes","clients","entries","ratings"].map(v => (
                   <button key={v} className={`btn ${reportView === v ? "btn-primary" : "btn-secondary"} btn-sm`} onClick={() => setReportView(v)}>
-                    {v === "summary" ? "Podsumowanie" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : v === "entries" ? "Wejścia" : "⭐ Oceny"}
+                    {v === "summary" ? "Podsumowanie" : v === "venues" ? "🏢 Sale" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : v === "entries" ? "Wejścia" : "⭐ Oceny"}
                   </button>
                 ))}
               </div>
@@ -1034,6 +1034,131 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                   )}
               </>
             )}
+
+            {reportView === "venues" && (() => {
+              // Grupuj po sali (location)
+              const venueMap = {};
+              rd.classReports.forEach(r => {
+                const key = r.cls.location || "Brak sali";
+                if (!venueMap[key]) venueMap[key] = { name: key, classes: [], revenue: 0, costs: 0, profit: 0, bookings: 0, maxPossible: 0 };
+                const v = venueMap[key];
+                v.classes.push(r);
+                v.revenue += r.revenue;
+                v.costs += r.venueCost;
+                v.profit += r.profit;
+                v.bookings += r.bookings.length;
+                v.maxPossible += r.cls.max_spots;
+              });
+              const venues = Object.values(venueMap).sort((a, b) => b.revenue - a.revenue);
+              const maxRevenue = Math.max(...venues.map(v => v.revenue), 1);
+              const venueColors = ["var(--sage)","var(--clay)","#7B9CC0","#9B8DB5","#C0956B","#6BA5A0"];
+              if (rd.classReports.length === 0) return <div className="empty-state"><div className="empty-icon">🏢</div><p>Brak danych za {monthName(reportMonth)} {reportYear}</p></div>;
+              return (
+                <>
+                  {/* KPI top row */}
+                  <div className="venue-kpi-row">
+                    {[
+                      { label: "Przychód", value: `${rd.totalRevenue} zł`, color: "var(--sage-dark)", sub: "łącznie ze wszystkich sal" },
+                      { label: "Koszty sal", value: `${rd.totalCosts} zł`, color: "var(--clay)", sub: "wynajem" },
+                      { label: "Zysk netto", value: `${rd.totalProfit} zł`, color: rd.totalProfit >= 0 ? "var(--sage-dark)" : "#C44B4B", sub: "przychód − koszty" },
+                      { label: "Sale", value: venues.length, color: "var(--charcoal)", sub: "aktywne w tym miesiącu" },
+                      { label: "Obłożenie", value: `${rd.avgOccupancy}%`, color: "var(--charcoal)", sub: "średnie zapełnienie" },
+                    ].map(({ label, value, color, sub }) => (
+                      <div key={label} className="venue-kpi-card">
+                        <div className="venue-kpi-value" style={{ color }}>{value}</div>
+                        <div className="venue-kpi-label">{label}</div>
+                        <div className="venue-kpi-sub">{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Wykres porównawczy — przychody */}
+                  <div className="card" style={{ marginBottom: "1.5rem" }}>
+                    <h3 style={{ fontSize: "1.1rem", marginBottom: "1.25rem", color: "var(--charcoal)" }}>Porównanie przychodów</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                      {venues.map((v, i) => {
+                        const pct = Math.round((v.revenue / maxRevenue) * 100);
+                        const occPct = v.maxPossible > 0 ? Math.round((v.bookings / v.maxPossible) * 100) : 0;
+                        return (
+                          <div key={v.name} className="venue-bar-row">
+                            <div className="venue-bar-label">{v.name}</div>
+                            <div className="venue-bar-track">
+                              <div className="venue-bar-fill" style={{ width: `${pct}%`, background: venueColors[i % venueColors.length] }} />
+                            </div>
+                            <div className="venue-bar-stats">
+                              <span style={{ fontWeight: 600, color: venueColors[i % venueColors.length] }}>{v.revenue} zł</span>
+                              <span style={{ color: "var(--mid)", fontSize: "0.78rem" }}>obl. {occPct}%</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Karty sal */}
+                  <div className="venue-cards-grid">
+                    {venues.map((v, i) => {
+                      const occPct = v.maxPossible > 0 ? Math.round((v.bookings / v.maxPossible) * 100) : 0;
+                      const color = venueColors[i % venueColors.length];
+                      const cashCount = v.classes.reduce((s, r) => s + r.cashBookings.length, 0);
+                      const entryCount = v.classes.reduce((s, r) => s + r.entriesBookings.length, 0);
+                      return (
+                        <div key={v.name} className="venue-card">
+                          <div className="venue-card-header" style={{ borderColor: color }}>
+                            <div className="venue-card-dot" style={{ background: color }} />
+                            <span className="venue-card-name">{v.name}</span>
+                            <span className="venue-card-classes">{v.classes.length} {v.classes.length === 1 ? "zajęcia" : v.classes.length < 5 ? "zajęcia" : "zajęć"}</span>
+                          </div>
+                          <div className="venue-card-body">
+                            <div className="venue-financials">
+                              <div className="venue-fin-item">
+                                <span className="venue-fin-val" style={{ color: "var(--sage-dark)" }}>{v.revenue} zł</span>
+                                <span className="venue-fin-label">Przychód</span>
+                              </div>
+                              <div className="venue-fin-sep" />
+                              <div className="venue-fin-item">
+                                <span className="venue-fin-val" style={{ color: "var(--clay)" }}>{v.costs} zł</span>
+                                <span className="venue-fin-label">Koszt sali</span>
+                              </div>
+                              <div className="venue-fin-sep" />
+                              <div className="venue-fin-item">
+                                <span className="venue-fin-val" style={{ color: v.profit >= 0 ? "var(--sage-dark)" : "#C44B4B", fontSize: "1.25rem" }}>{v.profit} zł</span>
+                                <span className="venue-fin-label">Zysk netto</span>
+                              </div>
+                            </div>
+                            <div className="venue-occ-section">
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                                <span style={{ fontSize: "0.78rem", color: "var(--mid)" }}>Obłożenie</span>
+                                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: occPct >= 80 ? "var(--sage-dark)" : occPct >= 50 ? "var(--charcoal)" : "var(--clay)" }}>{occPct}%</span>
+                              </div>
+                              <div className="venue-occ-bar">
+                                <div className="venue-occ-fill" style={{ width: `${occPct}%`, background: color }} />
+                              </div>
+                              <div style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.3rem" }}>{v.bookings} / {v.maxPossible} miejsc</div>
+                            </div>
+                            <div className="venue-payment-row">
+                              <div className="venue-payment-pill" style={{ background: "#EBF5EA", color: "var(--sage-dark)" }}>🎫 {entryCount} wejść</div>
+                              <div className="venue-payment-pill" style={{ background: "var(--cream)", color: "var(--mid)" }}>💵 {cashCount} gotówka</div>
+                            </div>
+                          </div>
+                          {/* Mini lista zajęć */}
+                          <div className="venue-class-list">
+                            {v.classes.map((r, j) => (
+                              <div key={j} className="venue-class-row">
+                                <span className="venue-class-date">{formatDate(r.cls.starts_at)}</span>
+                                <span className="venue-class-name">{r.cls.name}</span>
+                                <span className="venue-class-occ" style={{ color: r.occupancy >= 80 ? "var(--sage-dark)" : "var(--mid)" }}>{r.occupancy}%</span>
+                                <span className="venue-class-rev" style={{ color: "var(--sage-dark)" }}>{r.revenue} zł</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
 
             {reportView === "classes" && (
               <>
@@ -1246,7 +1371,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
             <div className="page-header"><h2>Historia zajęć</h2></div>
             {pastClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">📋</div><p>Brak minionych zajęć</p></div>
               : <div className="table-wrapper"><table>
-                <thead><tr><th>Nazwa</th><th>Data</th><th>Cena</th><th>Uczestnicy</th></tr></thead>
+                <thead><tr><th>Nazwa</th><th>Data</th><th>Cena</th><th>Uczestnicy</th><th></th></tr></thead>
                 <tbody>{pastClasses.map(cls => {
                   const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
                   return (
@@ -1255,6 +1380,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                       <td>{formatDate(cls.starts_at)}</td>
                       <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
                       <td>{bookingsForClass.length > 0 ? bookingsForClass.map(b => <span key={b.id} className="participant-chip">{b.profiles?.first_name} {b.profiles?.last_name}</span>) : <span style={{ color: "var(--light)", fontSize: "0.8rem" }}>brak</span>}</td>
+                      <td><button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>Edytuj</button></td>
                     </tr>
                   );
                 })}</tbody></table></div>}
