@@ -50,6 +50,12 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [templateForm, setTemplateForm] = useState({ name: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
   const [classRatings, setClassRatings] = useState([]);
   const [editSeriesAll, setEditSeriesAll] = useState(false);
+  const [bulkMsgText, setBulkMsgText] = useState("");
+  const [bulkMsgTarget, setBulkMsgTarget] = useState("all");
+  const [bulkMsgTargetClass, setBulkMsgTargetClass] = useState("");
+  const [bulkMsgChannels, setBulkMsgChannels] = useState({ app: true, push: false, sms: false });
+  const [sendingBulk, setSendingBulk] = useState(false);
+  const [expandedClientId, setExpandedClientId] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [clientForm, setClientForm] = useState({ first_name: "", last_name: "", phone: "", birth_date: "", role: "client" });
   const [renamingVenue, setRenamingVenue] = useState(null);
@@ -595,6 +601,49 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     showMsg("Dane klienta zaktualizowane ✓");
   }
 
+  function getAnnualData() {
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      const monthClasses = classes.filter(c => {
+        const d = new Date(c.starts_at);
+        return d.getMonth() + 1 === month && d.getFullYear() === reportYear && !c.cancelled && new Date(c.starts_at) < new Date();
+      });
+      const monthBookings = allBookings.filter(b => {
+        const d = new Date(b.classes?.starts_at);
+        return d.getMonth() + 1 === month && d.getFullYear() === reportYear;
+      });
+      const revenue = monthClasses.reduce((s, c) => s + (c.price_pln || 0) * monthBookings.filter(b => b.class_id === c.id).length, 0);
+      const costs = monthClasses.reduce((s, c) => s + (c.venue_cost_pln || 0), 0);
+      return { month, name: monthName(month), shortName: ["Sty","Lut","Mar","Kwi","Maj","Cze","Lip","Sie","Wrz","Paź","Lis","Gru"][i], revenue, costs, profit: revenue - costs, classes: monthClasses.length, bookings: monthBookings.length };
+    });
+  }
+
+  async function sendBulkMessage() {
+    if (!bulkMsgText.trim()) return;
+    setSendingBulk(true);
+    let targetUsers = [];
+    if (bulkMsgTarget === "all") {
+      targetUsers = allProfiles.filter(p => p.role === "client");
+    } else {
+      const classBookings = allBookings.filter(b => b.class_id === bulkMsgTargetClass);
+      const userIds = new Set(classBookings.map(b => b.user_id));
+      targetUsers = allProfiles.filter(p => userIds.has(p.id));
+    }
+    if (bulkMsgChannels.app && targetUsers.length > 0) {
+      await supabase.from("notifications").insert(targetUsers.map(u => ({ user_id: u.id, type: "booking", message: bulkMsgText })));
+    }
+    if (bulkMsgChannels.push && targetUsers.length > 0) {
+      fetch("/api/push-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: targetUsers.map(u => u.id), title: "Pilates Studio", body: bulkMsgText, url: "/" }) }).catch(() => {});
+    }
+    if (bulkMsgChannels.sms) {
+      for (const u of targetUsers.filter(u => u.phone)) await sendSms(u.phone, bulkMsgText);
+    }
+    setBulkMsgText("");
+    setSendingBulk(false);
+    showMsg(`Wysłano do ${targetUsers.length} klientów ✓`);
+    await fetchAll();
+  }
+
   async function handleRenameVenue() {
     const newName = renameVenueTo.trim();
     if (!renamingVenue || !newName || newName === renamingVenue) return;
@@ -1022,9 +1071,9 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 </select>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {["summary","venues","classes","clients","entries","ratings"].map(v => (
+                {["annual","summary","venues","classes","clients","entries","ratings"].map(v => (
                   <button key={v} className={`btn ${reportView === v ? "btn-primary" : "btn-secondary"} btn-sm`} onClick={() => setReportView(v)}>
-                    {v === "summary" ? "Podsumowanie" : v === "venues" ? "🏢 Sale" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : v === "entries" ? "Wejścia" : "⭐ Oceny"}
+                    {v === "annual" ? "📅 Rok" : v === "summary" ? "Podsumowanie" : v === "venues" ? "🏢 Sale" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : v === "entries" ? "Wejścia" : "⭐ Oceny"}
                   </button>
                 ))}
               </div>
@@ -1033,6 +1082,99 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                 <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>🖨️ Drukuj</button>
               </div>
             </div>
+
+            {reportView === "annual" && (() => {
+              const ad = getAnnualData();
+              const maxRev = Math.max(...ad.map(m => m.revenue), 1);
+              const totalRev = ad.reduce((s, m) => s + m.revenue, 0);
+              const totalProfit = ad.reduce((s, m) => s + m.profit, 0);
+              const totalBookings = ad.reduce((s, m) => s + m.bookings, 0);
+              const activeMonths = ad.filter(m => m.revenue > 0);
+              const bestMonth = activeMonths.length ? activeMonths.reduce((a, b) => a.revenue > b.revenue ? a : b) : null;
+              const worstMonth = activeMonths.length > 1 ? activeMonths.reduce((a, b) => a.revenue < b.revenue ? a : b) : null;
+              const now = new Date();
+              return (
+                <>
+                  <div className="venue-kpi-row" style={{ marginBottom: "1.5rem" }}>
+                    {[
+                      { label: "Przychód roczny", value: `${totalRev} zł`, color: "var(--sage-dark)" },
+                      { label: "Zysk netto", value: `${totalProfit} zł`, color: totalProfit >= 0 ? "var(--sage-dark)" : "#C44B4B" },
+                      { label: "Rezerwacji", value: totalBookings, color: "var(--charcoal)" },
+                      { label: "Najlepszy miesiąc", value: bestMonth ? bestMonth.name : "—", color: "var(--sage-dark)", sub: bestMonth ? `${bestMonth.revenue} zł` : "" },
+                      { label: "Najsłabszy miesiąc", value: worstMonth ? worstMonth.name : "—", color: "var(--clay)", sub: worstMonth ? `${worstMonth.revenue} zł` : "" },
+                    ].map(({ label, value, color, sub }) => (
+                      <div key={label} className="venue-kpi-card">
+                        <div className="venue-kpi-value" style={{ color }}>{value}</div>
+                        <div className="venue-kpi-label">{label}</div>
+                        {sub && <div className="venue-kpi-sub">{sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Wykres słupkowy — 12 miesięcy */}
+                  <div className="card" style={{ marginBottom: "1.5rem" }}>
+                    <h3 style={{ fontSize: "1rem", marginBottom: "1.25rem", color: "var(--charcoal)" }}>Przychody miesięczne — {reportYear}</h3>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", height: 180, paddingBottom: "0.25rem" }}>
+                      {ad.map(m => {
+                        const pct = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
+                        const isBest = bestMonth && m.month === bestMonth.month;
+                        const isWorst = worstMonth && m.month === worstMonth.month;
+                        const isFuture = new Date(reportYear, m.month - 1, 1) > now;
+                        const barColor = isFuture ? "var(--border)" : isBest ? "var(--sage)" : isWorst ? "var(--clay)" : "var(--sage-light)";
+                        return (
+                          <div key={m.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem", height: "100%" }}>
+                            <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
+                              <div style={{ width: "100%", height: `${Math.max(pct, isFuture ? 4 : 0)}%`, background: barColor, borderRadius: "4px 4px 0 0", transition: "height 0.4s ease", position: "relative", minHeight: m.revenue > 0 ? 4 : 0 }}>
+                                {m.revenue > 0 && <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", fontSize: "0.6rem", color: "var(--mid)", whiteSpace: "nowrap" }}>{m.revenue} zł</div>}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: "0.68rem", color: isBest ? "var(--sage-dark)" : isWorst ? "var(--clay)" : "var(--mid)", fontWeight: isBest || isWorst ? 600 : 400, textAlign: "center" }}>{m.shortName}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap", fontSize: "0.72rem", color: "var(--mid)" }}>
+                      {[["var(--sage)","Najlepszy"], ["var(--sage-light)","Pozostałe"], ["var(--clay)","Najsłabszy"], ["var(--border)","Przyszłe"]].map(([c, l]) => (
+                        <div key={l} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                          <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />{l}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tabela miesięczna */}
+                  <div className="table-wrapper">
+                    <table>
+                      <thead><tr><th>Miesiąc</th><th>Zajęć</th><th>Rezerwacji</th><th>Przychód</th><th>Koszty</th><th>Zysk</th></tr></thead>
+                      <tbody>
+                        {ad.map(m => {
+                          const isBest = bestMonth && m.month === bestMonth.month;
+                          const isWorst = worstMonth && m.month === worstMonth.month;
+                          return (
+                            <tr key={m.month} style={{ background: isBest ? "rgba(138,158,133,0.08)" : isWorst && m.revenue > 0 ? "rgba(196,145,122,0.06)" : "transparent" }}>
+                              <td><strong>{m.name}</strong>{isBest && <span style={{ marginLeft: "0.4rem", fontSize: "0.65rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.1rem 0.4rem", borderRadius: 10 }}>★ Najlepszy</span>}{isWorst && m.revenue > 0 && <span style={{ marginLeft: "0.4rem", fontSize: "0.65rem", background: "#FEF3E8", color: "var(--clay)", padding: "0.1rem 0.4rem", borderRadius: 10 }}>↓ Najsłabszy</span>}</td>
+                              <td style={{ color: "var(--mid)" }}>{m.classes || "—"}</td>
+                              <td style={{ color: "var(--mid)" }}>{m.bookings || "—"}</td>
+                              <td style={{ color: "var(--sage-dark)", fontWeight: 500 }}>{m.revenue > 0 ? `${m.revenue} zł` : "—"}</td>
+                              <td style={{ color: "var(--clay)" }}>{m.costs > 0 ? `${m.costs} zł` : "—"}</td>
+                              <td style={{ fontWeight: 600, color: m.profit >= 0 ? "var(--sage-dark)" : "#C44B4B" }}>{m.revenue > 0 ? `${m.profit} zł` : "—"}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{ background: "var(--cream)", fontWeight: 600 }}>
+                          <td>Rok {reportYear}</td>
+                          <td>{ad.reduce((s, m) => s + m.classes, 0)}</td>
+                          <td>{totalBookings}</td>
+                          <td style={{ color: "var(--sage-dark)" }}>{totalRev} zł</td>
+                          <td style={{ color: "var(--clay)" }}>{ad.reduce((s, m) => s + m.costs, 0)} zł</td>
+                          <td style={{ color: totalProfit >= 0 ? "var(--sage-dark)" : "#C44B4B" }}>{totalProfit} zł</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
 
             {reportView === "summary" && (
               <>
@@ -1350,8 +1492,48 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         {/* POWIADOMIENIA */}
         {tab === "notifications" && (
           <>
+            <div className="page-header"><h2>Powiadomienia</h2></div>
+
+            {/* Masowe powiadomienia */}
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "var(--charcoal)" }}>📢 Wyślij wiadomość</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "0.75rem" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Odbiorcy</label>
+                  <select className="form-input" value={bulkMsgTarget} onChange={e => setBulkMsgTarget(e.target.value)}>
+                    <option value="all">Wszyscy klienci ({allProfiles.filter(p => p.role === "client").length} os.)</option>
+                    <optgroup label="Uczestnicy zajęć">
+                      {classes.slice().sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)).slice(0, 30).map(c => (
+                        <option key={c.id} value={c.id}>{new Date(c.starts_at).toLocaleDateString("pl-PL", { day: "numeric", month: "short" })} — {c.name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Kanały</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", paddingTop: "0.3rem" }}>
+                    {[["app", "📱 Powiadomienie w aplikacji"], ["push", "🔔 Push (przeglądarka)"], ["sms", "📱 SMS (tylko z numerem)"]].map(([key, label]) => (
+                      <label key={key} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.85rem" }}>
+                        <input type="checkbox" checked={bulkMsgChannels[key]} onChange={e => setBulkMsgChannels(p => ({ ...p, [key]: e.target.checked }))} style={{ accentColor: "var(--sage)" }} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="form-group" style={{ margin: "0 0 0.75rem" }}>
+                <label className="form-label">Treść wiadomości</label>
+                <textarea className="form-input" rows={3} placeholder="Wpisz treść wiadomości…" value={bulkMsgText} onChange={e => setBulkMsgText(e.target.value)} style={{ resize: "vertical" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn btn-primary" onClick={sendBulkMessage} disabled={!bulkMsgText.trim() || sendingBulk || (!bulkMsgChannels.app && !bulkMsgChannels.push && !bulkMsgChannels.sms)}>
+                  {sendingBulk ? "Wysyłanie…" : "Wyślij"}
+                </button>
+              </div>
+            </div>
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-              <div className="page-header" style={{ margin: 0 }}><h2>Powiadomienia</h2></div>
+              <h3 style={{ font: "inherit", fontWeight: 600 }}>Historia powiadomień</h3>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {[
                   { key: "all", label: "Wszystkie" },
@@ -1492,6 +1674,24 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                               <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 Wejścia</button>
                             </div>
                           </div>
+
+                          {/* Statystyki klienta */}
+                          {(() => {
+                            const cBookings = allBookings.filter(b => b.user_id === c.id);
+                            const pastBookings = cBookings.filter(b => new Date(b.classes?.starts_at) < new Date());
+                            const nameCounts = {};
+                            cBookings.forEach(b => { const n = b.classes?.name; if (n) nameCounts[n] = (nameCounts[n] || 0) + 1; });
+                            const favorite = Object.entries(nameCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+                            const entriesUsed = tokenHistory.filter(h => h.user_id === c.id && h.operation === "use" && new Date(h.created_at).getFullYear() === currentYear).length;
+                            return (
+                              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+                                <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>📅 {pastBookings.length} odbytych</span>
+                                {favorite && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>⭐ {favorite}</span>}
+                                {entriesUsed > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>🎫 {entriesUsed} wejść w {currentYear}</span>}
+                                {cBookings.filter(b => b.payment_method === "cash").length > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>💵 {cBookings.filter(b => b.payment_method === "cash").length} gotówką</span>}
+                              </div>
+                            );
+                          })()}
 
                           {/* Notatki admina */}
                           <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--border)" }}>
