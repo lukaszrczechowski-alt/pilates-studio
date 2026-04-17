@@ -193,7 +193,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         refunded: booking.payment_method === "entries",
       });
       await sendSms(booking.profiles?.phone,
-        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - Pilates Studio`
+        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - Paula Pilates Studio`
       );
     }
     if (userIds.length > 0) {
@@ -247,7 +247,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     if (msgDelivery.sms) {
       const withPhone = bookingsForClass.filter(b => b.profiles?.phone);
       for (const b of withPhone) {
-        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - Pilates Studio`);
+        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - Paula Pilates Studio`);
       }
       if (withPhone.length < bookingsForClass.length) {
         const noPhone = bookingsForClass.length - withPhone.length;
@@ -455,12 +455,6 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     await fetchAll();
   }
 
-  async function handleRemoveParticipant(bookingId) {
-    await supabase.from("bookings").delete().eq("id", bookingId);
-    await fetchParticipants(selectedClass.id);
-    await fetchAll();
-  }
-
   async function handleAddUserToClass(userId, classId) {
     const { error } = await supabase.from("bookings").insert({ class_id: classId, user_id: userId, payment_method: "cash" });
     if (error) { showMsg("Użytkownik już jest zapisany.", "error"); return; }
@@ -585,6 +579,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
 
   async function handleRemoveParticipant(bookingId) {
     await supabase.from("bookings").delete().eq("id", bookingId);
+    if (selectedClass) await fetchParticipants(selectedClass.id);
     await fetchAll();
   }
 
@@ -893,7 +888,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                               const bdr = isFull?"#E8C5B5":pct>=70?"#8A9E85":"var(--border)";
                               const tc = isFull?"var(--clay)":pct>=70?"var(--sage-dark)":"var(--charcoal)";
                               return (
-                                <div key={cls.id} onClick={() => openParticipants(cls)}
+                                <div key={cls.id} onClick={() => openEdit(cls)}
                                   style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
                                   onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
                                   onMouseLeave={e => e.currentTarget.style.opacity="1"}>

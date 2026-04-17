@@ -251,7 +251,7 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
         date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at), location: cls.location || "",
       });
       await sendSms(promoted.profiles?.phone,
-        `${promoted.profiles?.first_name}, zwolniło się miejsce na zajęciach "${cls.name}" (${smsDate(cls.starts_at)}). Masz rezerwację! — Pilates Studio`
+        `${promoted.profiles?.first_name}, zwolniło się miejsce na zajęciach "${cls.name}" (${smsDate(cls.starts_at)}). Masz rezerwację! — Paula Pilates Studio`
       );
     }
     if (refunded) showMsg("Anulowano. Wejście wróciło. ✓");
