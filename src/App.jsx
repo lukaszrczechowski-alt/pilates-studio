@@ -9,7 +9,7 @@ import PublicBooking from "./pages/PublicBooking";
 import "./App.css";
 
 function AppInner() {
-  const { studio, loading: studioLoading, error: studioError } = useStudio();
+  const { studio, loading: studioLoading } = useStudio();
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,12 +55,6 @@ function AppInner() {
 
   if (studioLoading) return (
     <div className="loading-screen"><div className="loading-logo">P</div></div>
-  );
-
-  if (studioError) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "DM Sans, sans-serif" }}>
-      <p style={{ color: "var(--clay)" }}>Nie znaleziono studia dla tej domeny.</p>
-    </div>
   );
 
   if (isPublicRoute) return <PublicBooking studioId={studio?.id} />;
