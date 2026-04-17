@@ -85,7 +85,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     const now = new Date().toISOString();
     const { data: classData } = await supabase.from("classes")
       .select("*, bookings(*, profiles(first_name, last_name, email, phone)), waitlist(*)")
-      .order("starts_at", { ascending: true });
+      .eq("studio_id", studioId).order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings")
       .select("id, class_id, user_id, created_at, payment_method, profiles(first_name, last_name, email, phone), classes(id, name, starts_at, price_pln, venue_cost_pln, duration_min, max_spots)")
       .eq("studio_id", studioId).order("created_at", { ascending: false });

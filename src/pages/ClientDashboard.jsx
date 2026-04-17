@@ -70,6 +70,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     startOfMonth.setHours(0, 0, 0, 0);
     const { data: classData } = await supabase.from("classes")
       .select("*, bookings(*), waitlist(*)")
+      .eq("studio_id", studioId)
       .gte("starts_at", startOfMonth.toISOString())
       .or("cancelled.is.null,cancelled.eq.false")
       .order("starts_at", { ascending: true });
