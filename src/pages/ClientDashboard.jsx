@@ -5,7 +5,7 @@ import { sendSms, smsDate } from "../smsService";
 
 export default function ClientDashboard({ session, profile, onProfileUpdate, darkMode, setDarkMode }) {
   const [tab, setTab] = useState("upcoming");
-  const [viewMode, setViewMode] = useState("calendar"); // calendar | list
+  const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [myWaitlist, setMyWaitlist] = useState([]);
@@ -781,40 +781,74 @@ export default function ClientDashboard({ session, profile, onProfileUpdate, dar
                   </div>
                 </div>
               ) : (
-                /* WIDOK LISTY */
-                <div className="cards-grid">
-                  {upcomingClasses.map(cls => {
-                    const booked = isBooked(cls.id);
-                    const booking = getBooking(cls.id);
-                    const onWaitlist = isOnWaitlist(cls.id);
-                    const count = getBookedCount(cls);
-                    const waitlistCount = cls.waitlist?.length || 0;
-                    const isFull = count >= cls.max_spots;
-                    const fillPct = Math.min((count / cls.max_spots) * 100, 100);
-                    return (
-                      <div className="class-card" key={cls.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(cls)}>
-                        <div className="class-card-header">
-                          <span className="class-title">{cls.name}</span>
-                          {booked ? <span className="class-badge badge-yours">Zapisano {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
-                            : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
-                            : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
-                            : <span className="class-badge badge-open">Wolne miejsca</span>}
-                        </div>
-                        <div className="class-card-body">
-                          <div className="class-meta">
-                            <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(cls.starts_at)}</div>
-                            <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>
-                            {cls.location && <div className="meta-item"><span className="meta-icon">📍</span>{cls.location}</div>}
-                            {cls.price_pln && <div className="meta-item"><span className="meta-icon">💰</span>{cls.price_pln} zł</div>}
+                /* WIDOK LISTY — grupowany po dniach */
+                (() => {
+                  const byDay = upcomingClasses.reduce((acc, cls) => {
+                    const key = new Date(cls.starts_at).toDateString();
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(cls);
+                    return acc;
+                  }, {});
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+                      {Object.entries(byDay).map(([dayKey, dayCls]) => {
+                        const dayDate = new Date(dayCls[0].starts_at);
+                        const isToday = dayDate.toDateString() === new Date().toDateString();
+                        const dayLabel = dayDate.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+                        return (
+                          <div key={dayKey}>
+                            <div className="day-section-header">
+                              <span className="day-section-label">{dayLabel}</span>
+                              {isToday && <span className="day-section-today">dzisiaj</span>}
+                            </div>
+                            <div className="classes-day-list">
+                              {dayCls.map(cls => {
+                                const booked = isBooked(cls.id);
+                                const booking = getBooking(cls.id);
+                                const onWaitlist = isOnWaitlist(cls.id);
+                                const count = getBookedCount(cls);
+                                const waitlistCount = cls.waitlist?.length || 0;
+                                const isFull = count >= cls.max_spots;
+                                const fillPct = Math.min((count / cls.max_spots) * 100, 100);
+                                const statusColor = booked ? "var(--sage)" : onWaitlist ? "#B87333" : isFull ? "#C44B4B" : "var(--mid)";
+                                return (
+                                  <div className="class-row-card" key={cls.id} onClick={() => setDetailClass(cls)}
+                                    style={{ borderLeft: `3px solid ${statusColor}` }}>
+                                    <div className="class-row-time">
+                                      <span className="class-row-hour">{formatTime(cls.starts_at)}</span>
+                                      <span className="class-row-dur">{cls.duration_min} min</span>
+                                    </div>
+                                    <div className="class-row-info">
+                                      <div className="class-row-name">{cls.name}</div>
+                                      <div className="class-row-meta">
+                                        {cls.location && <span>📍 {cls.location}</span>}
+                                        {cls.price_pln ? <span>💰 {cls.price_pln} zł</span> : null}
+                                        <span style={{ color: isFull ? "#C44B4B" : "inherit" }}>
+                                          {count}/{cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}
+                                        </span>
+                                      </div>
+                                      {cls.notes && <div className="class-row-note">📌 {cls.notes.length > 60 ? cls.notes.slice(0, 60) + "…" : cls.notes}</div>}
+                                      <div className="spots-bar" style={{ marginTop: "0.5rem" }}>
+                                        <div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} />
+                                      </div>
+                                    </div>
+                                    <div className="class-row-status">
+                                      {booked
+                                        ? <span className="class-badge badge-yours">{booking?.payment_method === "entries" ? "🎫" : "💵"} Zapisano</span>
+                                        : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>Kolejka</span>
+                                        : isFull ? <span className="class-badge badge-full">Brak</span>
+                                        : <span className="class-badge badge-open">Wolne</span>}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <div className="spots-bar"><div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} /></div>
-                          <p className="spots-text">{count} / {cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}</p>
-                          {cls.notes && <p style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: "0.5rem", fontStyle: "italic" }}>📌 {cls.notes.length > 55 ? cls.notes.slice(0, 55) + "..." : cls.notes}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               )}
           </>
         )}
