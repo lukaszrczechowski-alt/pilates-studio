@@ -63,6 +63,10 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
   const [addParticipantId, setAddParticipantId] = useState("");
   const [addParticipantMethod, setAddParticipantMethod] = useState("cash");
   const [addingParticipant, setAddingParticipant] = useState(false);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({ first_name: "", last_name: "", email: "", phone: "", birth_date: "" });
+  const [newClientLoading, setNewClientLoading] = useState(false);
+  const [newClientContext, setNewClientContext] = useState("clients");
 
 
   useEffect(() => { fetchAll(); }, []);
@@ -575,6 +579,27 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
     setAddParticipantId("");
     setAddingParticipant(false);
     showMsg("Uczestnik dodany ✓");
+  }
+
+  async function handleCreateNewClient() {
+    const { first_name, last_name, email, phone, birth_date } = newClientForm;
+    if (!first_name || !last_name || !email) { showMsg("Wypełnij imię, nazwisko i email.", "error"); return; }
+    setNewClientLoading(true);
+    const res = await fetch("/api/create-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ first_name, last_name, email, phone, birth_date }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg(data.error || "Błąd tworzenia konta.", "error"); setNewClientLoading(false); return; }
+    if (newClientContext === "class" && editClass) {
+      await supabase.from("bookings").insert({ class_id: editClass.id, user_id: data.id, payment_method: addParticipantMethod });
+    }
+    await fetchAll();
+    showMsg(`Konto dla ${first_name} ${last_name} utworzone! ✓`);
+    setNewClientForm({ first_name: "", last_name: "", email: "", phone: "", birth_date: "" });
+    setShowNewClientModal(false);
+    setNewClientLoading(false);
   }
 
   async function handleRemoveParticipant(bookingId) {
@@ -1627,7 +1652,10 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
         {/* KLIENCI */}
         {tab === "clients" && (
           <>
-            <div className="page-header"><h2>Klienci</h2></div>
+            <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div><h2>Klienci</h2></div>
+              <button className="btn btn-primary btn-sm" onClick={() => { setNewClientContext("clients"); setShowNewClientModal(true); }}>+ Nowy klient</button>
+            </div>
 
             {/* Wyszukiwarka */}
             <div style={{ marginBottom: "1.25rem" }}>
@@ -1883,9 +1911,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                     </div>
                   )}
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                    {availableProfiles.length === 0 ? (
-                      <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Wszyscy klienci są już zapisani.</span>
-                    ) : (
+                    {availableProfiles.length > 0 && (
                       <>
                         <select className="form-input" style={{ flex: 1, minWidth: 140 }} value={addParticipantId} onChange={e => setAddParticipantId(e.target.value)}>
                           <option value="">Wybierz uczestnika…</option>
@@ -1900,6 +1926,7 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
                         </button>
                       </>
                     )}
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setNewClientContext("class"); setShowNewClientModal(true); }}>+ Nowy klient</button>
                   </div>
                 </div>
               );
@@ -1937,6 +1964,58 @@ export default function AdminDashboard({ session, profile, darkMode, setDarkMode
               <button className="btn btn-secondary" onClick={() => { setShowCancelModal(null); setCancelReason(""); }}>Anuluj</button>
               <button className="btn btn-danger" onClick={() => handleCancelClass(showCancelModal)} disabled={!cancelReason.trim()}>
                 Odwołaj i powiadom uczestników
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL - Nowy klient */}
+      {showNewClientModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowNewClientModal(false)}>
+          <div className="modal" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <h3>+ Nowy klient</h3>
+              <button className="modal-close" onClick={() => setShowNewClientModal(false)}>×</button>
+            </div>
+            {newClientContext === "class" && editClass && (
+              <p style={{ fontSize: "0.85rem", color: "var(--mid)", marginBottom: "1rem" }}>
+                Konto zostanie utworzone i klient zostanie od razu zapisany na <strong>{editClass.name}</strong>.
+              </p>
+            )}
+            <div className="form-group">
+              <label className="form-label">Imię *</label>
+              <input className="form-input" value={newClientForm.first_name} onChange={e => setNewClientForm(f => ({ ...f, first_name: e.target.value }))} placeholder="np. Anna" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Nazwisko *</label>
+              <input className="form-input" value={newClientForm.last_name} onChange={e => setNewClientForm(f => ({ ...f, last_name: e.target.value }))} placeholder="np. Kowalska" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email *</label>
+              <input className="form-input" type="email" value={newClientForm.email} onChange={e => setNewClientForm(f => ({ ...f, email: e.target.value }))} placeholder="np. anna@example.com" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Telefon</label>
+              <input className="form-input" value={newClientForm.phone} onChange={e => setNewClientForm(f => ({ ...f, phone: e.target.value }))} placeholder="np. 600 100 200" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Data urodzenia</label>
+              <input className="form-input" type="date" value={newClientForm.birth_date} onChange={e => setNewClientForm(f => ({ ...f, birth_date: e.target.value }))} />
+            </div>
+            {newClientContext === "class" && editClass && (
+              <div className="form-group">
+                <label className="form-label">Metoda płatności</label>
+                <select className="form-input" value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
+                  <option value="cash">💵 Gotówka</option>
+                  <option value="entries">🎫 Wejście</option>
+                </select>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowNewClientModal(false)}>Anuluj</button>
+              <button className="btn btn-primary" onClick={handleCreateNewClient} disabled={newClientLoading}>
+                {newClientLoading ? "Tworzenie…" : "Utwórz konto"}
               </button>
             </div>
           </div>
