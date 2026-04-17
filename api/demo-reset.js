@@ -55,8 +55,8 @@ export default async function handler(req, res) {
     return res.status(404).json({
       error: "Studio demo nie istnieje.",
       supabase_error: studioErr,
-      url: process.env.VITE_SUPABASE_URL ? "URL ok" : "BRAK URL",
-      key: process.env.SUPABASE_SERVICE_ROLE_KEY ? "KEY ok" : "BRAK KEY",
+      url: process.env.VITE_SUPABASE_URL || "BRAK URL",
+      key_prefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20) || "BRAK KEY",
     });
   }
 
