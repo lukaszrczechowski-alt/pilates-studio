@@ -58,19 +58,31 @@ function AppInner() {
     setLoading(false);
   }
 
+  const studioLetter = studio?.name?.[0] || "S";
+
   if (studioLoading) return (
-    <div className="loading-screen"><div className="loading-logo">P</div></div>
+    <div className="loading-screen"><div className="loading-logo">{studioLetter}</div></div>
   );
 
   if (isPublicRoute) return <PublicBooking studioId={studio?.id} />;
 
   if (loading) return (
-    <div className="loading-screen"><div className="loading-logo">P</div></div>
+    <div className="loading-screen"><div className="loading-logo">{studioLetter}</div></div>
   );
 
   if (!session) {
     if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} studioId={studio?.id} />;
     return <LandingPage onLogin={() => setAuthMode("login")} onRegister={() => setAuthMode("register")} />;
+  }
+
+  // Blokuj dostęp jeśli user należy do innego studia
+  if (profile?.studio_id && studio?.id && profile.studio_id !== studio.id) {
+    return (
+      <div className="loading-screen" style={{ flexDirection: "column", gap: "1rem" }}>
+        <div style={{ fontSize: "1.1rem", color: "var(--mid)" }}>To konto nie należy do tego studia.</div>
+        <button className="btn btn-secondary btn-sm" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+      </div>
+    );
   }
 
   if (profile?.role === "admin") return (
