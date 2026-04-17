@@ -21,7 +21,7 @@ async function sendSmsApi(to, message) {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ to: normPhone(to), message, format: "json", encoding: "utf-8" }).toString(),
+    body: new URLSearchParams({ to: normPhone(to), message, from: "PILATES", format: "json", encoding: "utf-8" }).toString(),
   });
   return response.json();
 }
