@@ -86,7 +86,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       .select("id, class_id, user_id, created_at, payment_method, profiles(first_name, last_name, email, phone), classes(id, name, starts_at, price_pln, venue_cost_pln, duration_min, max_spots)")
       .order("created_at", { ascending: false });
     const { data: profileData } = await supabase.from("profiles").select("*")
-      .eq("role", "client").order("created_at", { ascending: false });
+      .eq("role", "client").eq("studio_id", studioId).order("created_at", { ascending: false });
     const { data: notifData } = await supabase.from("notifications").select("*")
       .order("created_at", { ascending: false }).limit(50);
     const { data: histData } = await supabase.from("token_history")
