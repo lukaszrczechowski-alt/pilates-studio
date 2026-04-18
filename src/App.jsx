@@ -6,6 +6,7 @@ import LandingPage from "./pages/LandingPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PublicBooking from "./pages/PublicBooking";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import "./App.css";
 
 function AppInner() {
@@ -20,6 +21,7 @@ function AppInner() {
   });
 
   const isPublicRoute = window.location.pathname === "/zapisy";
+  const isSuperAdminRoute = window.location.pathname === "/superadmin";
 
   useEffect(() => {
     if (darkMode) document.documentElement.setAttribute("data-theme", "dark");
@@ -71,8 +73,21 @@ function AppInner() {
   );
 
   if (!session) {
+    if (isSuperAdminRoute) return <AuthPage initialMode="login" onBack={() => { window.location.pathname = "/"; }} studioId={studio?.id} />;
     if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} studioId={studio?.id} />;
     return <LandingPage onLogin={() => setAuthMode("login")} onRegister={() => setAuthMode("register")} />;
+  }
+
+  if (isSuperAdminRoute) {
+    if (profile?.role !== "superadmin") {
+      return (
+        <div className="loading-screen" style={{ flexDirection: "column", gap: "1rem" }}>
+          <div style={{ fontSize: "1.1rem", color: "var(--mid)" }}>Brak dostępu.</div>
+          <button className="btn btn-secondary btn-sm" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+        </div>
+      );
+    }
+    return <SuperAdminDashboard session={session} onLogout={() => supabase.auth.signOut()} />;
   }
 
   // Blokuj dostęp jeśli user należy do innego studia
