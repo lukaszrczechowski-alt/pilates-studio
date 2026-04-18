@@ -5,6 +5,25 @@ import { useT, useLang, useSetLang } from "../LanguageContext";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
+function NavIcon({ name }) {
+  const s = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round" };
+  const icons = {
+    classes:      <svg {...s}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>,
+    calendar:     <svg {...s}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+    money:        <svg {...s}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="14" r="2"/></svg>,
+    bell:         <svg {...s}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+    users:        <svg {...s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+    staff:        <svg {...s}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M19 8l2 2-5 5"/></svg>,
+    services:     <svg {...s}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
+    participants: <svg {...s}><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+    chart:        <svg {...s}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
+    reports:      <svg {...s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+    history:      <svg {...s}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/><polyline points="12 7 12 12 15 14"/></svg>,
+    account:      <svg {...s}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  };
+  return <span className="nav-icon">{icons[name] || null}</span>;
+}
+
 export default function AdminDashboard({ session, profile, studioId, darkMode, setDarkMode }) {
   const { studio } = useStudio();
   const t = useT();
@@ -100,6 +119,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
   const [studioLogoFile, setStudioLogoFile] = useState(null);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState({});
+  const toggleSection = key => setSettingsOpen(o => ({ ...o, [key]: !o[key] }));
   const [paymentCfg, setPaymentCfg] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ p24: { merchant_id: "", pos_id: "", api_key: "", crc_key: "", sandbox: true }, stripe: { publishable_key: "", secret_key: "" } });
   const [paymentSaving, setPaymentSaving] = useState(false);
@@ -1039,37 +1060,36 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             : <h1>{studioName}</h1>}
         </div>
         <nav className="sidebar-nav">
-          <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><span className="nav-icon">🗓</span> {classLabel}</div>
-          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="nav-icon">📅</span> {t("Kalendarz", "Calendar")}</div>
+          <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><NavIcon name="classes" /> {classLabel}</div>
+          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><NavIcon name="calendar" /> {t("Kalendarz", "Calendar")}</div>
           <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => switchTab("settle")}>
-            <span className="nav-icon">💰</span> {t("Do rozliczenia", "Pending")}
+            <NavIcon name="money" /> {t("Do rozliczenia", "Pending")}
             {toSettle.length > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{toSettle.length}</span>}
           </div>
           <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { switchTab("notifications"); markAllRead(); }}>
-            <span className="nav-icon">🔔</span> {t("Powiadomienia", "Notifications")}
+            <NavIcon name="bell" /> {t("Powiadomienia", "Notifications")}
             {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{unreadCount}</span>}
           </div>
-          <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> {t("Klienci", "Clients")}</div>
-          {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> {t("Pracownicy", "Staff")}</div>}
-          {hasServices && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> {t("Cennik usług", "Services")}</div>}
-          {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> {t("Uczestnicy", "Participants")}</div>}
+          <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><NavIcon name="users" /> {t("Klienci", "Clients")}</div>
+          {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><NavIcon name="staff" /> {t("Pracownicy", "Staff")}</div>}
+          {hasServices && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><NavIcon name="services" /> {t("Cennik usług", "Services")}</div>}
+          {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><NavIcon name="participants" /> {t("Uczestnicy", "Participants")}</div>}
 
           {/* Sekcja Statystyki — rozwijana */}
           {reportsEnabled && <div
             className={["reports","stats","history"].includes(tab) ? "nav-item active" : "nav-item"}
             onClick={() => setStatsOpen(o => !o)}
             style={{ justifyContent: "space-between", marginTop: "0.25rem", userSelect: "none" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <span className="nav-icon">📊</span> {t("Statystyki", "Statistics")}
+            <span style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
+              <NavIcon name="chart" /> {t("Statystyki", "Statistics")}
             </span>
             <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
           </div>}
           {reportsEnabled && (statsOpen || ["reports","stats","history"].includes(tab)) && <>
-            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📈</span> {t("Raporty", "Reports")}</div>
-            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📊</span> {t("Dane", "Data")}</div>
-            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📋</span> {t("Historia", "History")}</div>
+            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><NavIcon name="reports" /> {t("Raporty", "Reports")}</div>
+            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><NavIcon name="chart" /> {t("Dane", "Data")}</div>
+            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><NavIcon name="history" /> {t("Historia", "History")}</div>
           </>}
-          <div className={`nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="nav-icon">👤</span> {t("Konto", "Account")}</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -2339,144 +2359,162 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             </div>
 
             {/* Podstawowe */}
-            <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Podstawowe","General")}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t("Nazwa studia","Studio name")}</label>
-                  <input className="form-input" disabled={ro} value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t("Nazwa w nawigacji","Nav name")} <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>({t("skrócona","short")})</span></label>
-                  <input className="form-input" disabled={ro} value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
-                </div>
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("basic")}>
+                <h3>{t("Podstawowe","General")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.basic ? "rotate(180deg)" : "none" }}>▾</span>
               </div>
+              {settingsOpen.basic && <div className="settings-section-body">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">{t("Nazwa studia","Studio name")}</label>
+                    <input className="form-input" disabled={ro} value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">{t("Nazwa w nawigacji","Nav name")} <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>({t("skrócona","short")})</span></label>
+                    <input className="form-input" disabled={ro} value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
+                  </div>
+                </div>
+              </div>}
             </div>
 
             {/* Branża */}
-            <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Branża i funkcje","Industry & features")}</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {/* Zajęcia vs Usługi */}
-                <div style={{ marginBottom: "0.25rem" }}>
-                  <div style={{ fontWeight: 500, marginBottom: "0.4rem" }}>{t("Typ działalności","Business type")}</div>
-                  <div style={{ display: "flex", gap: "1rem" }}>
-                    {[[
-                      "classes",
-                      t("Zajęcia","Classes"),
-                      t("Pilates, joga, siłownia — grupowe i indywidualne","Pilates, yoga, gym — group and individual")
-                    ], [
-                      "services",
-                      t("Usługi","Services"),
-                      t("Fryzjer, gabinet, warsztat — wizyty z cennikiem","Hairdresser, clinic, workshop — appointments with pricing")
-                    ]].map(([val, label, desc]) => (
-                      <label key={val} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", flex: 1, background: studioSettings.service_mode === val ? "var(--cream)" : "transparent", border: `1px solid ${studioSettings.service_mode === val ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.6rem 0.75rem" }}>
-                        <input type="radio" name="service_mode" value={val} checked={studioSettings.service_mode === val} onChange={() => setStudioSettings(s => ({ ...s, service_mode: val }))} style={{ marginTop: "0.2rem", accentColor: "var(--sage)" }} />
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("industry")}>
+                <h3>{t("Branża i funkcje","Industry & features")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.industry ? "rotate(180deg)" : "none" }}>▾</span>
+              </div>
+              {settingsOpen.industry && <div className="settings-section-body">
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div style={{ marginBottom: "0.25rem" }}>
+                    <div style={{ fontWeight: 500, marginBottom: "0.4rem" }}>{t("Typ działalności","Business type")}</div>
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                      {[[
+                        "classes",
+                        t("Zajęcia","Classes"),
+                        t("Pilates, joga, siłownia — grupowe i indywidualne","Pilates, yoga, gym — group and individual")
+                      ], [
+                        "services",
+                        t("Usługi","Services"),
+                        t("Fryzjer, gabinet, warsztat — wizyty z cennikiem","Hairdresser, clinic, workshop — appointments with pricing")
+                      ]].map(([val, label, desc]) => (
+                        <label key={val} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", flex: 1, background: studioSettings.service_mode === val ? "var(--cream)" : "transparent", border: `1px solid ${studioSettings.service_mode === val ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.6rem 0.75rem" }}>
+                          <input type="radio" name="service_mode" value={val} checked={studioSettings.service_mode === val} onChange={() => setStudioSettings(s => ({ ...s, service_mode: val }))} style={{ marginTop: "0.2rem", accentColor: "var(--sage)" }} />
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{label}</div>
+                            <div style={{ fontSize: "0.78rem", color: "var(--mid)" }}>{desc}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer" }}>
+                    <input type="checkbox" style={{ marginTop: "0.2rem" }} disabled={ro} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{t("Karnety wejść","Entry passes")}</div>
+                      <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.","Enable for pilates, yoga, gym. Disable for hairdressers, workshops, clinics.")}</div>
+                    </div>
+                  </label>
+                  {studioSettings.service_mode === "services" && (
+                    <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem" }}>
+                      <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>{t("Opcje trybu usług","Service mode options")}</div>
+                      <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer" }}>
+                        <input type="checkbox" style={{ marginTop: "0.2rem" }} disabled={ro} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{label}</div>
-                          <div style={{ fontSize: "0.78rem", color: "var(--mid)" }}>{desc}</div>
+                          <div style={{ fontWeight: 500 }}>{t("Wielu pracowników","Multiple staff")}</div>
+                          <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Oddzielne kolumny w kalendarzu i zakładka Pracownicy do zarządzania. Wyłącz dla jednoosobowej działalności.","Separate columns in calendar and a Staff tab to manage. Disable for solo businesses.")}</div>
                         </div>
                       </label>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
-
-                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer" }}>
-                  <input type="checkbox" style={{ marginTop: "0.2rem" }} disabled={ro} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{t("Karnety wejść","Entry passes")}</div>
-                    <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.","Enable for pilates, yoga, gym. Disable for hairdressers, workshops, clinics.")}</div>
-                  </div>
-                </label>
-                {studioSettings.service_mode === "services" && (
-                  <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem" }}>
-                    <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>{t("Opcje trybu usług","Service mode options")}</div>
-                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer" }}>
-                      <input type="checkbox" style={{ marginTop: "0.2rem" }} disabled={ro} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{t("Wielu pracowników","Multiple staff")}</div>
-                        <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Oddzielne kolumny w kalendarzu i zakładka Pracownicy do zarządzania. Wyłącz dla jednoosobowej działalności.","Separate columns in calendar and a Staff tab to manage. Disable for solo businesses.")}</div>
-                      </div>
-                    </label>
-                  </div>
-                )}
-              </div>
+              </div>}
             </div>
 
             {/* Wygląd */}
-            <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Wygląd","Appearance")}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
-                {[
-                  { key: "color_sage", label: t("Kolor główny","Primary color"), desc: t("przyciski, akcenty","buttons, accents") },
-                  { key: "color_clay", label: t("Kolor drugorzędny","Secondary color"), desc: t("tagi, oznaczenia","tags, labels") },
-                  { key: "color_cream", label: t("Tło","Background"), desc: t("główne tło aplikacji","main app background") },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <input type="color" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
-                        style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: ro ? "default" : "pointer", padding: 2, opacity: ro ? 0.6 : 1 }} />
-                      <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
-                        style={{ fontFamily: "monospace", fontSize: "0.85rem" }} placeholder="#8A9E85" />
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("appearance")}>
+                <h3>{t("Wygląd","Appearance")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.appearance ? "rotate(180deg)" : "none" }}>▾</span>
+              </div>
+              {settingsOpen.appearance && <div className="settings-section-body">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+                  {[
+                    { key: "color_sage", label: t("Kolor główny","Primary color"), desc: t("przyciski, akcenty","buttons, accents") },
+                    { key: "color_clay", label: t("Kolor drugorzędny","Secondary color"), desc: t("tagi, oznaczenia","tags, labels") },
+                    { key: "color_cream", label: t("Tło","Background"), desc: t("główne tło aplikacji","main app background") },
+                  ].map(({ key, label, desc }) => (
+                    <div key={key} className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <input type="color" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
+                          style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: ro ? "default" : "pointer", padding: 2, opacity: ro ? 0.6 : 1 }} />
+                        <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
+                          style={{ fontFamily: "monospace", fontSize: "0.85rem" }} placeholder="#8A9E85" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">{t("Logo","Logo")}</label>
-                {(studioSettings.logo_url || studioLogoFile) && (
-                  <div style={{ marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    {studioSettings.logo_url && !studioLogoFile && <img src={studioSettings.logo_url} alt="logo" style={{ height: 44, objectFit: "contain" }} />}
-                    {studioLogoFile && <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{t("Nowy plik:","New file:")} {studioLogoFile.name}</span>}
-                    {studioSettings.logo_url && !ro && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>{t("Usuń logo","Remove logo")}</button>}
-                  </div>
-                )}
-                {!ro && <input type="file" accept="image/*" onChange={e => setStudioLogoFile(e.target.files[0])} style={{ fontSize: "0.85rem" }} />}
-              </div>
+                  ))}
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{t("Logo","Logo")}</label>
+                  {(studioSettings.logo_url || studioLogoFile) && (
+                    <div style={{ marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      {studioSettings.logo_url && !studioLogoFile && <img src={studioSettings.logo_url} alt="logo" style={{ height: 44, objectFit: "contain" }} />}
+                      {studioLogoFile && <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{t("Nowy plik:","New file:")} {studioLogoFile.name}</span>}
+                      {studioSettings.logo_url && !ro && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>{t("Usuń logo","Remove logo")}</button>}
+                    </div>
+                  )}
+                  {!ro && <input type="file" accept="image/*" onChange={e => setStudioLogoFile(e.target.files[0])} style={{ fontSize: "0.85rem" }} />}
+                </div>
+              </div>}
             </div>
 
             {/* Opisy */}
-            <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Opisy strony głównej","Homepage copy")}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                {[
-                  { key: "hero_eyebrow", label: t("Nadtytuł","Eyebrow"), placeholder: t("np. Twoje miejsce na ziemi","e.g. Your place on earth") },
-                  { key: "hero_title", label: t("Główny nagłówek","Main heading"), placeholder: t("np. Pilates w centrum Warszawy","e.g. Pilates in the city centre") },
-                  { key: "hero_sub", label: t("Podtytuł hero","Hero subheading"), placeholder: t("np. Zajęcia dla każdego poziomu...","e.g. Classes for every level...") },
-                  { key: "cta_title", label: t("Tytuł sekcji CTA","CTA section title"), placeholder: t("np. Zacznij już dziś","e.g. Get started today") },
-                  { key: "cta_sub", label: t("Opis CTA","CTA description"), placeholder: t("np. Pierwsze zajęcia gratis...","e.g. First class free...") },
-                ].map(({ key, label, placeholder }) => (
-                  <div key={key} className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">{label}</label>
-                    <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} />
-                  </div>
-                ))}
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("copy")}>
+                <h3>{t("Treści strony głównej","Homepage copy")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.copy ? "rotate(180deg)" : "none" }}>▾</span>
               </div>
+              {settingsOpen.copy && <div className="settings-section-body">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  {[
+                    { key: "hero_eyebrow", label: t("Nadtytuł","Eyebrow"), placeholder: t("np. Twoje miejsce na ziemi","e.g. Your place on earth") },
+                    { key: "hero_title", label: t("Główny nagłówek","Main heading"), placeholder: t("np. Pilates w centrum Warszawy","e.g. Pilates in the city centre") },
+                    { key: "hero_sub", label: t("Podtytuł hero","Hero subheading"), placeholder: t("np. Zajęcia dla każdego poziomu...","e.g. Classes for every level...") },
+                    { key: "cta_title", label: t("Tytuł sekcji CTA","CTA section title"), placeholder: t("np. Zacznij już dziś","e.g. Get started today") },
+                    { key: "cta_sub", label: t("Opis CTA","CTA description"), placeholder: t("np. Pierwsze zajęcia gratis...","e.g. First class free...") },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key} className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">{label}</label>
+                      <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} />
+                    </div>
+                  ))}
+                </div>
+              </div>}
             </div>
 
-            {/* Kontakt i SEO */}
-            <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Kontakt i powiadomienia","Contact & notifications")}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t("Email nadawcy","Sender email")}</label>
-                  <input className="form-input" disabled={ro} type="email" value={studioSettings.email_from} onChange={e => setStudioSettings(s => ({ ...s, email_from: e.target.value }))} placeholder="noreply@yourdomain.com" />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t("URL aplikacji","App URL")}</label>
-                  <input className="form-input" disabled={ro} value={studioSettings.app_url} onChange={e => setStudioSettings(s => ({ ...s, app_url: e.target.value }))} placeholder="https://yourdomain.com" />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
+            {/* SMS */}
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("sms")}>
+                <h3>{t("Powiadomienia SMS","SMS notifications")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.sms ? "rotate(180deg)" : "none" }}>▾</span>
+              </div>
+              {settingsOpen.sms && <div className="settings-section-body">
+                <div className="form-group" style={{ margin: 0, maxWidth: 320 }}>
                   <label className="form-label">{t("Podpis SMS","SMS signature")}</label>
                   <input className="form-input" disabled={ro} value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
+                  <div style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: "0.35rem" }}>{t("Pojawia się na końcu każdej wiadomości SMS wysyłanej do klientów.","Appears at the end of every SMS message sent to clients.")}</div>
                 </div>
-              </div>
+              </div>}
             </div>
 
             {/* Płatności online */}
-            <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Płatności online","Online payments")}</h3>
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("payments")}>
+                <h3>{t("Płatności online","Online payments")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.payments ? "rotate(180deg)" : "none" }}>▾</span>
+              </div>
+              {settingsOpen.payments && <div className="settings-section-body">
               <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer", marginBottom: "0.75rem" }}>
                 <input type="checkbox" style={{ marginTop: "0.2rem" }}
                   checked={studioSettings.payments_online}
@@ -2507,10 +2545,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   </div>
                 </div>
               )}
-            </div>
-
-            {studioSettings.payments_online && !ro && paymentCfg && (
-              <div className="card" style={{ marginTop: "1rem" }}>
+              {studioSettings.payments_online && !ro && paymentCfg && (
+                <div style={{ marginTop: "1rem", border: "1px solid var(--border)", borderRadius: 8, padding: "1.25rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1rem" }}>
                   {t("Konfiguracja kluczy API","API Key Configuration")}
                   {studioSettings.payment_provider === "p24" && paymentCfg.p24?.configured && (
@@ -2586,11 +2622,35 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                     </div>
                   </div>
                 )}
+                </div>
+              )}
+              </div>}
+            </div>
+
+            {/* Zmień hasło */}
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("password")}>
+                <h3>{t("Zmiana hasła","Change password")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.password ? "rotate(180deg)" : "none" }}>▾</span>
               </div>
-            )}
+              {settingsOpen.password && <div className="settings-section-body" style={{ maxWidth: 400 }}>
+                <form onSubmit={handleChangePassword}>
+                  <div className="form-group">
+                    <label className="form-label">{t("Nowe hasło","New password")}</label>
+                    <input type="password" className="form-input" placeholder={t("Minimum 8 znaków","At least 8 characters")} value={pwdForm.newPwd} onChange={e => { setPwdForm(f => ({ ...f, newPwd: e.target.value })); setPwdMsg({ type: "", text: "" }); }} autoComplete="new-password" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">{t("Powtórz nowe hasło","Confirm new password")}</label>
+                    <input type="password" className="form-input" placeholder={t("Powtórz hasło","Repeat password")} value={pwdForm.confirmPwd} onChange={e => { setPwdForm(f => ({ ...f, confirmPwd: e.target.value })); setPwdMsg({ type: "", text: "" }); }} autoComplete="new-password" />
+                  </div>
+                  {pwdMsg.text && <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", color: pwdMsg.type === "success" ? "var(--sage)" : "var(--clay)" }}>{pwdMsg.text}</p>}
+                  <button type="submit" className="btn btn-primary" disabled={pwdLoading}>{pwdLoading ? t("Zapisuję…","Saving…") : t("Zmień hasło","Change password")}</button>
+                </form>
+              </div>}
+            </div>
 
             {!ro && (
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem" }}>
                 <button className="btn btn-primary" onClick={handleSaveStudioSettings} disabled={studioSettingsSaving}>
                   {studioSettingsSaving ? t("Zapisywanie...","Saving...") : t("Zapisz ustawienia","Save settings")}
                 </button>
