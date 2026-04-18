@@ -8,6 +8,8 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   const { studio } = useStudio();
   const studioName = studio?.name || "Studio";
   const studioLetter = studioName[0] || "S";
+  const tokensEnabled = studio?.features?.tokens_enabled !== false;
+  const multiStaff = studio?.features?.multi_staff === true;
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
@@ -69,7 +71,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
     const { data: classData } = await supabase.from("classes")
-      .select("*, bookings(*), waitlist(*)")
+      .select("*, bookings(*), waitlist(*), staff(name, color)")
       .eq("studio_id", studioId)
       .gte("starts_at", startOfMonth.toISOString())
       .or("cancelled.is.null,cancelled.eq.false")
@@ -353,12 +355,14 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 <div><div style={{ fontWeight: 500 }}>Gotówka na miejscu</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Płacisz gotówką w dniu zajęć</div></div>
               </div>
             </div>
+            {tokensEnabled && (
             <div onClick={() => classEntries > 0 && setMethod("entries")} style={{ border: `2px solid ${method === "entries" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: classEntries > 0 ? "pointer" : "not-allowed", background: method === "entries" ? "#EBF5EA" : classEntries === 0 ? "var(--cream)" : "var(--warm-white)", opacity: classEntries === 0 ? 0.6 : 1, transition: "all 0.15s" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>🎫</span>
                 <div><div style={{ fontWeight: 500 }}>Wejście z karnetu</div><div style={{ fontSize: "0.8rem", color: classEntries > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{classEntries > 0 ? `Masz ${classEntries} wejść na ${monthName(month)}` : `Brak wejść na ${monthName(month)}`}</div></div>
               </div>
             </div>
+            )}
             {cls.price_pln > 0 && (
               <div onClick={() => setMethod("online")} style={{ border: `2px solid ${method === "online" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: "pointer", background: method === "online" ? "#EBF5EA" : "var(--warm-white)", transition: "all 0.15s" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -368,7 +372,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
               </div>
             )}
           </div>
-          {method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.</div>}
+          {tokensEnabled && method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.</div>}
           {method === "online" && <div style={{ background: "#EBF5EA", border: "1px solid var(--sage-light)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "var(--sage-dark)" }}>💳 Zostaniesz przekierowany do bezpiecznej strony Przelewy24.</div>}
           {cls.series_id && seriesRemaining > 1 && method !== "online" && (
             <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
@@ -1039,10 +1043,11 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 </div>
                 {birthInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ Aktywne</p>}
               </div>
+              {tokensEnabled && (
               <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎫 Moje wejścia</h3>
                 {myTokens.length === 0
-                  ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Brak wejść. Skontaktuj się z Pauliną.</p>
+                  ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Brak wejść. Skontaktuj się z {studioName}.</p>
                   : <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                     {myTokens.map(t => (
                       <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: "1px solid var(--border)" }}>
@@ -1053,6 +1058,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                   </div>}
                 <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--light)" }}>Anuluj przed 12:00 w dniu zajęć aby odzyskać wejście.</p>
               </div>
+              )}
             </div>
             <div className="section-header" style={{ marginBottom: "1rem" }}>
               <h3>Historia moich zajęć</h3>

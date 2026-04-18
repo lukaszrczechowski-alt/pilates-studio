@@ -9,6 +9,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const studioName = studio?.name || "Studio";
   const smsSig = studio?.branding?.sms_signature || studioName;
   const isDemo = studio?.features?.is_demo === true;
+  const multiStaff = studio?.features?.multi_staff === true;
+  const tokensEnabled = studio?.features?.tokens_enabled !== false;
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -30,7 +32,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [userTokenHistory, setUserTokenHistory] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [stats, setStats] = useState({ totalClasses: 0, totalBookings: 0, uniqueClients: 0 });
-  const [form, setForm] = useState({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+  const [form, setForm] = useState({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "", staff_id: "" });
   const [recurring, setRecurring] = useState({ enabled: false, weeks: 4 });
   const [tokenForm, setTokenForm] = useState({ amount: 1, month: new Date().getMonth() + 1, year: new Date().getFullYear(), note: "" });
   const [cancelReason, setCancelReason] = useState("");
@@ -72,6 +74,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [newClientForm, setNewClientForm] = useState({ first_name: "", last_name: "", email: "", phone: "", birth_date: "" });
   const [newClientLoading, setNewClientLoading] = useState(false);
   const [newClientContext, setNewClientContext] = useState("clients");
+  const [staff, setStaff] = useState([]);
+  const [staffForm, setStaffForm] = useState({ name: "", color: "#8A9E85" });
+  const [editingStaff, setEditingStaff] = useState(null);
 
 
   useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
@@ -85,7 +90,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setLoading(true);
     const now = new Date().toISOString();
     const { data: classData } = await supabase.from("classes")
-      .select("*, bookings(*, profiles(first_name, last_name, email, phone)), waitlist(*)")
+      .select("*, bookings(*, profiles(first_name, last_name, email, phone)), waitlist(*), staff(id, name, color)")
       .eq("studio_id", studioId).order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings")
       .select("id, class_id, user_id, created_at, payment_method, profiles(first_name, last_name, email, phone), classes(id, name, starts_at, price_pln, venue_cost_pln, duration_min, max_spots)")
@@ -114,7 +119,36 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       .select("*, classes(name, starts_at), profiles(first_name, last_name)")
       .eq("studio_id", studioId).order("created_at", { ascending: false });
     setClassRatings(ratingsData || []);
+    if (multiStaff) {
+      const { data: staffData } = await supabase.from("staff").select("*").eq("studio_id", studioId).order("name");
+      setStaff(staffData || []);
+    }
     setLoading(false);
+  }
+
+  async function handleSaveStaff() {
+    if (!staffForm.name.trim()) return;
+    if (editingStaff) {
+      await supabase.from("staff").update({ name: staffForm.name, color: staffForm.color }).eq("id", editingStaff.id);
+      setEditingStaff(null);
+    } else {
+      await supabase.from("staff").insert({ name: staffForm.name, color: staffForm.color, studio_id: studioId });
+    }
+    setStaffForm({ name: "", color: "#8A9E85" });
+    const { data } = await supabase.from("staff").select("*").eq("studio_id", studioId).order("name");
+    setStaff(data || []);
+    showMsg("Zapisano pracownika. ✓");
+  }
+
+  async function handleDeleteStaff(id) {
+    await supabase.from("staff").delete().eq("id", id);
+    setStaff(prev => prev.filter(s => s.id !== id));
+    showMsg("Usunięto pracownika.");
+  }
+
+  async function handleToggleStaff(s) {
+    await supabase.from("staff").update({ active: !s.active }).eq("id", s.id);
+    setStaff(prev => prev.map(x => x.id === s.id ? { ...x, active: !s.active } : x));
   }
 
   async function fetchParticipants(classId) {
@@ -291,7 +325,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
   function openCreate() {
     setEditClass(null);
-    setForm({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "" });
+    setForm({ name: "", starts_at: "", duration_min: 60, max_spots: 10, location: "", notes: "", price_pln: "", venue_cost_pln: "", staff_id: "" });
     setRecurring({ enabled: false, weeks: 4 });
     setShowModal(true);
   }
@@ -301,7 +335,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setEditSeriesAll(false);
     const local = new Date(cls.starts_at);
     const localStr = new Date(local.getTime() - local.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setForm({ name: cls.name, starts_at: localStr, duration_min: cls.duration_min, max_spots: cls.max_spots, location: cls.location || "", notes: cls.notes || "", price_pln: cls.price_pln || "", venue_cost_pln: cls.venue_cost_pln || "" });
+    setForm({ name: cls.name, starts_at: localStr, duration_min: cls.duration_min, max_spots: cls.max_spots, location: cls.location || "", notes: cls.notes || "", price_pln: cls.price_pln || "", venue_cost_pln: cls.venue_cost_pln || "", staff_id: cls.staff_id || "" });
     setShowModal(true);
   }
 
@@ -313,6 +347,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       location: form.location, notes: form.notes,
       price_pln: form.price_pln ? +form.price_pln : null,
       venue_cost_pln: form.venue_cost_pln ? +form.venue_cost_pln : null,
+      staff_id: form.staff_id || null,
     };
 
     if (editClass) {
@@ -773,6 +808,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")}><span className="nav-icon">📊</span> Statystyki</div>
           <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")}><span className="nav-icon">📋</span> Historia</div>
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
+          {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> Pracownicy</div>}
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
         </nav>
         <div className="sidebar-footer">
@@ -806,13 +842,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               : (
                 <div className="table-wrapper" style={{ marginBottom: "2rem" }}>
                   <table>
-                    <thead><tr><th>Nazwa</th><th>Data</th><th>Godz.</th><th>Cena</th><th>Sala</th><th>Miejsca</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
+                    <thead><tr><th>Nazwa</th>{multiStaff && <th>Pracownik</th>}<th>Data</th><th>Godz.</th><th>Cena</th><th>Sala</th><th>Miejsca</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
                     <tbody>
                       {upcomingClasses.map(cls => {
                         const count = cls.bookings?.length || 0;
                         return (
                           <tr key={cls.id}>
                             <td><strong>{cls.name}</strong>{cls.series_id && <span style={{ fontSize: "0.7rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.15rem 0.5rem", borderRadius: 20, marginLeft: "0.5rem" }}>🔁 {cls.series_index}</span>}</td>
+                            {multiStaff && <td>{cls.staff ? <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: cls.staff.color, display: "inline-block" }} />{cls.staff.name}</span> : <span style={{ color: "var(--light)" }}>—</span>}</td>}
                             <td>{formatDate(cls.starts_at)}</td>
                             <td>{formatTime(cls.starts_at)}</td>
                             <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
@@ -1781,6 +1818,58 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           </>
         )}
 
+        {/* PRACOWNICY */}
+        {tab === "staff" && multiStaff && (
+          <>
+            <div className="page-header"><h2>Pracownicy</h2></div>
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem" }}>{editingStaff ? "Edytuj pracownika" : "Dodaj pracownika"}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "0.75rem", alignItems: "flex-end" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Imię i nazwisko</label>
+                  <input className="form-input" placeholder="np. Anna Kowalska" value={staffForm.name} onChange={e => setStaffForm({ ...staffForm, name: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Kolor</label>
+                  <input type="color" value={staffForm.color} onChange={e => setStaffForm({ ...staffForm, color: e.target.value })}
+                    style={{ width: 46, height: 40, border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", padding: 2 }} />
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="btn btn-primary" onClick={handleSaveStaff} disabled={!staffForm.name.trim()}>{editingStaff ? "Zapisz" : "Dodaj"}</button>
+                  {editingStaff && <button className="btn btn-secondary" onClick={() => { setEditingStaff(null); setStaffForm({ name: "", color: "#8A9E85" }); }}>Anuluj</button>}
+                </div>
+              </div>
+            </div>
+            {staff.length === 0
+              ? <div className="empty-state"><div className="empty-icon">🧑‍💼</div><p>Brak pracowników. Dodaj pierwszego powyżej.</p></div>
+              : <div className="table-wrapper">
+                <table>
+                  <thead><tr><th>Pracownik</th><th>Status</th><th>Akcje</th></tr></thead>
+                  <tbody>
+                    {staff.map(s => (
+                      <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
+                        <td>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.6rem" }}>
+                            <span style={{ width: 12, height: 12, borderRadius: "50%", background: s.color, display: "inline-block", flexShrink: 0 }} />
+                            <strong>{s.name}</strong>
+                          </span>
+                        </td>
+                        <td><span style={{ fontSize: "0.8rem", color: s.active ? "var(--sage-dark)" : "var(--light)" }}>{s.active ? "Aktywny" : "Nieaktywny"}</span></td>
+                        <td>
+                          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => { setEditingStaff(s); setStaffForm({ name: s.name, color: s.color }); }}>Edytuj</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleToggleStaff(s)}>{s.active ? "Dezaktywuj" : "Aktywuj"}</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStaff(s.id)}>Usuń</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>}
+          </>
+        )}
+
       </main>
 
       {/* Mobile nav */}
@@ -1841,6 +1930,15 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                     <button key={t.id} className="btn btn-secondary btn-sm" onClick={() => applyTemplate(t)}>📋 {t.name}</button>
                   ))}
                 </div>
+              </div>
+            )}
+            {multiStaff && (
+              <div className="form-group">
+                <label className="form-label">Pracownik</label>
+                <select className="form-input" value={form.staff_id} onChange={e => setForm({ ...form, staff_id: e.target.value })}>
+                  <option value="">— Brak przypisania —</option>
+                  {staff.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
               </div>
             )}
             <div className="form-group"><label className="form-label">Nazwa zajęć</label><input className="form-input" placeholder="np. Pilates Flow" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
@@ -1924,7 +2022,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                         </select>
                         <select className="form-input" style={{ width: 110 }} value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
                           <option value="cash">💵 Gotówka</option>
-                          <option value="entries">🎫 Wejście</option>
+                          {tokensEnabled && <option value="entries">🎫 Wejście</option>}
                         </select>
                         <button className="btn btn-primary btn-sm" onClick={handleAddParticipant} disabled={!addParticipantId || addingParticipant}>
                           {addingParticipant ? "…" : "+ Dodaj"}
