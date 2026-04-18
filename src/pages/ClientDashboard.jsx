@@ -128,7 +128,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     if (paymentMethod === "online") {
       setActionLoading(cls.id);
       try {
-        const resp = await fetch("/api/p24-create", {
+        const resp = await fetch("/api/p24", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

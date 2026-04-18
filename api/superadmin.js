@@ -90,12 +90,25 @@ export default async function handler(req, res) {
         const studioId = profile.studio_id;
         if (!studioId) throw new Error("No studio assigned");
         const { name, branding, features } = payload;
-        const allowedFeatures = isSuperAdmin
-          ? features
-          : { ...(features || {}), is_demo: undefined };
+
+        // Pobierz aktualne dane — scalamy zamiast nadpisywać
+        const { data: current } = await supabase
+          .from("studios").select("branding, features").eq("id", studioId).single();
+
+        const mergedBranding = { ...(current?.branding || {}), ...(branding || {}) };
+
+        // Admin może zmieniać tylko tokens_enabled i multi_staff — is_demo i reszta nieruszona
+        const mergedFeatures = isSuperAdmin
+          ? { ...(current?.features || {}), ...(features || {}) }
+          : {
+              ...(current?.features || {}),
+              tokens_enabled: features?.tokens_enabled,
+              multi_staff: features?.multi_staff,
+            };
+
         const { data, error } = await supabase
           .from("studios")
-          .update({ name, branding, features: allowedFeatures })
+          .update({ name, branding: mergedBranding, features: mergedFeatures })
           .eq("id", studioId)
           .select()
           .single();

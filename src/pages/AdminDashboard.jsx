@@ -230,7 +230,15 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      showMsg("Ustawienia studia zapisane. Odśwież stronę by zobaczyć zmiany.");
+
+      // Zastosuj kolory i tytuł od razu bez przeładowania strony
+      const root = document.documentElement;
+      root.style.setProperty("--sage", studioSettings.color_sage);
+      root.style.setProperty("--clay", studioSettings.color_clay);
+      root.style.setProperty("--cream", studioSettings.color_cream);
+      if (studioSettings.name) document.title = studioSettings.name;
+
+      showMsg("Ustawienia studia zapisane. ✓");
     } catch (e) {
       showMsg("Błąd: " + e.message, "error");
     }
