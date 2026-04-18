@@ -1,40 +1,44 @@
 import { createContext, useContext, useState } from "react";
 import { useStudio } from "./StudioContext";
 
-const LanguageContext = createContext({ lang: "pl", setLang: () => {} });
+// Osobny kontekst tylko dla surowego stanu języka — bez zależności od studio
+const LangStateContext = createContext({ lang: "pl", setLang: () => {} });
 
-export function useLang() {
-  return useContext(LanguageContext).lang;
+export function LanguageProvider({ children }) {
+  const [lang, setLangState] = useState(() => {
+    try {
+      const saved = localStorage.getItem("lang");
+      if (saved === "pl" || saved === "en") return saved;
+    } catch {}
+    return navigator.language?.startsWith("pl") ? "pl" : "en";
+  });
+
+  function setLang(l) {
+    localStorage.setItem("lang", l);
+    setLangState(l);
+  }
+
+  return (
+    <LangStateContext.Provider value={{ lang, setLang }}>
+      {children}
+    </LangStateContext.Provider>
+  );
 }
 
+// useLang: filtruje przez isMultilingual — każdy komponent liczy to sam
+export function useLang() {
+  const { studio } = useStudio();
+  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
+  const { lang } = useContext(LangStateContext);
+  return isMultilingual ? lang : "pl";
+}
+
+// useSetLang: zawsze zwraca setter — niezależnie od isMultilingual
 export function useSetLang() {
-  return useContext(LanguageContext).setLang;
+  return useContext(LangStateContext).setLang;
 }
 
 export function useT() {
   const lang = useLang();
   return (pl, en) => lang === "en" ? (en ?? pl) : pl;
-}
-
-export function LanguageProvider({ children }) {
-  const { studio } = useStudio();
-  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
-
-  // Initialize from localStorage first, then browser — niezależnie od isMultilingual
-  const [lang, setLangState] = useState(() => {
-    const saved = localStorage.getItem("lang");
-    if (saved === "pl" || saved === "en") return saved;
-    return navigator.language?.startsWith("pl") ? "pl" : "en";
-  });
-
-  const setLang = (l) => {
-    setLangState(l);
-    localStorage.setItem("lang", l);
-  };
-
-  return (
-    <LanguageContext.Provider value={{ lang: isMultilingual ? lang : "pl", setLang }}>
-      {children}
-    </LanguageContext.Provider>
-  );
 }
