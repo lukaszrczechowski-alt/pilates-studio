@@ -15,6 +15,10 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   const studioName = studio?.name || "Studio";
   const studioLetter = studioName[0] || "S";
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
+  const waitlistEnabled = studio?.features?.waitlist_enabled !== false;
+  const ratingsEnabled = studio?.features?.ratings_enabled !== false;
+  const smsFeatureEnabled = studio?.features?.sms_enabled !== false;
+  const pushFeatureEnabled = studio?.features?.push_enabled !== false;
   const serviceMode = studio?.features?.service_mode || "classes";
   const hasServices = serviceMode === "services";
   const multiStaff = hasServices && studio?.features?.multi_staff === true;
@@ -267,7 +271,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         firstName: promoted.profiles?.first_name, className: cls.name,
         date: formatEmailDate(cls.starts_at), time: formatEmailTime(cls.starts_at), location: cls.location || "",
       });
-      await sendSms(promoted.profiles?.phone,
+      if (smsFeatureEnabled) await sendSms(promoted.profiles?.phone,
         `${promoted.profiles?.first_name}, zwolniło się miejsce na zajęciach "${cls.name}" (${smsDate(cls.starts_at)}). Masz rezerwację! — ${studioName}`
       );
     }
@@ -652,9 +656,9 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 </div>
               )}
             </>
-          ) : onWaitlist ? (
+          ) : onWaitlist && waitlistEnabled ? (
             <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)}>{actionLoading === cls.id ? "..." : t("Wypisz się z kolejki", "Leave waitlist")}</button>
-          ) : isFull ? (
+          ) : isFull && waitlistEnabled ? (
             <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)}>{actionLoading === cls.id ? "..." : t("Dołącz do kolejki", "Join waitlist")}</button>
           ) : (
             <button className="btn btn-primary btn-full" onClick={() => { onClose(); setShowBookModal(cls); }}>{t("Zapisz się →", "Sign up →")}</button>
@@ -1024,7 +1028,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 </button>
                 <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
               </div>
-              <div className="card">
+              {smsFeatureEnabled && <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>📱 {t("Powiadomienia SMS", "SMS Notifications")}</h3>
                 <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginBottom: "1rem", lineHeight: 1.6 }}>
                   {t("Podaj numer, aby otrzymywać SMS-y o odwołanych zajęciach, awansie z kolejki i przypomnieniach dzień przed zajęciami.", "Enter your number to receive SMS about cancelled classes, waitlist promotions and day-before reminders.")}
@@ -1043,7 +1047,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                   </button>
                 </div>
                 {phoneInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ {t("SMS-y aktywne", "SMS active")}</p>}
-              </div>
+              </div>}
               <div className="card">
                 <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎂 {t("Data urodzin", "Birthday")}</h3>
                 <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginBottom: "1rem", lineHeight: 1.6 }}>
@@ -1085,7 +1089,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
               <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{pastMyClasses.length} {t("zajęć", "classes")}</span>
             </div>
             {/* Powiadomienia push */}
-            {(() => {
+            {pushFeatureEnabled && (() => {
               const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
               const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
               const iosNotReady = isIOS && !isStandalone;
@@ -1128,9 +1132,9 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     <td>{b.payment_method === "entries" ? "🎫" : "💵"}</td>
                     <td>{b.classes?.price_pln ? `${b.classes.price_pln} zł` : "—"}</td>
                     <td>
-                      {rated
+                      {ratingsEnabled && (rated
                         ? <span style={{ cursor: "pointer", fontSize: "0.85rem" }} onClick={() => { setShowRatingModal(b.classes); setRatingValue(rated.rating); setRatingComment(rated.comment || ""); }}>{"⭐".repeat(rated.rating)}</span>
-                        : <button className="btn btn-secondary btn-sm" onClick={() => { setShowRatingModal(b.classes); setRatingValue(5); setRatingComment(""); }}>{t("Oceń", "Rate")}</button>}
+                        : <button className="btn btn-secondary btn-sm" onClick={() => { setShowRatingModal(b.classes); setRatingValue(5); setRatingComment(""); }}>{t("Oceń", "Rate")}</button>)}
                     </td>
                   </tr>
                   );
@@ -1175,7 +1179,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
       {showCancelWarning && <CancelWarningModal booking={showCancelWarning} onClose={() => setShowCancelWarning(null)} />}
 
       {/* Modal oceny zajęć */}
-      {showRatingModal && (
+      {ratingsEnabled && showRatingModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRatingModal(null)}>
           <div className="modal" style={{ maxWidth: 420 }}>
             <div className="modal-header">

@@ -16,6 +16,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const smsSig = studio?.branding?.sms_signature || studioName;
   const isDemo = studio?.features?.is_demo === true;
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
+  const waitlistEnabled = studio?.features?.waitlist_enabled !== false;
+  const ratingsEnabled = studio?.features?.ratings_enabled !== false;
+  const classTemplatesEnabled = studio?.features?.class_templates !== false;
+  const reportsEnabled = studio?.features?.reports_enabled !== false;
+  const smsEnabled = studio?.features?.sms_enabled !== false;
+  const pushEnabled = studio?.features?.push_enabled !== false;
   const serviceMode = studio?.features?.service_mode || "classes";
   const hasServices = serviceMode === "services";
   const multiStaff = hasServices && studio?.features?.multi_staff === true;
@@ -431,11 +437,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         reason: cancelReason,
         refunded: booking.payment_method === "entries",
       });
-      await sendSms(booking.profiles?.phone,
+      if (smsEnabled) await sendSms(booking.profiles?.phone,
         `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - ${smsSig}`
       );
     }
-    if (userIds.length > 0 && !isDemo) {
+    if (pushEnabled && userIds.length > 0 && !isDemo) {
       fetch("/api/push-send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -483,7 +489,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     }
 
     // SMS
-    if (msgDelivery.sms) {
+    if (smsEnabled && msgDelivery.sms) {
       const withPhone = bookingsForClass.filter(b => b.profiles?.phone);
       for (const b of withPhone) {
         await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - ${smsSig}`);
@@ -497,7 +503,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     // Push
     if (msgDelivery.app) {
       const uids = bookingsForClass.map(b => b.user_id);
-      if (uids.length > 0 && !isDemo) {
+      if (pushEnabled && uids.length > 0 && !isDemo) {
         fetch("/api/push-send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -907,10 +913,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     if (bulkMsgChannels.app && targetUsers.length > 0) {
       await supabase.from("notifications").insert(targetUsers.map(u => ({ user_id: u.id, type: "booking", message: bulkMsgText, studio_id: studioId })));
     }
-    if (bulkMsgChannels.push && targetUsers.length > 0 && !isDemo) {
+    if (pushEnabled && bulkMsgChannels.push && targetUsers.length > 0 && !isDemo) {
       fetch("/api/push-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: targetUsers.map(u => u.id), title: "Pilates Studio", body: bulkMsgText, url: "/" }) }).catch(() => {});
     }
-    if (bulkMsgChannels.sms) {
+    if (smsEnabled && bulkMsgChannels.sms) {
       for (const u of targetUsers.filter(u => u.phone)) await sendSms(u.phone, bulkMsgText);
     }
     setBulkMsgText("");
@@ -1049,7 +1055,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> {t("Uczestnicy", "Participants")}</div>}
 
           {/* Sekcja Statystyki — rozwijana */}
-          <div
+          {reportsEnabled && <div
             className={["reports","stats","history"].includes(tab) ? "nav-item active" : "nav-item"}
             onClick={() => setStatsOpen(o => !o)}
             style={{ justifyContent: "space-between", marginTop: "0.25rem", userSelect: "none" }}>
@@ -1057,12 +1063,13 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <span className="nav-icon">📊</span> {t("Statystyki", "Statistics")}
             </span>
             <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
-          </div>
-          {(statsOpen || ["reports","stats","history"].includes(tab)) && <>
+          </div>}
+          {reportsEnabled && (statsOpen || ["reports","stats","history"].includes(tab)) && <>
             <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📈</span> {t("Raporty", "Reports")}</div>
             <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📊</span> {t("Dane", "Data")}</div>
             <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📋</span> {t("Historia", "History")}</div>
           </>}
+          <div className={`nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="nav-icon">👤</span> {t("Konto", "Account")}</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -2601,7 +2608,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <span className="mobile-nav-icon" style={{ position: "relative" }}>💰{toSettle.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--clay)", color: "white", borderRadius: "50%", width: 14, height: 14, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{toSettle.length}</span>}</span>
           <span>{t("Rozlicz","Settle")}</span>
         </div>
-        <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="mobile-nav-icon">📈</span><span>{t("Raporty","Reports")}</span></div>
+        {reportsEnabled && <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="mobile-nav-icon">📈</span><span>{t("Raporty","Reports")}</span></div>}
         <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="mobile-nav-icon">👥</span><span>{t("Klienci","Clients")}</span></div>
         <div className={`mobile-nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="mobile-nav-icon">👤</span><span>{t("Konto","Account")}</span></div>
       </nav>
@@ -2644,7 +2651,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
             <div className="modal-header"><h3>{editClass ? t("Edytuj zajęcia","Edit class") : t("Nowe zajęcia","New class")}</h3><button className="modal-close" onClick={() => setShowModal(false)}>×</button></div>
-            {!editClass && templates.length > 0 && (
+            {classTemplatesEnabled && !editClass && templates.length > 0 && (
               <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
                 <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>{t("Wczytaj szablon","Load template")}</label>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -2774,7 +2781,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             <div className="modal-actions" style={{ justifyContent: "space-between" }}>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button className="btn btn-secondary" onClick={() => setShowModal(false)}>{t("Anuluj","Cancel")}</button>
-                {!editClass && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title={t("Zapisz jako szablon","Save as template")}>📋 {t("Szablon","Template")}</button>}
+                {!editClass && classTemplatesEnabled && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title={t("Zapisz jako szablon","Save as template")}>📋 {t("Szablon","Template")}</button>}
                 {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); setShowCancelModal(editClass); }}>🚫 {t("Odwołaj","Cancel class")}</button>}
                 {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); handleDelete(editClass.id); }}>🗑 {t("Usuń","Delete")}</button>}
               </div>
