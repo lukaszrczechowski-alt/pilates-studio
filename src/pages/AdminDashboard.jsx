@@ -9,10 +9,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const studioName = studio?.name || "Studio";
   const smsSig = studio?.branding?.sms_signature || studioName;
   const isDemo = studio?.features?.is_demo === true;
-  const multiStaff = studio?.features?.multi_staff === true;
+  const multiStaff = hasServices && studio?.features?.multi_staff === true;
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
   const serviceMode = studio?.features?.service_mode || "classes";
-  const classLabel = serviceMode === "services" ? "Usługi" : "Zajęcia";
+  const hasServices = serviceMode === "services";
+  const classLabel = hasServices ? "Wizyty" : "Zajęcia";
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -154,7 +155,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       .select("*, classes(name, starts_at), profiles(first_name, last_name)")
       .eq("studio_id", studioId).order("created_at", { ascending: false });
     setClassRatings(ratingsData || []);
-    if (multiStaff) {
+    if (hasServices) {
       const { data: staffData } = await supabase.from("staff").select("*").eq("studio_id", studioId).order("name");
       setStaff(staffData || []);
       const { data: servicesData } = await supabase.from("services").select("*").eq("studio_id", studioId).order("name");
@@ -965,7 +966,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           </div>
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
           {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> Pracownicy</div>}
-          {multiStaff && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> Cennik usług</div>}
+          {hasServices && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> Cennik usług</div>}
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
 
           {/* Sekcja Statystyki — rozwijana */}
@@ -1080,17 +1081,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
               <div className="page-header" style={{ margin: 0 }}>
-                <h2>Kalendarz{multiStaff ? " — widok dzienny" : " zajęć"}</h2>
-                <p>{multiStaff ? "Kliknij pusty slot aby dodać wizytę" : "Miesięczny przegląd"}</p>
+                <h2>Kalendarz{hasServices ? " — widok dzienny" : " zajęć"}</h2>
+                <p>{hasServices ? "Kliknij pusty slot aby dodać wizytę" : "Miesięczny przegląd"}</p>
               </div>
-              <button className="btn btn-primary btn-sm" onClick={openCreate}>+ {multiStaff ? "Nowa wizyta" : "Nowe zajęcia"}</button>
+              <button className="btn btn-primary btn-sm" onClick={openCreate}>+ {hasServices ? "Nowa wizyta" : "Nowe zajęcia"}</button>
             </div>
 
-            {multiStaff ? (() => {
-              // ── WIDOK DZIENNY Z KOLUMNAMI PRACOWNIKÓW ──
+            {hasServices ? (() => {
+              // ── WIDOK DZIENNY (z kolumnami pracowników lub pojedynczy) ──
               const hours = Array.from({ length: 13 }, (_, i) => i + 8); // 8–20
               const activeStaff = staff.filter(s => s.active);
-              const staffCols = [...activeStaff, { id: "none", name: "Bez przypisania", color: "#ADADAD" }];
+              const staffCols = multiStaff
+                ? [...activeStaff, { id: "none", name: "Bez przypisania", color: "#ADADAD" }]
+                : [{ id: "none", name: "Wizyty", color: "var(--sage)" }];
               const dayStr = staffCalDay.toDateString();
               const dayClasses = classes.filter(c => new Date(c.starts_at).toDateString() === dayStr && !c.cancelled);
               const prevDay = () => { const d = new Date(staffCalDay); d.setDate(d.getDate() - 1); setStaffCalDay(d); };
@@ -2136,7 +2139,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         )}
 
         {/* USŁUGI */}
-        {tab === "services" && multiStaff && (
+        {tab === "services" && hasServices && (
           <>
             <div className="page-header"><h2>Usługi i cennik</h2></div>
             <div className="card" style={{ marginBottom: "1.5rem" }}>
@@ -2240,13 +2243,18 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                     <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.</div>
                   </div>
                 </label>
-                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
-                  <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
-                  <div>
-                    <div style={{ fontWeight: 500 }}>Wielu pracowników</div>
-                    <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Zakładka Pracownicy, przypisywanie zajęć do konkretnej osoby.</div>
+                {studioSettings.service_mode === "services" && (
+                  <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem" }}>
+                    <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>Opcje trybu usług</div>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
+                      <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Wielu pracowników</div>
+                        <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Oddzielne kolumny w kalendarzu i zakładka Pracownicy do zarządzania. Wyłącz dla jednoosobowej działalności.</div>
+                      </div>
+                    </label>
                   </div>
-                </label>
+                )}
               </div>
             </div>
 
@@ -2391,7 +2399,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 </div>
               </div>
             )}
-            {multiStaff && services.filter(s => s.active).length > 0 && !editClass && (
+            {hasServices && services.filter(s => s.active).length > 0 && !editClass && (
               <div className="form-group" style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "0.5rem" }}>
                 <label className="form-label">Wybierz usługę (opcjonalnie)</label>
                 <select className="form-input" defaultValue="" onChange={e => {
@@ -2414,7 +2422,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 </select>
               </div>
             )}
-            <div className="form-group"><label className="form-label">Nazwa{multiStaff ? " usługi/wizyty" : " zajęć"}</label><input className="form-input" placeholder={multiStaff ? "np. Strzyżenie damskie" : "np. Pilates Flow"} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Nazwa{hasServices ? " wizyty/usługi" : " zajęć"}</label><input className="form-input" placeholder={hasServices ? "np. Strzyżenie damskie" : "np. Pilates Flow"} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Data i godzina</label><input className="form-input" type="datetime-local" value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div className="form-group"><label className="form-label">Czas (min)</label><input className="form-input" type="number" min="15" max="180" step="15" value={form.duration_min} onChange={e => setForm({ ...form, duration_min: +e.target.value })} /></div>
