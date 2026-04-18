@@ -49,9 +49,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const reportsEnabled = studio?.features?.reports_enabled !== false;
   const smsEnabled = studio?.features?.sms_enabled !== false;
   const pushEnabled = studio?.features?.push_enabled !== false;
-  const serviceMode = studio?.features?.service_mode || "classes";
+  const [studioSettings, setStudioSettings] = useState(null);
+  const serviceMode = (studioSettings?.service_mode || studio?.features?.service_mode) || "classes";
   const hasServices = serviceMode === "services";
-  const multiStaff = hasServices && studio?.features?.multi_staff === true;
+  const multiStaff = hasServices && (studioSettings ? studioSettings.multi_staff === true : studio?.features?.multi_staff === true);
   const classLabel = hasServices ? t("Wizyty", "Appointments") : t("Zajęcia", "Classes");
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
@@ -123,7 +124,6 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [serviceForm, setServiceForm] = useState({ name: "", duration_min: 60, price_pln: "", buffer_min: 0 });
   const [editingService, setEditingService] = useState(null);
   const [staffCalDay, setStaffCalDay] = useState(new Date());
-  const [studioSettings, setStudioSettings] = useState(null);
   const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
   const [studioLogoFile, setStudioLogoFile] = useState(null);
   const [statsOpen, setStatsOpen] = useState(false);
