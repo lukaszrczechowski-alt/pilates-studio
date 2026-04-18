@@ -104,6 +104,7 @@ export default async function handler(req, res) {
               ...(current?.features || {}),
               tokens_enabled: features?.tokens_enabled,
               multi_staff: features?.multi_staff,
+              service_mode: features?.service_mode,
             };
 
         const { data, error } = await supabase
