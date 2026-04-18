@@ -84,11 +84,21 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
             <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--cream)", borderRadius: "0.75rem", border: "1px solid var(--border)" }}>
               <p style={{ fontSize: "0.75rem", color: "var(--mid)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>Wypróbuj demo</p>
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_admin@studiova.app"); setPassword("DemoAdmin2024!"); }}>
-                  Zaloguj jako Admin
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} disabled={loading} onClick={async () => {
+                  setLoading(true); setError("");
+                  const { error } = await supabase.auth.signInWithPassword({ email: "demo_admin@studiova.app", password: "DemoAdmin2024!" });
+                  if (error) setError("Nie udało się zalogować do demo.");
+                  setLoading(false);
+                }}>
+                  {loading ? "..." : "Zaloguj jako Admin"}
                 </button>
-                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setEmail("demo_user@studiova.app"); setPassword("DemoUser2024!"); }}>
-                  Zaloguj jako Klient
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} disabled={loading} onClick={async () => {
+                  setLoading(true); setError("");
+                  const { error } = await supabase.auth.signInWithPassword({ email: "demo_user@studiova.app", password: "DemoUser2024!" });
+                  if (error) setError("Nie udało się zalogować do demo.");
+                  setLoading(false);
+                }}>
+                  {loading ? "..." : "Zaloguj jako Klient"}
                 </button>
               </div>
             </div>
