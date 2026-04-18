@@ -160,7 +160,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
       }
     }
     const { error } = await supabase.from("bookings").insert({ class_id: cls.id, user_id: session.user.id, payment_method: paymentMethod, studio_id: studioId });
-    if (error) { showMsg("Błąd przy zapisie.", "error"); setActionLoading(null); return; }
+    if (error) { console.error("booking insert error:", error); showMsg(`Błąd przy zapisie: ${error.message}`, "error"); setActionLoading(null); return; }
     if (paymentMethod === "entries") {
       const { data: tok } = await supabase.from("tokens").select("*")
         .eq("user_id", session.user.id).eq("month", month).eq("year", year).maybeSingle();
