@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useStudio } from "../StudioContext";
+import { useT, useLang, useSetLang } from "../LanguageContext";
 
 function getMonday(date) {
   const d = new Date(date);
@@ -10,17 +11,26 @@ function getMonday(date) {
   return d;
 }
 
-const DAY_NAMES = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
-const MONTH_NAMES = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
+const DAY_NAMES_PL = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+const DAY_NAMES_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_NAMES_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
+const MONTH_NAMES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function PublicBooking({ studioId }) {
   const { studio } = useStudio();
+  const t = useT();
+  const lang = useLang();
+  const setLang = useSetLang();
   const b = studio?.branding || {};
   const name = studio?.name || "Studio";
   const letter = name[0] || "S";
   const serviceMode = studio?.features?.service_mode || "classes";
+  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
   const isServices = serviceMode === "services";
-  const itemLabel = isServices ? "Wizyty" : "Zajęcia";
+
+  const DAY_NAMES = lang === "en" ? DAY_NAMES_EN : DAY_NAMES_PL;
+  const MONTH_NAMES = lang === "en" ? MONTH_NAMES_EN : MONTH_NAMES_PL;
+  const locale = lang === "en" ? "en-GB" : "pl-PL";
 
   const sage = b.colors?.sage || "#8A9E85";
   const clay = b.colors?.clay || "#C4917A";
@@ -52,10 +62,10 @@ export default function PublicBooking({ studioId }) {
   }
 
   function formatTime(iso) {
-    return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   }
   function formatDate(iso) {
-    return new Date(iso).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+    return new Date(iso).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
   }
 
   const weekEnd = new Date(weekStart);
@@ -87,7 +97,8 @@ export default function PublicBooking({ studioId }) {
   }
 
   const isPrevDisabled = weekStart <= getMonday(new Date());
-  const weekLabel = `${weekStart.getDate()} ${MONTH_NAMES[weekStart.getMonth()]} – ${new Date(weekEnd.getTime() - 1).getDate()} ${MONTH_NAMES[new Date(weekEnd.getTime() - 1).getMonth()]} ${weekEnd.getFullYear()}`;
+  const weekEndDay = new Date(weekEnd.getTime() - 1);
+  const weekLabel = `${weekStart.getDate()} ${MONTH_NAMES[weekStart.getMonth()]} – ${weekEndDay.getDate()} ${MONTH_NAMES[weekEndDay.getMonth()]} ${weekEnd.getFullYear()}`;
 
   async function sendContact(e) {
     e.preventDefault();
@@ -100,9 +111,9 @@ export default function PublicBooking({ studioId }) {
         body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg, studioId }),
       });
       const json = await res.json();
-      if (!res.ok) { alert("Błąd: " + (json.error || res.status)); setContactSending(false); return; }
+      if (!res.ok) { alert((json.error || res.status)); setContactSending(false); return; }
     } catch (err) {
-      alert("Błąd połączenia: " + err.message);
+      alert(err.message);
       setContactSending(false);
       return;
     }
@@ -140,9 +151,17 @@ export default function PublicBooking({ studioId }) {
                 </div>
               </>}
         </a>
-        <a href="/" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
-          Zaloguj się →
-        </a>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          {isMultilingual && (
+            <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 0.85rem", borderRadius: 8, fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500, cursor: "pointer" }}>
+              {lang === "pl" ? "🇬🇧 EN" : "🇵🇱 PL"}
+            </button>
+          )}
+          <a href="/" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
+            {t("Zaloguj się →", "Log in →")}
+          </a>
+        </div>
       </div>
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1rem 4rem" }}>
@@ -150,10 +169,12 @@ export default function PublicBooking({ studioId }) {
         {/* TYTUŁ SEKCJI */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <h2 style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "2rem", color: "#2C2C2C", marginBottom: "0.35rem", fontWeight: 400 }}>
-            {isServices ? "Umów wizytę" : "Harmonogram zajęć"}
+            {isServices ? t("Umów wizytę", "Book an appointment") : t("Harmonogram zajęć", "Class schedule")}
           </h2>
           <p style={{ color: "#6B6B6B", fontSize: "0.9rem" }}>
-            {isServices ? "Sprawdź dostępne terminy i zaloguj się, aby zarezerwować" : "Kliknij zajęcia, aby zobaczyć szczegóły i się zapisać"}
+            {isServices
+              ? t("Sprawdź dostępne terminy i zaloguj się, aby zarezerwować", "Check available slots and log in to book")
+              : t("Kliknij zajęcia, aby zobaczyć szczegóły i się zapisać", "Click a class to see details and sign up")}
           </p>
         </div>
 
@@ -161,24 +182,24 @@ export default function PublicBooking({ studioId }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
           <button onClick={prevWeek} disabled={isPrevDisabled}
             style={{ padding: "0.45rem 1rem", border: "1px solid #E8E0D8", borderRadius: 8, background: "white", cursor: isPrevDisabled ? "not-allowed" : "pointer", color: isPrevDisabled ? "#ADADAD" : "#2C2C2C", fontSize: "0.85rem" }}>
-            ← Poprzedni
+            ← {t("Poprzedni", "Previous")}
           </button>
           <span style={{ fontWeight: 500, fontSize: "0.95rem", color: "#2C2C2C", textAlign: "center" }}>
             📅 {weekLabel}
           </span>
           <button onClick={nextWeek}
             style={{ padding: "0.45rem 1rem", border: "1px solid #E8E0D8", borderRadius: 8, background: "white", cursor: "pointer", color: "#2C2C2C", fontSize: "0.85rem" }}>
-            Następny →
+            {t("Następny", "Next")} →
           </button>
         </div>
 
         {/* KALENDARZ TYGODNIOWY */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "3rem", color: "#ADADAD" }}>Ładowanie...</div>
+          <div style={{ textAlign: "center", padding: "3rem", color: "#ADADAD" }}>{t("Ładowanie...", "Loading...")}</div>
         ) : !hasAnyFuture ? (
           <div style={{ textAlign: "center", padding: "3rem", background: "white", borderRadius: 12, border: "1px solid #E8E0D8" }}>
             <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem", opacity: 0.4 }}>🌿</div>
-            <p style={{ color: "#ADADAD" }}>Brak nadchodzących {isServices ? "wizyt" : "zajęć"}.</p>
+            <p style={{ color: "#ADADAD" }}>{isServices ? t("Brak nadchodzących wizyt.", "No upcoming appointments.") : t("Brak nadchodzących zajęć.", "No upcoming classes.")}</p>
           </div>
         ) : (
           <div style={{ background: "white", border: "1px solid #E8E0D8", borderRadius: 12, overflow: "hidden" }}>
@@ -187,14 +208,18 @@ export default function PublicBooking({ studioId }) {
               {weekDays.map((day, i) => {
                 const isToday = day.toDateString() === new Date().toDateString();
                 const dayClasses = weekClasses.filter(c => new Date(c.starts_at).toDateString() === day.toDateString());
+                const cnt = dayClasses.length;
+                const countLabel = lang === "en"
+                  ? `${cnt} ${isServices ? (cnt === 1 ? "appt" : "appts") : (cnt === 1 ? "class" : "classes")}`
+                  : `${cnt} ${isServices ? (cnt === 1 ? "wizyta" : "wizyty") : (cnt === 1 ? "zajęcia" : "zajęć")}`;
                 return (
                   <div key={i} className="pb-day-col" style={{ borderRight: i < 6 ? "1px solid #E8E0D8" : "none", padding: "0.65rem 0.5rem", textAlign: "center", background: isToday ? `${sage}12` : "transparent", minWidth: 0 }}>
                     <div style={{ fontSize: "0.7rem", color: "#ADADAD", textTransform: "uppercase", letterSpacing: "0.06em" }}>{DAY_NAMES[i]}</div>
                     <div style={{ fontSize: "1.1rem", fontWeight: isToday ? 700 : 400, color: isToday ? sage : "#2C2C2C", width: 28, height: 28, borderRadius: "50%", background: isToday ? `${sage}22` : "transparent", display: "flex", alignItems: "center", justifyContent: "center", margin: "0.15rem auto 0" }}>
                       {day.getDate()}
                     </div>
-                    {dayClasses.length > 0 && (
-                      <div style={{ marginTop: "0.2rem", fontSize: "0.65rem", color: sage, fontWeight: 600 }}>{dayClasses.length} {isServices ? (dayClasses.length === 1 ? "wizyta" : "wizyty") : (dayClasses.length === 1 ? "zajęcia" : "zajęć")}</div>
+                    {cnt > 0 && (
+                      <div style={{ marginTop: "0.2rem", fontSize: "0.65rem", color: sage, fontWeight: 600 }}>{countLabel}</div>
                     )}
                   </div>
                 );
@@ -216,6 +241,12 @@ export default function PublicBooking({ studioId }) {
                       const count = cls.bookings?.length || 0;
                       const isFull = count >= cls.max_spots;
                       const singleSpot = cls.max_spots === 1;
+                      const spotsLeft = cls.max_spots - count;
+                      const spotsLabel = isFull
+                        ? t("Brak miejsc", "Full")
+                        : singleSpot
+                          ? t("Dostępne", "Available")
+                          : lang === "en" ? `${spotsLeft} left` : `${spotsLeft} wolnych`;
                       return (
                         <div key={cls.id} className="pb-card" onClick={() => setSelectedClass(cls)}
                           style={{ background: isFull ? "#FDE8E8" : `${sage}12`, border: `1px solid ${isFull ? "#F5C6C6" : `${sage}40`}`, borderLeft: `3px solid ${isFull ? clay : sage}`, borderRadius: 6, padding: "0.45rem 0.5rem", cursor: "pointer" }}>
@@ -230,7 +261,7 @@ export default function PublicBooking({ studioId }) {
                             </div>
                           )}
                           <div style={{ fontSize: "0.62rem", color: isFull ? "#C44B4B" : "#ADADAD", marginTop: "0.15rem" }}>
-                            {isFull ? "Brak miejsc" : singleSpot ? "Dostępne" : `${cls.max_spots - count} wolnych`}
+                            {spotsLabel}
                           </div>
                         </div>
                       );
@@ -242,7 +273,9 @@ export default function PublicBooking({ studioId }) {
 
             {!hasThisWeek && (
               <div style={{ textAlign: "center", padding: "2rem", color: "#ADADAD", borderTop: "1px solid #E8E0D8", fontSize: "0.9rem" }}>
-                Brak {isServices ? "wizyt" : "zajęć"} w tym tygodniu — sprawdź kolejny.
+                {isServices
+                  ? t("Brak wizyt w tym tygodniu — sprawdź kolejny.", "No appointments this week — check the next one.")
+                  : t("Brak zajęć w tym tygodniu — sprawdź kolejny.", "No classes this week — check the next one.")}
               </div>
             )}
           </div>
@@ -252,46 +285,61 @@ export default function PublicBooking({ studioId }) {
         {!loading && hasAnyFuture && (
           <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-              {[["Wolne miejsca", sage], ["Brak miejsc", clay]].map(([label, color]) => (
+              {[[t("Wolne miejsca", "Available"), sage], [t("Brak miejsc", "Full"), clay]].map(([label, color]) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "#6B6B6B" }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: `${color}30`, border: `2px solid ${color}` }} />
                   {label}
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: "0.78rem", color: "#ADADAD" }}>Kliknij {isServices ? "wizytę" : "zajęcia"} aby zobaczyć szczegóły</p>
+            <p style={{ fontSize: "0.78rem", color: "#ADADAD" }}>
+              {isServices
+                ? t("Kliknij wizytę aby zobaczyć szczegóły", "Click an appointment to see details")
+                : t("Kliknij zajęcia aby zobaczyć szczegóły", "Click a class to see details")}
+            </p>
           </div>
         )}
 
         {/* CTA - zaloguj się */}
         <div style={{ textAlign: "center", marginTop: "2.5rem", padding: "2rem", background: "white", borderRadius: 12, border: "1px solid #E8E0D8" }}>
           <p style={{ color: "#6B6B6B", marginBottom: "1rem", fontSize: "0.9rem" }}>
-            Aby się {isServices ? "umówić" : "zapisać"}, zaloguj się lub załóż konto
+            {isServices
+              ? t("Aby się umówić, zaloguj się lub załóż konto", "To book an appointment, log in or create an account")
+              : t("Aby się zapisać, zaloguj się lub załóż konto", "To sign up, log in or create an account")}
           </p>
           <a href="/" style={{ display: "inline-block", background: sage, color: "white", padding: "0.75rem 2rem", borderRadius: 8, textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
-            {isServices ? "Zarezerwuj wizytę →" : "Zapisz się na zajęcia →"}
+            {isServices ? t("Zarezerwuj wizytę →", "Book appointment →") : t("Zapisz się na zajęcia →", "Sign up for a class →")}
           </a>
         </div>
 
         {/* FORMULARZ KONTAKTOWY */}
         <div style={{ marginTop: "2.5rem", background: "white", borderRadius: 12, border: "1px solid #E8E0D8", padding: "2rem" }}>
-          <h2 style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.6rem", color: "#2C2C2C", marginBottom: "0.35rem", fontWeight: 400 }}>Napisz do nas</h2>
-          <p style={{ color: "#6B6B6B", fontSize: "0.85rem", marginBottom: "1.5rem" }}>Masz pytanie? Chcesz dowiedzieć się więcej? Odezwiemy się!</p>
+          <h2 style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.6rem", color: "#2C2C2C", marginBottom: "0.35rem", fontWeight: 400 }}>{t("Napisz do nas", "Contact us")}</h2>
+          <p style={{ color: "#6B6B6B", fontSize: "0.85rem", marginBottom: "1.5rem" }}>{t("Masz pytanie? Chcesz dowiedzieć się więcej? Odezwiemy się!", "Have a question? Want to know more? We'll get back to you!")}</p>
           {contactSent ? (
             <div style={{ textAlign: "center", padding: "2rem" }}>
               <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>✅</div>
-              <p style={{ color: "#5C7A56", fontWeight: 500, marginBottom: "0.35rem" }}>Wiadomość wysłana!</p>
-              <p style={{ color: "#6B6B6B", fontSize: "0.85rem" }}>Odezwiemy się wkrótce.</p>
+              <p style={{ color: "#5C7A56", fontWeight: 500, marginBottom: "0.35rem" }}>{t("Wiadomość wysłana!", "Message sent!")}</p>
+              <p style={{ color: "#6B6B6B", fontSize: "0.85rem" }}>{t("Odezwiemy się wkrótce.", "We'll be in touch soon.")}</p>
             </div>
           ) : (
             <form onSubmit={sendContact} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <div><label style={labelStyle}>Imię i nazwisko *</label><input required value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Anna Kowalska" style={inputStyle} /></div>
-                <div><label style={labelStyle}>Email lub telefon</label><input value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="anna@email.pl lub 500 000 000" style={inputStyle} /></div>
+                <div>
+                  <label style={labelStyle}>{t("Imię i nazwisko *", "Full name *")}</label>
+                  <input required value={contactName} onChange={e => setContactName(e.target.value)} placeholder={t("Anna Kowalska", "John Smith")} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t("Email lub telefon", "Email or phone")}</label>
+                  <input value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder={t("anna@email.pl lub 500 000 000", "john@email.com or +44 7700 000 000")} style={inputStyle} />
+                </div>
               </div>
-              <div><label style={labelStyle}>Wiadomość *</label><textarea required rows={4} value={contactMsg} onChange={e => setContactMsg(e.target.value)} placeholder="Napisz czego potrzebujesz…" style={{ ...inputStyle, resize: "vertical" }} /></div>
+              <div>
+                <label style={labelStyle}>{t("Wiadomość *", "Message *")}</label>
+                <textarea required rows={4} value={contactMsg} onChange={e => setContactMsg(e.target.value)} placeholder={t("Napisz czego potrzebujesz…", "Write what you need…")} style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
               <button type="submit" disabled={contactSending} style={{ background: sage, color: "white", border: "none", padding: "0.85rem", borderRadius: 8, fontFamily: "DM Sans, sans-serif", fontWeight: 500, fontSize: "0.9rem", cursor: contactSending ? "not-allowed" : "pointer", opacity: contactSending ? 0.7 : 1 }}>
-                {contactSending ? "Wysyłanie…" : "Wyślij wiadomość →"}
+                {contactSending ? t("Wysyłanie…", "Sending…") : t("Wyślij wiadomość →", "Send message →")}
               </button>
             </form>
           )}
@@ -322,11 +370,11 @@ export default function PublicBooking({ studioId }) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
               {[
-                { icon: "📅", label: "Data", val: formatDate(selectedClass.starts_at) },
-                { icon: "🕐", label: "Godzina", val: `${formatTime(selectedClass.starts_at)} · ${selectedClass.duration_min} min` },
-                selectedClass.location && { icon: "📍", label: "Lokalizacja", val: selectedClass.location, maps: true },
-                selectedClass.price_pln && { icon: "💰", label: "Cena", val: `${selectedClass.price_pln} zł` },
-                selectedClass.max_spots > 1 && { icon: "👥", label: "Miejsca", val: `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} wolnych z ${selectedClass.max_spots}` },
+                { icon: "📅", label: t("Data", "Date"), val: formatDate(selectedClass.starts_at) },
+                { icon: "🕐", label: t("Godzina", "Time"), val: `${formatTime(selectedClass.starts_at)} · ${selectedClass.duration_min} min` },
+                selectedClass.location && { icon: "📍", label: t("Lokalizacja", "Location"), val: selectedClass.location, maps: true },
+                selectedClass.price_pln && { icon: "💰", label: t("Cena", "Price"), val: `${selectedClass.price_pln} zł` },
+                selectedClass.max_spots > 1 && { icon: "👥", label: t("Miejsca", "Spots"), val: lang === "en" ? `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} of ${selectedClass.max_spots} available` : `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} wolnych z ${selectedClass.max_spots}` },
               ].filter(Boolean).map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: "0.75rem" }}>
                   <span>{item.icon}</span>
@@ -334,7 +382,7 @@ export default function PublicBooking({ studioId }) {
                     <div style={{ fontSize: "0.75rem", color: "#ADADAD", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
                     <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       {item.val}
-                      {item.maps && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.val)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", color: sage, textDecoration: "none", border: `1px solid ${sage}`, borderRadius: 10, padding: "0.1rem 0.45rem", whiteSpace: "nowrap" }}>Nawiguj →</a>}
+                      {item.maps && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.val)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", color: sage, textDecoration: "none", border: `1px solid ${sage}`, borderRadius: 10, padding: "0.1rem 0.45rem", whiteSpace: "nowrap" }}>{t("Nawiguj →", "Navigate →")}</a>}
                     </div>
                   </div>
                 </div>
@@ -349,11 +397,11 @@ export default function PublicBooking({ studioId }) {
 
             {selectedClass.bookings?.length >= selectedClass.max_spots ? (
               <div style={{ background: "#FDE8E8", border: "1px solid #F5C6C6", borderRadius: 8, padding: "0.875rem", textAlign: "center", color: "#C44B4B", fontSize: "0.875rem", fontWeight: 500 }}>
-                Brak wolnych miejsc
+                {t("Brak wolnych miejsc", "No spots available")}
               </div>
             ) : (
               <a href="/" style={{ display: "block", background: sage, color: "white", padding: "0.875rem", borderRadius: 8, textDecoration: "none", textAlign: "center", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
-                {isServices ? "Zaloguj się i zarezerwuj →" : "Zaloguj się i zapisz →"}
+                {isServices ? t("Zaloguj się i zarezerwuj →", "Log in and book →") : t("Zaloguj się i zapisz →", "Log in and sign up →")}
               </a>
             )}
           </div>
