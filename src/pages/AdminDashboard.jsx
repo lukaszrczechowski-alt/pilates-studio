@@ -126,6 +126,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [staffCalDay, setStaffCalDay] = useState(new Date());
   const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
   const [studioLogoFile, setStudioLogoFile] = useState(null);
+  const [calWeekStart, setCalWeekStart] = useState(() => {
+    const d = new Date(); const day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1); d.setHours(0,0,0,0); return d;
+  });
+  const [draggingClass, setDraggingClass] = useState(null);
   const [statsOpen, setStatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState({});
   const toggleSection = key => setSettingsOpen(o => ({ ...o, [key]: !o[key] }));
@@ -340,6 +345,24 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setForm({ name: "", starts_at: localStr, duration_min: 60, max_spots: 1, location: "", notes: "", price_pln: "", venue_cost_pln: "", staff_id: staffId === "none" ? "" : (staffId || "") });
     setRecurring({ enabled: false, weeks: 4 });
     setShowModal(true);
+  }
+
+  function openCreateAtTime(datetime, staffId = "") {
+    const pad = n => String(n).padStart(2, "0");
+    const d = new Date(datetime);
+    const localStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setEditClass(null);
+    setForm({ name: "", starts_at: localStr, duration_min: 60, max_spots: 1, location: "", notes: "", price_pln: "", venue_cost_pln: "", staff_id: staffId });
+    setRecurring({ enabled: false, weeks: 4 });
+    setShowModal(true);
+  }
+
+  async function handleDrop(classId, newStart) {
+    setDraggingClass(null);
+    const iso = newStart.toISOString();
+    await supabase.from("classes").update({ starts_at: iso }).eq("id", classId);
+    setClasses(prev => prev.map(c => c.id === classId ? { ...c, starts_at: iso } : c));
+    showMsg(t("Wizyta przeniesiona. ✓", "Appointment moved. ✓"));
   }
 
   async function loadPaymentConfig() {
@@ -1276,89 +1299,136 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             </div>
 
             {hasServices ? (() => {
-              // ── WIDOK DZIENNY (z kolumnami pracowników lub pojedynczy) ──
-              const hours = Array.from({ length: 13 }, (_, i) => i + 8); // 8–20
-              const activeStaff = staff.filter(s => s.active);
-              const staffCols = multiStaff
-                ? [...activeStaff, { id: "none", name: "Bez przypisania", color: "#ADADAD" }]
-                : [{ id: "none", name: "Wizyty", color: "var(--sage)" }];
-              const dayStr = staffCalDay.toDateString();
-              const dayClasses = classes.filter(c => new Date(c.starts_at).toDateString() === dayStr && !c.cancelled);
-              const prevDay = () => { const d = new Date(staffCalDay); d.setDate(d.getDate() - 1); setStaffCalDay(d); };
-              const nextDay = () => { const d = new Date(staffCalDay); d.setDate(d.getDate() + 1); setStaffCalDay(d); };
-              const isToday = staffCalDay.toDateString() === new Date().toDateString();
+              // ── WIDOK TYGODNIOWY z drag & drop (snap co 30 min) ──
+              const SLOT_H = 40; // px na 30 minut
+              const START_H = 8, END_H = 20;
+              const timeSlots = [];
+              for (let h = START_H; h < END_H; h++) {
+                timeSlots.push({ h, m: 0, label: `${String(h).padStart(2,"0")}:00` });
+                timeSlots.push({ h, m: 30, label: `${String(h).padStart(2,"0")}:30` });
+              }
+              const DAY_H = timeSlots.length * SLOT_H;
 
-              const getSlotClasses = (staffId, hour) => dayClasses.filter(c => {
-                const h = new Date(c.starts_at).getHours();
-                return h === hour && (staffId === "none" ? !c.staff_id : c.staff_id === staffId);
+              const weekDays = Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(calWeekStart); d.setDate(d.getDate() + i); return d;
               });
+              const prevWeek = () => setCalWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()-7); return n; });
+              const nextWeek = () => setCalWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()+7); return n; });
+              const goToday = () => {
+                const d = new Date(), day = d.getDay() || 7;
+                d.setDate(d.getDate() - day + 1); d.setHours(0,0,0,0); setCalWeekStart(new Date(d));
+              };
 
-              const cellBase = { borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", minHeight: 64, padding: "0.25rem", verticalAlign: "top" };
+              function apptStyle(cls) {
+                const s = new Date(cls.starts_at);
+                const startMin = (s.getHours() - START_H) * 60 + s.getMinutes();
+                return {
+                  top: startMin / 30 * SLOT_H,
+                  height: Math.max(cls.duration_min / 30 * SLOT_H - 3, SLOT_H - 3),
+                };
+              }
+
+              const todayStr = new Date().toDateString();
+              const nowMin = (new Date().getHours() - START_H) * 60 + new Date().getMinutes();
+              const nowTop = nowMin / 30 * SLOT_H;
 
               return (
                 <>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", gap: "1rem" }}>
-                    <button className="btn btn-secondary btn-sm" onClick={prevDay}>← {t("Poprzedni", "Prev")}</button>
-                    <span style={{ fontWeight: 600, fontSize: "1rem", textAlign: "center" }}>
-                      {staffCalDay.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                      {isToday && <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", background: "var(--sage)", color: "white", padding: "0.1rem 0.4rem", borderRadius: 4 }}>{t("Dziś", "Today")}</span>}
+                  {/* Nav */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                    <button className="btn btn-secondary btn-sm" onClick={prevWeek}>←</button>
+                    <button className="btn btn-secondary btn-sm" onClick={goToday}>{t("Dziś","Today")}</button>
+                    <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>
+                      {weekDays[0].toLocaleDateString(locale, { day: "numeric", month: "short" })} – {weekDays[6].toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}
                     </span>
-                    <button className="btn btn-secondary btn-sm" onClick={nextDay}>{t("Następny", "Next")} →</button>
+                    <button className="btn btn-secondary btn-sm" onClick={nextWeek}>→</button>
+                    <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--mid)" }}>{t("Przeciągnij wizytę aby przenieść · snap co 30 min","Drag to move · snaps every 30 min")}</span>
                   </div>
 
-                  <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 10, background: "var(--warm-white)" }}>
-                    <table style={{ borderCollapse: "collapse", width: "100%", minWidth: `${60 + staffCols.length * 160}px` }}>
-                      <thead>
-                        <tr style={{ background: "var(--cream)" }}>
-                          <th style={{ width: 60, padding: "0.6rem 0.5rem", fontSize: "0.72rem", color: "var(--mid)", fontWeight: 500, borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)" }}>{t("Godz.","Time")}</th>
-                          {staffCols.map(s => (
-                            <th key={s.id} style={{ padding: "0.6rem 0.75rem", borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)", textAlign: "left" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-                                <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>{s.name}</span>
+                  {/* Calendar */}
+                  <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: 12, overflow: "auto", background: "var(--warm-white)", userSelect: "none" }}>
+                    {/* Time column */}
+                    <div style={{ width: 52, flexShrink: 0, borderRight: "1px solid var(--border)", zIndex: 2 }}>
+                      <div style={{ height: 52, borderBottom: "2px solid var(--border)", background: "var(--cream)" }} />
+                      {timeSlots.map(({ h, m, label }, i) => (
+                        <div key={i} style={{ height: SLOT_H, borderBottom: `1px solid ${m === 0 ? "var(--border)" : "rgba(0,0,0,0.04)"}`, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 6 }}>
+                          {m === 0 && <span style={{ fontSize: "0.66rem", color: "var(--mid)", fontWeight: 500, transform: "translateY(-7px)", display: "block" }}>{label}</span>}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Day columns */}
+                    {weekDays.map((day, di) => {
+                      const isToday = day.toDateString() === todayStr;
+                      const dayCls = classes.filter(c => !c.cancelled && new Date(c.starts_at).toDateString() === day.toDateString());
+                      return (
+                        <div key={di} style={{ flex: 1, minWidth: 110, borderRight: di < 6 ? "1px solid var(--border)" : "none" }}>
+                          {/* Day header */}
+                          <div style={{ height: 52, borderBottom: "2px solid var(--border)", textAlign: "center", padding: "0.4rem 0.25rem", background: isToday ? "rgba(138,158,133,0.1)" : "var(--cream)", position: "sticky", top: 0, zIndex: 1 }}>
+                            <div style={{ fontSize: "0.65rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{day.toLocaleDateString(locale, { weekday: "short" })}</div>
+                            <div style={{ fontWeight: isToday ? 700 : 500, fontSize: "0.95rem", color: isToday ? "var(--sage-dark)" : "var(--charcoal)", lineHeight: 1.2 }}>{day.getDate()}</div>
+                            {dayCls.length > 0 && <div style={{ fontSize: "0.6rem", color: "var(--sage)", fontWeight: 600 }}>{dayCls.length}</div>}
+                          </div>
+
+                          {/* Slot grid + appointments */}
+                          <div style={{ position: "relative", height: DAY_H }}
+                            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              if (!draggingClass) return;
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const y = Math.max(0, e.clientY - rect.top);
+                              const slot = Math.min(Math.round(y / SLOT_H), timeSlots.length - 1);
+                              const { h, m } = timeSlots[slot];
+                              const newStart = new Date(day);
+                              newStart.setHours(h, m, 0, 0);
+                              handleDrop(draggingClass, newStart);
+                            }}>
+
+                            {/* Slot backgrounds — klikalne */}
+                            {timeSlots.map(({ h, m }, i) => (
+                              <div key={i} style={{ position: "absolute", top: i * SLOT_H, left: 0, right: 0, height: SLOT_H, borderBottom: `1px solid ${m === 0 ? "var(--border)" : "rgba(0,0,0,0.04)"}`, boxSizing: "border-box", cursor: "pointer", transition: "background 0.1s" }}
+                                onClick={() => { const d2 = new Date(day); d2.setHours(h, m, 0, 0); openCreateAtTime(d2); }}
+                                onMouseEnter={e => { if (!draggingClass) e.currentTarget.style.background = "rgba(138,158,133,0.07)"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = ""; }}
+                              />
+                            ))}
+
+                            {/* Linia "teraz" */}
+                            {isToday && nowTop > 0 && nowTop < DAY_H && (
+                              <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, height: 2, background: "var(--sage)", zIndex: 3, pointerEvents: "none" }}>
+                                <div style={{ position: "absolute", left: -4, top: -3, width: 8, height: 8, borderRadius: "50%", background: "var(--sage)" }} />
                               </div>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {hours.map(hour => (
-                          <tr key={hour} style={{ background: hour % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                            <td style={{ ...cellBase, textAlign: "center", fontSize: "0.75rem", color: "var(--mid)", fontWeight: 500, background: "var(--cream)", width: 60 }}>
-                              {`${String(hour).padStart(2,"0")}:00`}
-                            </td>
-                            {staffCols.map(s => {
-                              const slotCls = getSlotClasses(s.id, hour);
+                            )}
+
+                            {/* Wizyty */}
+                            {dayCls.map(cls => {
+                              const { top, height } = apptStyle(cls);
+                              if (top < -SLOT_H || top > DAY_H) return null;
+                              const sc = staff.find(s => s.id === cls.staff_id);
+                              const color = sc?.color || "var(--sage)";
+                              const booked = cls.bookings?.length || 0;
+                              const isDragging = draggingClass === cls.id;
                               return (
-                                <td key={s.id} style={{ ...cellBase, cursor: slotCls.length === 0 ? "pointer" : "default" }}
-                                  onClick={() => slotCls.length === 0 && openCreateAtSlot(hour, s.id)}
-                                  onMouseEnter={e => { if (slotCls.length === 0) e.currentTarget.style.background = "rgba(138,158,133,0.07)"; }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-                                  {slotCls.map(cls => {
-                                    const sc = s.id === "none" ? null : activeStaff.find(x => x.id === s.id);
-                                    const color = sc?.color || "#ADADAD";
-                                    const booked = cls.bookings?.length || 0;
-                                    const isFull = booked >= cls.max_spots;
-                                    return (
-                                      <div key={cls.id} onClick={e => { e.stopPropagation(); openEdit(cls); }}
-                                        style={{ background: `${color}18`, border: `1px solid ${color}55`, borderLeft: `3px solid ${color}`, borderRadius: 5, padding: "0.3rem 0.5rem", cursor: "pointer", marginBottom: "0.2rem" }}
-                                        onMouseEnter={e => e.currentTarget.style.opacity = "0.75"}
-                                        onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                                        <div style={{ fontWeight: 600, fontSize: "0.78rem" }}>{cls.name}</div>
-                                        <div style={{ fontSize: "0.7rem", color: "var(--mid)" }}>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>
-                                        <div style={{ fontSize: "0.7rem", color: isFull ? "var(--clay)" : "var(--sage-dark)", fontWeight: 500 }}>{booked}/{cls.max_spots} {isFull ? `● ${t("pełne", "full")}` : ""}</div>
-                                      </div>
-                                    );
-                                  })}
-                                </td>
+                                <div key={cls.id}
+                                  draggable
+                                  onDragStart={e => { e.stopPropagation(); setDraggingClass(cls.id); e.dataTransfer.effectAllowed = "move"; }}
+                                  onDragEnd={() => setDraggingClass(null)}
+                                  onClick={e => { e.stopPropagation(); openEdit(cls); }}
+                                  style={{ position: "absolute", top: Math.max(0, top), left: 2, right: 2, height, background: `${color}22`, border: `1px solid ${color}66`, borderLeft: `3px solid ${color}`, borderRadius: 5, padding: "0.2rem 0.35rem", cursor: "grab", overflow: "hidden", zIndex: 2, boxSizing: "border-box", opacity: isDragging ? 0.4 : 1, transition: "opacity 0.15s" }}>
+                                  <div style={{ fontWeight: 600, fontSize: "0.72rem", lineHeight: 1.25, color: "var(--charcoal)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cls.name}</div>
+                                  {height > 32 && <div style={{ fontSize: "0.64rem", color: "var(--mid)" }}>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>}
+                                  {height > 54 && booked > 0 && <div style={{ fontSize: "0.64rem", color }}>{booked}/{cls.max_spots}</div>}
+                                  {height > 68 && sc && <div style={{ fontSize: "0.63rem", color: "var(--mid)", fontStyle: "italic" }}>{sc.name}</div>}
+                                </div>
                               );
                             })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <p style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.5rem" }}>{t("Kliknij pusty slot aby szybko dodać wizytę w wybranej godzinie i u wybranego pracownika.", "Click an empty slot to quickly add an appointment at the selected time and staff member.")}</p>
+                  <p style={{ fontSize: "0.72rem", color: "var(--mid)", marginTop: "0.5rem" }}>{t("Kliknij pusty slot — nowa wizyta · przeciągnij blok — przenieś wizytę","Click empty slot — new appointment · drag block — move appointment")}</p>
                 </>
               );
             })() : (() => {
