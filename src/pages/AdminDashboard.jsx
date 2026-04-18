@@ -9,10 +9,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const studioName = studio?.name || "Studio";
   const smsSig = studio?.branding?.sms_signature || studioName;
   const isDemo = studio?.features?.is_demo === true;
-  const multiStaff = hasServices && studio?.features?.multi_staff === true;
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
   const serviceMode = studio?.features?.service_mode || "classes";
   const hasServices = serviceMode === "services";
+  const multiStaff = hasServices && studio?.features?.multi_staff === true;
   const classLabel = hasServices ? "Wizyty" : "Zajęcia";
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
