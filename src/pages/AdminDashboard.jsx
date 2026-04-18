@@ -238,17 +238,18 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   }
 
   async function loadPaymentConfig() {
+    const empty = { p24: { merchant_id: "", pos_id: "", api_key: "", crc_key: "", sandbox: true, configured: false }, stripe: { publishable_key: "", secret_key: "", configured: false } };
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/payment-config", { headers: { Authorization: `Bearer ${session.access_token}` } });
-      if (!res.ok) return;
+      if (!res.ok) { setPaymentCfg(empty); setPaymentForm({ p24: { ...empty.p24 }, stripe: { ...empty.stripe } }); return; }
       const cfg = await res.json();
       setPaymentCfg(cfg);
       setPaymentForm({
-        p24: { merchant_id: cfg.p24.merchant_id, pos_id: cfg.p24.pos_id, api_key: cfg.p24.api_key, crc_key: cfg.p24.crc_key, sandbox: cfg.p24.sandbox },
-        stripe: { publishable_key: cfg.stripe.publishable_key, secret_key: cfg.stripe.secret_key },
+        p24: { merchant_id: cfg.p24.merchant_id || "", pos_id: cfg.p24.pos_id || "", api_key: cfg.p24.api_key || "", crc_key: cfg.p24.crc_key || "", sandbox: cfg.p24.sandbox !== false },
+        stripe: { publishable_key: cfg.stripe.publishable_key || "", secret_key: cfg.stripe.secret_key || "" },
       });
-    } catch {}
+    } catch { setPaymentCfg(empty); setPaymentForm({ p24: { ...empty.p24 }, stripe: { ...empty.stripe } }); }
   }
 
   async function handleSavePaymentConfig(provider) {
