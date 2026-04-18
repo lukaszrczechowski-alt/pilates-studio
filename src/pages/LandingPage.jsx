@@ -12,8 +12,9 @@ export default function LandingPage({ onLogin, onRegister }) {
       {/* NAV */}
       <nav className="landing-nav">
         <div className="landing-nav-logo">
-          <span className="landing-nav-letter">{letter}</span>
-          <span className="landing-nav-name">{b.nav_name || name}</span>
+          {b.logo_url
+            ? <img src={b.logo_url} alt={name} style={{ height: 40, maxWidth: 160, objectFit: "contain" }} />
+            : <><span className="landing-nav-letter">{letter}</span><span className="landing-nav-name">{b.nav_name || name}</span></>}
         </div>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">Harmonogram</a>
