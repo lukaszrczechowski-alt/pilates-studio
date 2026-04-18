@@ -20,14 +20,12 @@ export function LanguageProvider({ children }) {
   const { studio } = useStudio();
   const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
 
-  const getInitialLang = () => {
-    if (!isMultilingual) return "pl";
+  // Initialize from localStorage first, then browser — niezależnie od isMultilingual
+  const [lang, setLangState] = useState(() => {
     const saved = localStorage.getItem("lang");
     if (saved === "pl" || saved === "en") return saved;
     return navigator.language?.startsWith("pl") ? "pl" : "en";
-  };
-
-  const [lang, setLangState] = useState(getInitialLang);
+  });
 
   const setLang = (l) => {
     setLangState(l);

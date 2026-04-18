@@ -120,6 +120,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       tokens_enabled: f.tokens_enabled !== false,
       multi_staff: f.multi_staff === true,
       service_mode: f.service_mode || "classes",
+      payments_online: f.payments_online === true,
+      payment_provider: f.payment_provider || "p24",
     });
   }, [studio]);
 
@@ -279,6 +281,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             tokens_enabled: studioSettings.tokens_enabled,
             multi_staff: studioSettings.multi_staff,
             service_mode: studioSettings.service_mode,
+            payments_online: studioSettings.payments_online,
+            payment_provider: studioSettings.payment_provider,
           },
           },
         }),
@@ -2213,9 +2217,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         )}
 
         {/* USTAWIENIA STUDIA */}
-        {tab === "studio_settings" && studioSettings && (
-          <>
-            <div className="page-header"><h2>{t("Moje studio","My studio")}</h2></div>
+        {tab === "studio_settings" && studioSettings && (() => {
+          const ro = isDemo; // read-only flag dla demo
+          return (<>
+            <div className="page-header">
+              <h2>{t("Moje studio","My studio")}</h2>
+              {ro && (
+                <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 0.9rem", fontSize: "0.82rem", color: "var(--mid)" }}>
+                  👁 {t("Tryb podglądu — ustawienia są tylko do wglądu","Preview mode — settings are read-only")}
+                </div>
+              )}
+            </div>
 
             {/* Podstawowe */}
             <div className="card" style={{ marginBottom: "1rem" }}>
@@ -2223,11 +2235,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Nazwa studia","Studio name")}</label>
-                  <input className="form-input" value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
+                  <input className="form-input" disabled={ro} value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Nazwa w nawigacji","Nav name")} <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>({t("skrócona","short")})</span></label>
-                  <input className="form-input" value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
+                  <input className="form-input" disabled={ro} value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                 </div>
               </div>
             </div>
@@ -2260,8 +2272,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   </div>
                 </div>
 
-                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
-                  <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer" }}>
+                  <input type="checkbox" style={{ marginTop: "0.2rem" }} disabled={ro} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
                   <div>
                     <div style={{ fontWeight: 500 }}>{t("Karnety wejść","Entry passes")}</div>
                     <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.","Enable for pilates, yoga, gym. Disable for hairdressers, workshops, clinics.")}</div>
@@ -2270,8 +2282,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 {studioSettings.service_mode === "services" && (
                   <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem" }}>
                     <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>{t("Opcje trybu usług","Service mode options")}</div>
-                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
-                      <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer" }}>
+                      <input type="checkbox" style={{ marginTop: "0.2rem" }} disabled={ro} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
                       <div>
                         <div style={{ fontWeight: 500 }}>{t("Wielu pracowników","Multiple staff")}</div>
                         <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Oddzielne kolumny w kalendarzu i zakładka Pracownicy do zarządzania. Wyłącz dla jednoosobowej działalności.","Separate columns in calendar and a Staff tab to manage. Disable for solo businesses.")}</div>
@@ -2294,9 +2306,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <div key={key} className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <input type="color" value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
-                        style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
-                      <input className="form-input" value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
+                      <input type="color" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
+                        style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: ro ? "default" : "pointer", padding: 2, opacity: ro ? 0.6 : 1 }} />
+                      <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
                         style={{ fontFamily: "monospace", fontSize: "0.85rem" }} placeholder="#8A9E85" />
                     </div>
                   </div>
@@ -2308,10 +2320,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <div style={{ marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     {studioSettings.logo_url && !studioLogoFile && <img src={studioSettings.logo_url} alt="logo" style={{ height: 44, objectFit: "contain" }} />}
                     {studioLogoFile && <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{t("Nowy plik:","New file:")} {studioLogoFile.name}</span>}
-                    {studioSettings.logo_url && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>{t("Usuń logo","Remove logo")}</button>}
+                    {studioSettings.logo_url && !ro && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>{t("Usuń logo","Remove logo")}</button>}
                   </div>
                 )}
-                <input type="file" accept="image/*" onChange={e => setStudioLogoFile(e.target.files[0])} style={{ fontSize: "0.85rem" }} />
+                {!ro && <input type="file" accept="image/*" onChange={e => setStudioLogoFile(e.target.files[0])} style={{ fontSize: "0.85rem" }} />}
               </div>
             </div>
 
@@ -2328,7 +2340,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 ].map(({ key, label, placeholder }) => (
                   <div key={key} className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">{label}</label>
-                    <input className="form-input" value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} />
+                    <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} />
                   </div>
                 ))}
               </div>
@@ -2340,26 +2352,63 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Email nadawcy","Sender email")}</label>
-                  <input className="form-input" type="email" value={studioSettings.email_from} onChange={e => setStudioSettings(s => ({ ...s, email_from: e.target.value }))} placeholder="noreply@yourdomain.com" />
+                  <input className="form-input" disabled={ro} type="email" value={studioSettings.email_from} onChange={e => setStudioSettings(s => ({ ...s, email_from: e.target.value }))} placeholder="noreply@yourdomain.com" />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("URL aplikacji","App URL")}</label>
-                  <input className="form-input" value={studioSettings.app_url} onChange={e => setStudioSettings(s => ({ ...s, app_url: e.target.value }))} placeholder="https://yourdomain.com" />
+                  <input className="form-input" disabled={ro} value={studioSettings.app_url} onChange={e => setStudioSettings(s => ({ ...s, app_url: e.target.value }))} placeholder="https://yourdomain.com" />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Podpis SMS","SMS signature")}</label>
-                  <input className="form-input" value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
+                  <input className="form-input" disabled={ro} value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                 </div>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn btn-primary" onClick={handleSaveStudioSettings} disabled={studioSettingsSaving}>
-                {studioSettingsSaving ? t("Zapisywanie...","Saving...") : t("Zapisz ustawienia","Save settings")}
-              </button>
+            {/* Płatności online */}
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Płatności online","Online payments")}</h3>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: ro ? "default" : "pointer", marginBottom: "0.75rem" }}>
+                <input type="checkbox" style={{ marginTop: "0.2rem" }}
+                  checked={studioSettings.payments_online}
+                  disabled={ro}
+                  onChange={e => setStudioSettings(s => ({ ...s, payments_online: e.target.checked }))} />
+                <div>
+                  <div style={{ fontWeight: 500 }}>{t("Włącz płatności online","Enable online payments")}</div>
+                  <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Klienci będą mogli płacić za zajęcia przez internet przy zapisie.","Clients will be able to pay for classes online when booking.")}</div>
+                </div>
+              </label>
+              {studioSettings.payments_online && (
+                <div style={{ marginLeft: "1.75rem" }}>
+                  <div style={{ fontSize: "0.8rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>{t("Operator płatności","Payment provider")}</div>
+                  <div style={{ display: "flex", gap: "0.75rem" }}>
+                    {[["p24", "Przelewy24", t("Polska — przelewy, BLIK, karty","Poland — transfers, BLIK, cards")], ["stripe", "Stripe", t("Międzynarodowy — karty kredytowe","International — credit cards")]].map(([val, name, desc]) => (
+                      <label key={val} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: ro ? "default" : "pointer", flex: 1, background: studioSettings.payment_provider === val ? "var(--cream)" : "transparent", border: `1px solid ${studioSettings.payment_provider === val ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.6rem 0.75rem" }}>
+                        <input type="radio" name="payment_provider" value={val}
+                          checked={studioSettings.payment_provider === val}
+                          disabled={ro}
+                          onChange={() => setStudioSettings(s => ({ ...s, payment_provider: val }))}
+                          style={{ marginTop: "0.2rem", accentColor: "var(--sage)" }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{name}</div>
+                          <div style={{ fontSize: "0.78rem", color: "var(--mid)" }}>{desc}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </>
-        )}
+
+            {!ro && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn btn-primary" onClick={handleSaveStudioSettings} disabled={studioSettingsSaving}>
+                  {studioSettingsSaving ? t("Zapisywanie...","Saving...") : t("Zapisz ustawienia","Save settings")}
+                </button>
+              </div>
+            )}
+          </>);
+        })()}
 
       </main>
 
