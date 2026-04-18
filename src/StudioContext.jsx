@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { setEmailStudio } from "./emailService";
 
 const StudioContext = createContext(null);
 
@@ -30,7 +31,7 @@ export function StudioProvider({ children }) {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setStudio(data || { id: null, features: {}, branding: {} });
-        if (data) applyBranding(data);
+        if (data) { applyBranding(data); setEmailStudio(data); }
         window.__isDemo = data?.features?.is_demo === true;
         setLoading(false);
       })
