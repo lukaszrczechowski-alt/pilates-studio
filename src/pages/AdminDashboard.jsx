@@ -97,6 +97,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [paymentCfg, setPaymentCfg] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ p24: { merchant_id: "", pos_id: "", api_key: "", crc_key: "", sandbox: true }, stripe: { publishable_key: "", secret_key: "" } });
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ newPwd: "", confirmPwd: "" });
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdMsg, setPwdMsg] = useState({ type: "", text: "" });
 
 
   useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
@@ -931,6 +934,28 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setAllProfiles(prev => prev.map(p => p.id === userId ? { ...p, admin_notes: notesText } : p));
     setEditingNotes(null);
     showMsg("Notatka zapisana! ✓");
+  }
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPwdMsg({ type: "", text: "" });
+    if (pwdForm.newPwd.length < 8) {
+      setPwdMsg({ type: "error", text: t("Hasło musi mieć minimum 8 znaków.", "Password must be at least 8 characters.") });
+      return;
+    }
+    if (pwdForm.newPwd !== pwdForm.confirmPwd) {
+      setPwdMsg({ type: "error", text: t("Hasła nie są identyczne.", "Passwords do not match.") });
+      return;
+    }
+    setPwdLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: pwdForm.newPwd });
+    setPwdLoading(false);
+    if (error) {
+      setPwdMsg({ type: "error", text: error.message });
+    } else {
+      setPwdForm({ newPwd: "", confirmPwd: "" });
+      setPwdMsg({ type: "success", text: t("Hasło zostało zmienione! ✓", "Password changed successfully! ✓") });
+    }
   }
 
   // Zmiana zakładki — czyści selectedClass gdy wychodzimy z widoku uczestników
@@ -2143,6 +2168,42 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 {darkMode ? `☀️ ${t("Tryb jasny","Light mode")}` : `🌙 ${t("Tryb ciemny","Dark mode")}`}
               </button>
               <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się","Log out")}</button>
+            </div>
+
+            <div className="card" style={{ maxWidth: 420, marginTop: "1.5rem" }}>
+              <h3 style={{ marginBottom: "1.25rem", fontSize: "1rem", fontWeight: 600 }}>🔒 {t("Zmień hasło","Change password")}</h3>
+              <form onSubmit={handleChangePassword}>
+                <div className="form-group">
+                  <label className="form-label">{t("Nowe hasło","New password")}</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    placeholder={t("Minimum 8 znaków","At least 8 characters")}
+                    value={pwdForm.newPwd}
+                    onChange={e => { setPwdForm(f => ({ ...f, newPwd: e.target.value })); setPwdMsg({ type: "", text: "" }); }}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{t("Powtórz nowe hasło","Confirm new password")}</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    placeholder={t("Powtórz hasło","Repeat password")}
+                    value={pwdForm.confirmPwd}
+                    onChange={e => { setPwdForm(f => ({ ...f, confirmPwd: e.target.value })); setPwdMsg({ type: "", text: "" }); }}
+                    autoComplete="new-password"
+                  />
+                </div>
+                {pwdMsg.text && (
+                  <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", color: pwdMsg.type === "success" ? "var(--sage)" : "var(--clay)" }}>
+                    {pwdMsg.text}
+                  </p>
+                )}
+                <button type="submit" className="btn btn-primary btn-full" disabled={pwdLoading}>
+                  {pwdLoading ? t("Zapisuję…","Saving…") : t("Zmień hasło","Change password")}
+                </button>
+              </form>
             </div>
           </>
         )}
