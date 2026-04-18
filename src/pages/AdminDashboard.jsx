@@ -131,6 +131,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     d.setDate(d.getDate() - day + 1); d.setHours(0,0,0,0); return d;
   });
   const [draggingClass, setDraggingClass] = useState(null);
+  const [dragGrabY, setDragGrabY] = useState(0);
   const [statsOpen, setStatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState({});
   const toggleSection = key => setSettingsOpen(o => ({ ...o, [key]: !o[key] }));
@@ -1377,7 +1378,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                               e.preventDefault();
                               if (!draggingClass) return;
                               const rect = e.currentTarget.getBoundingClientRect();
-                              const y = Math.max(0, e.clientY - rect.top);
+                              const rawY = e.clientY - rect.top - dragGrabY;
+                              const y = Math.max(0, rawY);
                               const slot = Math.min(Math.round(y / SLOT_H), timeSlots.length - 1);
                               const { h, m } = timeSlots[slot];
                               const newStart = new Date(day);
@@ -1412,7 +1414,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                               return (
                                 <div key={cls.id}
                                   draggable
-                                  onDragStart={e => { e.stopPropagation(); setDraggingClass(cls.id); e.dataTransfer.effectAllowed = "move"; }}
+                                  onDragStart={e => { e.stopPropagation(); setDraggingClass(cls.id); setDragGrabY(e.clientY - e.currentTarget.getBoundingClientRect().top); e.dataTransfer.effectAllowed = "move"; }}
                                   onDragEnd={() => setDraggingClass(null)}
                                   onClick={e => { e.stopPropagation(); openEdit(cls); }}
                                   style={{ position: "absolute", top: Math.max(0, top), left: 2, right: 2, height, background: `${color}22`, border: `1px solid ${color}66`, borderLeft: `3px solid ${color}`, borderRadius: 5, padding: "0.2rem 0.35rem", cursor: "grab", overflow: "hidden", zIndex: 2, boxSizing: "border-box", opacity: isDragging ? 0.4 : 1, transition: "opacity 0.15s" }}>
