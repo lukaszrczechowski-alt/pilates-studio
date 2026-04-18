@@ -5,6 +5,8 @@ export default function LandingPage({ onLogin, onRegister }) {
   const b = studio?.branding || {};
   const name = studio?.name || "Studio";
   const letter = name[0] || "S";
+  const isDemo = studio?.features?.is_demo === true;
+  const onCTA = isDemo ? onLogin : onRegister;
 
   return (
     <div className="landing">
@@ -35,8 +37,8 @@ export default function LandingPage({ onLogin, onRegister }) {
             {b.hero_sub || "Zajęcia w małych grupach, zapis online w kilku kliknięciach."}
           </p>
           <div className="landing-hero-ctas">
-            <button className="btn btn-primary landing-btn-lg" onClick={onRegister}>
-              Zarezerwuj miejsce
+            <button className="btn btn-primary landing-btn-lg" onClick={onCTA}>
+              {isDemo ? "Zaloguj się do demo" : "Zarezerwuj miejsce"}
             </button>
             <a href="/zapisy" className="btn btn-secondary landing-btn-lg">
               Zobacz harmonogram
@@ -107,8 +109,8 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div className="landing-container landing-cta-inner">
           <h2>{b.cta_title || "Gotowa, żeby zacząć?"}</h2>
           <p>{b.cta_sub || "Dołącz do studia — pierwsze kroki są najważniejsze."}</p>
-          <button className="btn btn-primary landing-btn-lg" onClick={onRegister}>
-            Zarejestruj się za darmo
+          <button className="btn btn-primary landing-btn-lg" onClick={onCTA}>
+            {isDemo ? "Zaloguj się do demo" : "Zarejestruj się za darmo"}
           </button>
         </div>
       </section>

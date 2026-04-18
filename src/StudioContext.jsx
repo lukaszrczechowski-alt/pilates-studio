@@ -26,12 +26,24 @@ export function StudioProvider({ children }) {
 
   useEffect(() => {
     const hostname = window.location.hostname.replace(/^www\./, "");
+    const cacheKey = `studio_${hostname}`;
+
+    // Zastosuj cache natychmiast — eliminuje flash tytułu przy przeładowaniu
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey));
+      if (cached) applyBranding(cached);
+    } catch {}
 
     fetch(`/api/get-studio?domain=${hostname}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        setStudio(data || { id: null, features: {}, branding: {} });
-        if (data) { applyBranding(data); setEmailStudio(data); }
+        const studio = data || { id: null, features: {}, branding: {} };
+        setStudio(studio);
+        if (data) {
+          applyBranding(data);
+          setEmailStudio(data);
+          try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
+        }
         window.__isDemo = data?.features?.is_demo === true;
         setLoading(false);
       })
