@@ -77,9 +77,36 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [staff, setStaff] = useState([]);
   const [staffForm, setStaffForm] = useState({ name: "", color: "#8A9E85" });
   const [editingStaff, setEditingStaff] = useState(null);
+  const [studioSettings, setStudioSettings] = useState(null);
+  const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
+  const [studioLogoFile, setStudioLogoFile] = useState(null);
 
 
   useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
+
+  useEffect(() => {
+    if (!studio) return;
+    const b = studio.branding || {};
+    const f = studio.features || {};
+    setStudioSettings({
+      name: studio.name || "",
+      nav_name: b.nav_name || "",
+      hero_eyebrow: b.hero_eyebrow || "",
+      hero_title: b.hero_title || "",
+      hero_sub: b.hero_sub || "",
+      cta_title: b.cta_title || "",
+      cta_sub: b.cta_sub || "",
+      email_from: b.email_from || "",
+      app_url: b.app_url || "",
+      sms_signature: b.sms_signature || "",
+      logo_url: b.logo_url || "",
+      color_sage: b.colors?.sage || "#8A9E85",
+      color_clay: b.colors?.clay || "#C4917A",
+      color_cream: b.colors?.cream || "#F7F3EE",
+      tokens_enabled: f.tokens_enabled !== false,
+      multi_staff: f.multi_staff === true,
+    });
+  }, [studio]);
 
   function showMsg(text, type = "success") {
     setMessage({ text, type });
@@ -149,6 +176,62 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   async function handleToggleStaff(s) {
     await supabase.from("staff").update({ active: !s.active }).eq("id", s.id);
     setStaff(prev => prev.map(x => x.id === s.id ? { ...x, active: !s.active } : x));
+  }
+
+  async function handleSaveStudioSettings() {
+    if (!studioSettings) return;
+    setStudioSettingsSaving(true);
+    try {
+      let logoUrl = studioSettings.logo_url;
+      if (studioLogoFile) {
+        const ext = studioLogoFile.name.split(".").pop();
+        const path = `${studio.slug}/logo.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("logos")
+          .upload(path, studioLogoFile, { upsert: true, contentType: studioLogoFile.type });
+        if (upErr) throw new Error("Błąd uploadu logo: " + upErr.message);
+        const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(path);
+        logoUrl = publicUrl;
+        setStudioLogoFile(null);
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/update-studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          name: studioSettings.name,
+          branding: {
+            nav_name: studioSettings.nav_name,
+            hero_eyebrow: studioSettings.hero_eyebrow,
+            hero_title: studioSettings.hero_title,
+            hero_sub: studioSettings.hero_sub,
+            cta_title: studioSettings.cta_title,
+            cta_sub: studioSettings.cta_sub,
+            email_from: studioSettings.email_from,
+            app_url: studioSettings.app_url,
+            sms_signature: studioSettings.sms_signature,
+            logo_url: logoUrl,
+            colors: {
+              sage: studioSettings.color_sage,
+              clay: studioSettings.color_clay,
+              cream: studioSettings.color_cream,
+            },
+          },
+          features: {
+            ...(studio?.features || {}),
+            tokens_enabled: studioSettings.tokens_enabled,
+            multi_staff: studioSettings.multi_staff,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      showMsg("Ustawienia studia zapisane. Odśwież stronę by zobaczyć zmiany.");
+    } catch (e) {
+      showMsg("Błąd: " + e.message, "error");
+    }
+    setStudioSettingsSaving(false);
   }
 
   async function fetchParticipants(classId) {
@@ -812,6 +895,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
           {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> Pracownicy</div>}
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
+          <div className={`nav-item ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")}><span className="nav-icon">⚙️</span> Moje studio</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -1869,6 +1953,126 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   </tbody>
                 </table>
               </div>}
+          </>
+        )}
+
+        {/* USTAWIENIA STUDIA */}
+        {tab === "studio_settings" && studioSettings && (
+          <>
+            <div className="page-header"><h2>Moje studio</h2></div>
+
+            {/* Podstawowe */}
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Podstawowe</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Nazwa studia</label>
+                  <input className="form-input" value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder="np. Studio Roberta" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Nazwa w nawigacji <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>(skrócona)</span></label>
+                  <input className="form-input" value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder="np. Studio Roberta" />
+                </div>
+              </div>
+            </div>
+
+            {/* Branża */}
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Branża i funkcje</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
+                  <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
+                  <div>
+                    <div style={{ fontWeight: 500 }}>Karnety wejść</div>
+                    <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.</div>
+                  </div>
+                </label>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
+                  <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
+                  <div>
+                    <div style={{ fontWeight: 500 }}>Wielu pracowników</div>
+                    <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Zakładka Pracownicy, przypisywanie zajęć do konkretnej osoby.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Wygląd */}
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Wygląd</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+                {[
+                  { key: "color_sage", label: "Kolor główny", desc: "przyciski, akcenty" },
+                  { key: "color_clay", label: "Kolor drugorzędny", desc: "tagi, oznaczenia" },
+                  { key: "color_cream", label: "Tło", desc: "główne tło aplikacji" },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <input type="color" value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
+                        style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                      <input className="form-input" value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
+                        style={{ fontFamily: "monospace", fontSize: "0.85rem" }} placeholder="#8A9E85" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Logo</label>
+                {(studioSettings.logo_url || studioLogoFile) && (
+                  <div style={{ marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    {studioSettings.logo_url && !studioLogoFile && <img src={studioSettings.logo_url} alt="logo" style={{ height: 44, objectFit: "contain" }} />}
+                    {studioLogoFile && <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>Nowy plik: {studioLogoFile.name}</span>}
+                    {studioSettings.logo_url && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>Usuń logo</button>}
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={e => setStudioLogoFile(e.target.files[0])} style={{ fontSize: "0.85rem" }} />
+              </div>
+            </div>
+
+            {/* Opisy */}
+            <div className="card" style={{ marginBottom: "1rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Opisy strony głównej</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                {[
+                  { key: "hero_eyebrow", label: "Nadtytuł", placeholder: "np. Twoje miejsce na ziemi" },
+                  { key: "hero_title", label: "Główny nagłówek", placeholder: "np. Pilates w centrum Warszawy" },
+                  { key: "hero_sub", label: "Podtytuł hero", placeholder: "np. Zajęcia dla każdego poziomu..." },
+                  { key: "cta_title", label: "Tytuł sekcji CTA", placeholder: "np. Zacznij już dziś" },
+                  { key: "cta_sub", label: "Opis CTA", placeholder: "np. Pierwsze zajęcia gratis..." },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key} className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">{label}</label>
+                    <input className="form-input" value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Kontakt i SEO */}
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Kontakt i powiadomienia</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Email nadawcy</label>
+                  <input className="form-input" type="email" value={studioSettings.email_from} onChange={e => setStudioSettings(s => ({ ...s, email_from: e.target.value }))} placeholder="noreply@twojadomena.pl" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">URL aplikacji</label>
+                  <input className="form-input" value={studioSettings.app_url} onChange={e => setStudioSettings(s => ({ ...s, app_url: e.target.value }))} placeholder="https://twojadomena.pl" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Podpis SMS</label>
+                  <input className="form-input" value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder="np. Studio Roberta" />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn btn-primary" onClick={handleSaveStudioSettings} disabled={studioSettingsSaving}>
+                {studioSettingsSaving ? "Zapisywanie..." : "Zapisz ustawienia"}
+              </button>
+            </div>
           </>
         )}
 
