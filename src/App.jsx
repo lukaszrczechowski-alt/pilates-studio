@@ -100,7 +100,7 @@ function AppInner() {
     );
   }
 
-  if (profile?.role === "admin") return (
+  if (["admin", "superadmin"].includes(profile?.role)) return (
     <AdminDashboard session={session} profile={profile} studioId={studio?.id} darkMode={darkMode} setDarkMode={setDarkMode} />
   );
   return (
