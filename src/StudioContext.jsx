@@ -6,13 +6,17 @@ export function useStudio() {
   return useContext(StudioContext);
 }
 
-function applyBranding(branding) {
-  if (!branding) return;
+function applyBranding(studio) {
+  const branding = studio?.branding || {};
   const root = document.documentElement;
   const colors = branding.colors || {};
   Object.entries(colors).forEach(([key, value]) => {
     root.style.setProperty(`--${key}`, value);
   });
+  if (studio?.name) document.title = studio.name;
+  if (branding.favicon_url) {
+    document.querySelectorAll("link[rel~='icon']").forEach(el => { el.href = branding.favicon_url; });
+  }
 }
 
 export function StudioProvider({ children }) {
@@ -26,7 +30,7 @@ export function StudioProvider({ children }) {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setStudio(data || { id: null, features: {}, branding: {} });
-        if (data?.branding) applyBranding(data.branding);
+        if (data) applyBranding(data);
         window.__isDemo = data?.features?.is_demo === true;
         setLoading(false);
       })
