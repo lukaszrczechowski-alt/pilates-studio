@@ -196,10 +196,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       }
 
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/update-studio", {
+      const res = await fetch("/api/superadmin", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
+          action: "update_own_studio",
+          payload: {
           name: studioSettings.name,
           branding: {
             nav_name: studioSettings.nav_name,
@@ -222,6 +224,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             ...(studio?.features || {}),
             tokens_enabled: studioSettings.tokens_enabled,
             multi_staff: studioSettings.multi_staff,
+          },
           },
         }),
       });
