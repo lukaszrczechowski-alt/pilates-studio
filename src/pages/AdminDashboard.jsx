@@ -2754,7 +2754,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <span className="settings-section-chevron" style={{ transform: settingsOpen.appearance ? "rotate(180deg)" : "none" }}>▾</span>
               </div>
               {settingsOpen.appearance && <div className="settings-section-body">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.75rem", marginBottom: "1rem" }}>
                   {[
                     { key: "color_sage", label: t("Kolor główny","Primary color"), desc: t("przyciski, akcenty","buttons, accents") },
                     { key: "color_clay", label: t("Kolor drugorzędny","Secondary color"), desc: t("tagi, oznaczenia","tags, labels") },
@@ -2762,13 +2762,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                     { key: "color_charcoal", label: t("Tekst główny","Main text"), desc: t("nagłówki, treść","headings, body") },
                     { key: "color_mid", label: t("Tekst pomocniczy","Secondary text"), desc: t("etykiety, opisy","labels, descriptions") },
                   ].map(({ key, label, desc }) => (
-                    <div key={key} className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <div key={key} style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                      <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#3a3a3a", lineHeight: 1.2 }}>{label}</div>
+                      <div style={{ fontSize: "0.72rem", color: "var(--mid)", lineHeight: 1.2, marginBottom: "0.2rem" }}>{desc}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                         <input type="color" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
-                          style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: ro ? "default" : "pointer", padding: 2, opacity: ro ? 0.6 : 1 }} />
+                          style={{ width: 36, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: ro ? "default" : "pointer", padding: 2, flexShrink: 0, opacity: ro ? 0.6 : 1 }} />
                         <input className="form-input" disabled={ro} value={studioSettings[key]} onChange={e => setStudioSettings(s => ({ ...s, [key]: e.target.value }))}
-                          style={{ fontFamily: "monospace", fontSize: "0.85rem" }} placeholder="#8A9E85" />
+                          style={{ fontFamily: "monospace", fontSize: "0.78rem", minWidth: 0 }} placeholder="#8A9E85" />
                       </div>
                     </div>
                   ))}
