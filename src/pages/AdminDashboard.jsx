@@ -11,6 +11,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const isDemo = studio?.features?.is_demo === true;
   const multiStaff = studio?.features?.multi_staff === true;
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
+  const serviceMode = studio?.features?.service_mode || "classes";
+  const classLabel = serviceMode === "services" ? "Usługi" : "Zajęcia";
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -84,6 +86,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [studioSettings, setStudioSettings] = useState(null);
   const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
   const [studioLogoFile, setStudioLogoFile] = useState(null);
+  const [statsOpen, setStatsOpen] = useState(false);
 
 
   useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
@@ -109,6 +112,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       color_cream: b.colors?.cream || "#F7F3EE",
       tokens_enabled: f.tokens_enabled !== false,
       multi_staff: f.multi_staff === true,
+      service_mode: f.service_mode || "classes",
     });
   }, [studio]);
 
@@ -267,6 +271,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             ...(studio?.features || {}),
             tokens_enabled: studioSettings.tokens_enabled,
             multi_staff: studioSettings.multi_staff,
+            service_mode: studioSettings.service_mode,
           },
           },
         }),
@@ -933,24 +938,35 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             : <h1>{studioName}</h1>}
         </div>
         <nav className="sidebar-nav">
-          <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><span className="nav-icon">🗓</span> Zajęcia</div>
+          <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><span className="nav-icon">🗓</span> {classLabel}</div>
           <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="nav-icon">📅</span> Kalendarz</div>
           <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => switchTab("settle")}>
             <span className="nav-icon">💰</span> Do rozliczenia
             {toSettle.length > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{toSettle.length}</span>}
           </div>
-          <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="nav-icon">📈</span> Raporty</div>
           <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { switchTab("notifications"); markAllRead(); }}>
             <span className="nav-icon">🔔</span> Powiadomienia
             {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{unreadCount}</span>}
           </div>
-          <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")}><span className="nav-icon">📊</span> Statystyki</div>
-          <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")}><span className="nav-icon">📋</span> Historia</div>
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
           {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> Pracownicy</div>}
-          {multiStaff && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> Usługi</div>}
+          {multiStaff && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> Cennik usług</div>}
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
-          <div className={`nav-item ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")}><span className="nav-icon">⚙️</span> Moje studio</div>
+
+          {/* Sekcja Statystyki — rozwijana */}
+          <div
+            onClick={() => setStatsOpen(o => !o)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 1rem 0.5rem 1.1rem", cursor: "pointer", color: ["reports","stats","history"].includes(tab) ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", userSelect: "none", marginTop: "0.25rem" }}>
+            <span>📊 Statystyki</span>
+            <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+          </div>
+          {(statsOpen || ["reports","stats","history"].includes(tab)) && <>
+            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "1.75rem" }}><span className="nav-icon">📈</span> Raporty</div>
+            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "1.75rem" }}><span className="nav-icon">📊</span> Dane</div>
+            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "1.75rem" }}><span className="nav-icon">📋</span> Historia</div>
+          </>}
+
+          <div className={`nav-item ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")} style={{ marginTop: "0.25rem" }}><span className="nav-icon">⚙️</span> Moje studio</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -2180,6 +2196,22 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             <div className="card" style={{ marginBottom: "1rem" }}>
               <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Branża i funkcje</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {/* Zajęcia vs Usługi */}
+                <div style={{ marginBottom: "0.25rem" }}>
+                  <div style={{ fontWeight: 500, marginBottom: "0.4rem" }}>Typ działalności</div>
+                  <div style={{ display: "flex", gap: "1rem" }}>
+                    {[["classes", "Zajęcia", "Pilates, joga, siłownia — grupowe i indywidualne"], ["services", "Usługi", "Fryzjer, gabinet, warsztat — wizyty z cennikiem"]].map(([val, label, desc]) => (
+                      <label key={val} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", flex: 1, background: studioSettings.service_mode === val ? "var(--cream)" : "transparent", border: `1px solid ${studioSettings.service_mode === val ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.6rem 0.75rem" }}>
+                        <input type="radio" name="service_mode" value={val} checked={studioSettings.service_mode === val} onChange={() => setStudioSettings(s => ({ ...s, service_mode: val }))} style={{ marginTop: "0.2rem", accentColor: "var(--sage)" }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{label}</div>
+                          <div style={{ fontSize: "0.78rem", color: "var(--mid)" }}>{desc}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
                   <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
                   <div>

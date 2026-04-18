@@ -10,6 +10,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   const studioLetter = studioName[0] || "S";
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
   const multiStaff = studio?.features?.multi_staff === true;
+  const classLabel = studio?.features?.service_mode === "services" ? "Usługi" : "Zajęcia";
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
@@ -684,7 +685,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             : <h1>{studioName}</h1>}
         </div>
         <nav className="sidebar-nav">
-          <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>
+          <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> {classLabel}</div>
           <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> Moje rezerwacje</div>
           <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ justifyContent: "space-between" }}>
             <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}><span className="nav-icon">🔔</span> Powiadomienia</span>
@@ -1196,7 +1197,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
       )}
 
       <nav className="mobile-nav">
-        <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>Zajęcia</span></div>
+        <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>{classLabel}</span></div>
         <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>Rezerwacje</span></div>
         <div className={`mobile-nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ position: "relative" }}>
           <span className="mobile-nav-icon">🔔</span>
