@@ -356,9 +356,26 @@ h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
   cursor: pointer; user-select: none; margin-bottom: 0;
 }
 .settings-section-header:hover { opacity: 0.85; }
-.settings-section-header h3 { margin: 0; font-size: 0.82rem; color: var(--mid); text-transform: uppercase; letter-spacing: 0.06em; }
+.settings-section-header h3 { margin: 0; font-size: 0.82rem; color: #4a4a4a; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
 .settings-section-chevron { font-size: 0.75rem; color: var(--light); transition: transform 0.2s; line-height: 1; }
 .settings-section-body { margin-top: 1.25rem; }
+
+/* Admin main content — lighter, consistent font */
+.main-content { font-size: 0.88rem; font-weight: 400; color: var(--charcoal); }
+.main-content .card h3 { color: #3a3a3a; font-weight: 500; }
+.main-content .form-label { color: #3a3a3a; font-weight: 500; font-size: 0.82rem; }
+.main-content p, .main-content .stat-label { color: #525252; }
+
+/* Sidebar footer buttons */
+.sidebar-footer-btn {
+  display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+  flex: 1; background: none; border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.4rem 0.5rem; cursor: pointer; color: var(--mid);
+  font-size: 0.78rem; font-weight: 400; font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+.sidebar-footer-btn:hover { color: var(--charcoal); border-color: var(--sage-light); }
+.sidebar-footer-btn.active { background: var(--cream); border-color: var(--sage); color: var(--sage-dark); font-weight: 500; }
 
 .sidebar-footer { padding: 1.5rem 2rem; border-top: 1px solid var(--border); }
 .user-info { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }

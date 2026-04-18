@@ -20,6 +20,14 @@ function NavIcon({ name }) {
     reports:      <svg {...s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
     history:      <svg {...s}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/><polyline points="12 7 12 12 15 14"/></svg>,
     account:      <svg {...s}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    sun:          <svg {...s}><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+    moon:         <svg {...s}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+    globe:        <svg {...s}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+    gear:         <svg {...s}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+    lock:         <svg {...s}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+    tag:          <svg {...s}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+    gift:         <svg {...s}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>,
+    repeat:       <svg {...s}><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
   };
   return <span className="nav-icon">{icons[name] || null}</span>;
 }
@@ -112,7 +120,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [staffForm, setStaffForm] = useState({ name: "", color: "#8A9E85" });
   const [editingStaff, setEditingStaff] = useState(null);
   const [services, setServices] = useState([]);
-  const [serviceForm, setServiceForm] = useState({ name: "", duration_min: 60, price_pln: "" });
+  const [serviceForm, setServiceForm] = useState({ name: "", duration_min: 60, price_pln: "", buffer_min: 0 });
   const [editingService, setEditingService] = useState(null);
   const [staffCalDay, setStaffCalDay] = useState(new Date());
   const [studioSettings, setStudioSettings] = useState(null);
@@ -121,6 +129,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [statsOpen, setStatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState({});
   const toggleSection = key => setSettingsOpen(o => ({ ...o, [key]: !o[key] }));
+  const [editingVisitNote, setEditingVisitNote] = useState(null);
+  const [visitNoteText, setVisitNoteText] = useState("");
+  const [serviceSteps, setServiceSteps] = useState([]);
+  const [vouchers, setVouchers] = useState([]);
+  const [voucherForm, setVoucherForm] = useState({ code: "", type: "credit", value: "", max_uses: 1, expires_at: "" });
+  const [editingVoucher, setEditingVoucher] = useState(null);
+  const vouchersEnabled = studio?.features?.vouchers_enabled !== false;
+  const subscriptionsEnabled = studio?.features?.subscriptions_enabled === true;
   const [paymentCfg, setPaymentCfg] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ p24: { merchant_id: "", pos_id: "", api_key: "", crc_key: "", sandbox: true }, stripe: { publishable_key: "", secret_key: "" } });
   const [paymentSaving, setPaymentSaving] = useState(false);
@@ -154,6 +170,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       color_sage: b.colors?.sage || "#8A9E85",
       color_clay: b.colors?.clay || "#C4917A",
       color_cream: b.colors?.cream || "#F7F3EE",
+      color_charcoal: b.colors?.charcoal || "#2C2C2C",
+      color_mid: b.colors?.mid || "#6B6B6B",
       tokens_enabled: f.tokens_enabled !== false,
       multi_staff: f.multi_staff === true,
       service_mode: f.service_mode || "classes",
@@ -174,8 +192,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       .select("*, bookings(*, profiles(first_name, last_name, email, phone)), waitlist(*), staff(id, name, color)")
       .eq("studio_id", studioId).order("starts_at", { ascending: true });
     const { data: bookingData } = await supabase.from("bookings")
-      .select("id, class_id, user_id, created_at, payment_method, profiles(first_name, last_name, email, phone), classes(id, name, starts_at, price_pln, venue_cost_pln, duration_min, max_spots)")
+      .select("id, class_id, user_id, created_at, payment_method, service_notes, profiles(first_name, last_name, email, phone), classes(id, name, starts_at, price_pln, venue_cost_pln, duration_min, max_spots)")
       .eq("studio_id", studioId).order("created_at", { ascending: false });
+    const { data: vouchersData } = await supabase.from("vouchers").select("*").eq("studio_id", studioId).order("created_at", { ascending: false });
+    setVouchers(vouchersData || []);
     const { data: profileData } = await supabase.from("profiles").select("*")
       .eq("role", "client").eq("studio_id", studioId).order("created_at", { ascending: false });
     const { data: notifData } = await supabase.from("notifications").select("*")
@@ -236,17 +256,68 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
   async function handleSaveService() {
     if (!serviceForm.name.trim()) return;
-    const payload = { name: serviceForm.name, duration_min: +serviceForm.duration_min, price_pln: +serviceForm.price_pln || 0, studio_id: studioId };
+    const steps = serviceSteps.filter(s => s.name.trim());
+    const totalDuration = steps.length > 0 ? steps.reduce((a, s) => a + (+s.duration_min || 0), 0) : +serviceForm.duration_min;
+    const totalPrice = steps.length > 0 ? steps.reduce((a, s) => a + (+s.price_pln || 0), 0) : +serviceForm.price_pln || 0;
+    const payload = {
+      name: serviceForm.name,
+      duration_min: totalDuration,
+      price_pln: totalPrice,
+      buffer_min: +serviceForm.buffer_min || 0,
+      steps: steps.length > 0 ? steps : null,
+      studio_id: studioId,
+    };
     if (editingService) {
       await supabase.from("services").update(payload).eq("id", editingService.id);
       setEditingService(null);
     } else {
       await supabase.from("services").insert(payload);
     }
-    setServiceForm({ name: "", duration_min: 60, price_pln: "" });
+    setServiceForm({ name: "", duration_min: 60, price_pln: "", buffer_min: 0 });
+    setServiceSteps([]);
     const { data } = await supabase.from("services").select("*").eq("studio_id", studioId).order("name");
     setServices(data || []);
     showMsg("Zapisano usługę. ✓");
+  }
+
+  async function saveVisitNote(bookingId, userId) {
+    await supabase.from("bookings").update({ service_notes: visitNoteText }).eq("id", bookingId);
+    setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, service_notes: visitNoteText } : b));
+    setEditingVisitNote(null);
+    setVisitNoteText("");
+  }
+
+  async function handleSaveVoucher() {
+    if (!voucherForm.code.trim() || !voucherForm.value) return;
+    const payload = {
+      studio_id: studioId,
+      code: voucherForm.code.trim().toUpperCase(),
+      type: voucherForm.type,
+      value: +voucherForm.value,
+      max_uses: +voucherForm.max_uses || 1,
+      expires_at: voucherForm.expires_at || null,
+      active: true,
+    };
+    if (editingVoucher) {
+      await supabase.from("vouchers").update(payload).eq("id", editingVoucher.id);
+      setEditingVoucher(null);
+    } else {
+      await supabase.from("vouchers").insert(payload);
+    }
+    setVoucherForm({ code: "", type: "credit", value: "", max_uses: 1, expires_at: "" });
+    const { data } = await supabase.from("vouchers").select("*").eq("studio_id", studioId).order("created_at", { ascending: false });
+    setVouchers(data || []);
+    showMsg("Zapisano voucher. ✓");
+  }
+
+  async function handleDeleteVoucher(id) {
+    await supabase.from("vouchers").delete().eq("id", id);
+    setVouchers(prev => prev.filter(v => v.id !== id));
+  }
+
+  async function handleToggleVoucher(v) {
+    await supabase.from("vouchers").update({ active: !v.active }).eq("id", v.id);
+    setVouchers(prev => prev.map(x => x.id === v.id ? { ...x, active: !v.active } : x));
   }
 
   async function handleDeleteService(id) {
@@ -344,6 +415,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               sage: studioSettings.color_sage,
               clay: studioSettings.color_clay,
               cream: studioSettings.color_cream,
+              charcoal: studioSettings.color_charcoal,
+              mid: studioSettings.color_mid,
             },
           },
           features: {
@@ -365,6 +438,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       root.style.setProperty("--sage", studioSettings.color_sage);
       root.style.setProperty("--clay", studioSettings.color_clay);
       root.style.setProperty("--cream", studioSettings.color_cream);
+      root.style.setProperty("--charcoal", studioSettings.color_charcoal);
+      root.style.setProperty("--mid", studioSettings.color_mid);
       if (studioSettings.name) document.title = studioSettings.name;
 
       showMsg("Ustawienia studia zapisane. ✓");
@@ -1075,6 +1150,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           {hasServices && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><NavIcon name="services" /> {t("Cennik usług", "Services")}</div>}
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><NavIcon name="participants" /> {t("Uczestnicy", "Participants")}</div>}
 
+          {vouchersEnabled && <div className={`nav-item ${tab === "vouchers" ? "active" : ""}`} onClick={() => switchTab("vouchers")}><NavIcon name="gift" /> {t("Vouchery", "Vouchers")}</div>}
+          {subscriptionsEnabled && <div className={`nav-item ${tab === "subscriptions" ? "active" : ""}`} onClick={() => switchTab("subscriptions")}><NavIcon name="repeat" /> {t("Subskrypcje", "Subscriptions")}</div>}
+
           {/* Sekcja Statystyki — rozwijana */}
           {reportsEnabled && <div
             className={["reports","stats","history"].includes(tab) ? "nav-item active" : "nav-item"}
@@ -1096,20 +1174,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             <div className="user-avatar">{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
             <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">{t("Administrator", "Administrator")}</div></div>
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-            <button onClick={() => setDarkMode(!darkMode)}
-              style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-              {darkMode ? "☀️" : "🌙"} {darkMode ? t("Jasny", "Light") : t("Ciemny", "Dark")}
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem" }}>
+            <button className="sidebar-footer-btn" onClick={() => setDarkMode(!darkMode)}>
+              <NavIcon name={darkMode ? "sun" : "moon"} /> {darkMode ? t("Jasny", "Light") : t("Ciemny", "Dark")}
             </button>
             {isMultilingual && (
-              <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
-                style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-                {lang === "pl" ? "🇬🇧 EN" : "🇵🇱 PL"}
+              <button className="sidebar-footer-btn" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+                <NavIcon name="globe" /> {lang === "pl" ? "EN" : "PL"}
               </button>
             )}
-            <button onClick={() => switchTab("studio_settings")}
-              style={{ flex: 1, background: tab === "studio_settings" ? "var(--cream)" : "none", border: `1px solid ${tab === "studio_settings" ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: tab === "studio_settings" ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.8rem", fontWeight: tab === "studio_settings" ? 600 : 500, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-              ⚙️ {t("Ustawienia", "Settings")}
+            <button className={`sidebar-footer-btn ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")}>
+              <NavIcon name="gear" /> {t("Ustawienia", "Settings")}
             </button>
           </div>
           <button className="btn-logout" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
@@ -2139,7 +2214,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             );
                           })()}
 
-                          {/* Notatki admina */}
+                          {/* Notatki admina (o kliencie) */}
                           <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--border)" }}>
                             {editingNotes === c.id ? (
                               <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
@@ -2162,7 +2237,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                 <div style={{ flex: 1 }}>
                                   {c.admin_notes
                                     ? <p style={{ fontSize: "0.85rem", color: "var(--charcoal)", fontStyle: "italic" }}>📝 {c.admin_notes}</p>
-                                    : <p style={{ fontSize: "0.8rem", color: "var(--light)" }}>{t("Brak notatek","No notes")}</p>}
+                                    : <p style={{ fontSize: "0.8rem", color: "var(--light)" }}>{t("Brak notatek o kliencie","No client notes")}</p>}
                                 </div>
                                 <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}
                                   onClick={() => { setEditingNotes(c.id); setNotesText(c.admin_notes || ""); }}>
@@ -2171,6 +2246,53 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                               </div>
                             )}
                           </div>
+
+                          {/* Karta klienta — historia wizyt z notatkami per wizyta */}
+                          {hasServices && (() => {
+                            const cBookings = allBookings.filter(b => b.user_id === c.id);
+                            const pastVisits = cBookings.filter(b => new Date(b.classes?.starts_at) < new Date()).sort((a, b) => new Date(b.classes?.starts_at) - new Date(a.classes?.starts_at)).slice(0, 10);
+                            if (pastVisits.length === 0) return null;
+                            return (
+                              <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--border)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                                  <span style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{t("Karta klienta","Client card")}</span>
+                                  <button className="btn btn-secondary btn-sm" onClick={() => setExpandedClientId(expandedClientId === c.id ? null : c.id)}>
+                                    {expandedClientId === c.id ? t("Zwiń","Collapse") : t("Rozwiń historię wizyt","Show visit history")}
+                                  </button>
+                                </div>
+                                {expandedClientId === c.id && (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                                    {pastVisits.map(b => (
+                                      <div key={b.id} style={{ background: "var(--cream)", borderRadius: 8, padding: "0.6rem 0.75rem" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
+                                          <div>
+                                            <div style={{ fontWeight: 500, fontSize: "0.85rem" }}>{b.classes?.name}</div>
+                                            <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>{b.classes?.starts_at ? new Date(b.classes.starts_at).toLocaleDateString("pl-PL", { day: "2-digit", month: "short", year: "numeric" }) : ""}</div>
+                                          </div>
+                                          <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }} onClick={() => { setEditingVisitNote(b.id); setVisitNoteText(b.service_notes || ""); }}>
+                                            {b.service_notes ? t("Edytuj notatkę","Edit note") : t("Dodaj notatkę","Add note")}
+                                          </button>
+                                        </div>
+                                        {editingVisitNote === b.id ? (
+                                          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem" }}>
+                                            <textarea className="form-input" value={visitNoteText} onChange={e => setVisitNoteText(e.target.value)}
+                                              placeholder={t("np. Wella 7/0 + 20vol, 35 min. Alergia na lateks.","e.g. Wella 7/0 + 20vol, 35 min. Latex allergy.")}
+                                              rows={2} style={{ flex: 1, resize: "vertical", fontSize: "0.82rem" }} autoFocus />
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                                              <button className="btn btn-primary btn-sm" onClick={() => saveVisitNote(b.id, c.id)}>{t("Zapisz","Save")}</button>
+                                              <button className="btn btn-secondary btn-sm" onClick={() => setEditingVisitNote(null)}>{t("Anuluj","Cancel")}</button>
+                                            </div>
+                                          </div>
+                                        ) : b.service_notes ? (
+                                          <div style={{ marginTop: "0.35rem", fontSize: "0.82rem", color: "var(--charcoal)", fontStyle: "italic" }}>📝 {b.service_notes}</div>
+                                        ) : null}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -2293,55 +2415,177 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             <div className="page-header"><h2>{t("Usługi i cennik","Services & pricing")}</h2></div>
             <div className="card" style={{ marginBottom: "1.5rem" }}>
               <h3 style={{ marginBottom: "1rem", fontSize: "1rem" }}>{editingService ? t("Edytuj usługę","Edit service") : t("Dodaj usługę","Add service")}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "0.75rem", alignItems: "flex-end" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "0.75rem", alignItems: "flex-end", marginBottom: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Nazwa usługi","Service name")}</label>
                   <input className="form-input" placeholder={t("np. Strzyżenie damskie","e.g. Women's haircut")} value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t("Czas (min)","Duration (min)")}</label>
-                  <input className="form-input" type="number" min="15" max="480" step="15" value={serviceForm.duration_min} onChange={e => setServiceForm({ ...serviceForm, duration_min: e.target.value })} />
+                  <label className="form-label">{t("Czas (min)","Duration (min)")} {serviceSteps.length > 0 && <span style={{ color: "var(--sage)", fontSize: "0.72rem" }}>auto</span>}</label>
+                  <input className="form-input" type="number" min="5" max="480" step="5" disabled={serviceSteps.length > 0} value={serviceSteps.length > 0 ? serviceSteps.reduce((a,s) => a + (+s.duration_min||0), 0) : serviceForm.duration_min} onChange={e => setServiceForm({ ...serviceForm, duration_min: e.target.value })} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t("Cena (zł)","Price (PLN)")}</label>
-                  <input className="form-input" type="number" min="0" placeholder={t("np. 120","e.g. 120")} value={serviceForm.price_pln} onChange={e => setServiceForm({ ...serviceForm, price_pln: e.target.value })} />
+                  <label className="form-label">{t("Cena (zł)","Price (PLN)")} {serviceSteps.length > 0 && <span style={{ color: "var(--sage)", fontSize: "0.72rem" }}>auto</span>}</label>
+                  <input className="form-input" type="number" min="0" disabled={serviceSteps.length > 0} value={serviceSteps.length > 0 ? serviceSteps.reduce((a,s) => a + (+s.price_pln||0), 0) : serviceForm.price_pln} onChange={e => setServiceForm({ ...serviceForm, price_pln: e.target.value })} placeholder="0" />
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="btn btn-primary" onClick={handleSaveService} disabled={!serviceForm.name.trim()}>{editingService ? t("Zapisz","Save") : t("Dodaj","Add")}</button>
-                  {editingService && <button className="btn btn-secondary" onClick={() => { setEditingService(null); setServiceForm({ name: "", duration_min: 60, price_pln: "" }); }}>{t("Anuluj","Cancel")}</button>}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{t("Bufor (min)","Buffer (min)")} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>{t("przerwa po","after")}</span></label>
+                  <input className="form-input" type="number" min="0" max="60" step="5" value={serviceForm.buffer_min} onChange={e => setServiceForm({ ...serviceForm, buffer_min: e.target.value })} />
                 </div>
+              </div>
+
+              {/* Etapy (cennik złożony) */}
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem", marginBottom: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--mid)" }}>{t("Etapy usługi","Service steps")} <span style={{ fontWeight: 400 }}>({t("opcjonalne — dla usług wieloetapowych","optional — for multi-step services")})</span></span>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setServiceSteps(prev => [...prev, { name: "", duration_min: 30, price_pln: "" }])}>+ {t("Dodaj etap","Add step")}</button>
+                </div>
+                {serviceSteps.map((step, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "0.5rem", marginBottom: "0.4rem", alignItems: "center" }}>
+                    <input className="form-input" placeholder={t("np. Koloryzacja","e.g. Coloring")} value={step.name} onChange={e => setServiceSteps(prev => prev.map((s, j) => j === i ? { ...s, name: e.target.value } : s))} style={{ fontSize: "0.85rem" }} />
+                    <input className="form-input" type="number" placeholder="min" min="5" value={step.duration_min} onChange={e => setServiceSteps(prev => prev.map((s, j) => j === i ? { ...s, duration_min: e.target.value } : s))} style={{ fontSize: "0.85rem" }} />
+                    <input className="form-input" type="number" placeholder="zł" min="0" value={step.price_pln} onChange={e => setServiceSteps(prev => prev.map((s, j) => j === i ? { ...s, price_pln: e.target.value } : s))} style={{ fontSize: "0.85rem" }} />
+                    <button className="btn btn-secondary btn-sm" onClick={() => setServiceSteps(prev => prev.filter((_, j) => j !== i))} style={{ padding: "0.3rem 0.5rem" }}>×</button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn btn-primary" onClick={handleSaveService} disabled={!serviceForm.name.trim()}>{editingService ? t("Zapisz","Save") : t("Dodaj","Add")}</button>
+                {editingService && <button className="btn btn-secondary" onClick={() => { setEditingService(null); setServiceForm({ name: "", duration_min: 60, price_pln: "", buffer_min: 0 }); setServiceSteps([]); }}>{t("Anuluj","Cancel")}</button>}
               </div>
             </div>
 
             {services.length === 0
               ? <div className="empty-state"><div className="empty-icon">🛠</div><p>{t("Brak usług. Dodaj pierwszą powyżej.","No services. Add the first one above.")}</p></div>
+              : <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {services.map(s => (
+                    <div key={s.id} className="card" style={{ padding: "1rem 1.25rem", opacity: s.active ? 1 : 0.6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: "0.95rem" }}>{s.name}</div>
+                          <div style={{ fontSize: "0.8rem", color: "var(--mid)", marginTop: "0.2rem" }}>
+                            {s.duration_min} min · {s.price_pln > 0 ? `${s.price_pln} zł` : t("bezpłatna","free")}
+                            {s.buffer_min > 0 && <span style={{ marginLeft: "0.5rem", color: "var(--light)" }}>+ {s.buffer_min} min {t("buforu","buffer")}</span>}
+                          </div>
+                          {s.steps && s.steps.length > 0 && (
+                            <div style={{ marginTop: "0.4rem", display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                              {s.steps.map((step, i) => (
+                                <span key={i} style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.15rem 0.5rem", borderRadius: 20 }}>
+                                  {step.name} {step.duration_min}min {step.price_pln > 0 ? `·${step.price_pln}zł` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+                          <span style={{ fontSize: "0.75rem", padding: "0.15rem 0.5rem", borderRadius: 4, background: s.active ? "#EBF5EA" : "#F0F0F0", color: s.active ? "var(--sage-dark)" : "var(--mid)" }}>
+                            {s.active ? t("Aktywna","Active") : t("Nieaktywna","Inactive")}
+                          </span>
+                          <button className="btn btn-secondary btn-sm" onClick={() => { setEditingService(s); setServiceForm({ name: s.name, duration_min: s.duration_min, price_pln: s.price_pln || "", buffer_min: s.buffer_min || 0 }); setServiceSteps(s.steps || []); }}>{t("Edytuj","Edit")}</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleToggleService(s)}>{s.active ? t("Dezaktywuj","Deactivate") : t("Aktywuj","Activate")}</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteService(s.id)}>{t("Usuń","Delete")}</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            }
+          </>
+        )}
+
+        {/* VOUCHERY */}
+        {tab === "vouchers" && vouchersEnabled && (
+          <>
+            <div className="page-header"><h2>{t("Vouchery","Vouchers")}</h2></div>
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem" }}>{editingVoucher ? t("Edytuj voucher","Edit voucher") : t("Nowy voucher","New voucher")}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: "0.75rem", alignItems: "flex-end", marginBottom: "0.75rem" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{t("Kod","Code")}</label>
+                  <input className="form-input" placeholder="np. LATO20" value={voucherForm.code} onChange={e => setVoucherForm({ ...voucherForm, code: e.target.value.toUpperCase() })} style={{ fontFamily: "monospace" }} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{t("Typ","Type")}</label>
+                  <select className="form-input" value={voucherForm.type} onChange={e => setVoucherForm({ ...voucherForm, type: e.target.value })}>
+                    <option value="credit">{t("Kwota (zł)","Fixed (PLN)")}</option>
+                    <option value="percent">{t("Procent (%)","Percent (%)")}</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{voucherForm.type === "percent" ? t("Zniżka (%)","Discount (%)") : t("Wartość (zł)","Value (PLN)")}</label>
+                  <input className="form-input" type="number" min="1" placeholder={voucherForm.type === "percent" ? "np. 20" : "np. 50"} value={voucherForm.value} onChange={e => setVoucherForm({ ...voucherForm, value: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{t("Maks. użyć","Max uses")}</label>
+                  <input className="form-input" type="number" min="1" value={voucherForm.max_uses} onChange={e => setVoucherForm({ ...voucherForm, max_uses: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">{t("Wygasa","Expires")}</label>
+                  <input className="form-input" type="date" value={voucherForm.expires_at} onChange={e => setVoucherForm({ ...voucherForm, expires_at: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn btn-primary" onClick={handleSaveVoucher} disabled={!voucherForm.code.trim() || !voucherForm.value}>{editingVoucher ? t("Zapisz","Save") : t("Utwórz voucher","Create voucher")}</button>
+                {editingVoucher && <button className="btn btn-secondary" onClick={() => { setEditingVoucher(null); setVoucherForm({ code: "", type: "credit", value: "", max_uses: 1, expires_at: "" }); }}>{t("Anuluj","Cancel")}</button>}
+                <button className="btn btn-secondary" onClick={() => setVoucherForm(f => ({ ...f, code: Math.random().toString(36).slice(2,8).toUpperCase() }))} style={{ marginLeft: "auto" }}>🎲 {t("Losuj kod","Random code")}</button>
+              </div>
+            </div>
+
+            {vouchers.length === 0
+              ? <div className="empty-state"><div className="empty-icon">🎁</div><p>{t("Brak voucherów. Utwórz pierwszy powyżej.","No vouchers. Create the first one above.")}</p></div>
               : <div className="table-wrapper">
                   <table>
-                    <thead><tr><th>{t("Usługa","Service")}</th><th>{t("Czas","Duration")}</th><th>{t("Cena","Price")}</th><th>{t("Status","Status")}</th><th>{t("Akcje","Actions")}</th></tr></thead>
+                    <thead><tr><th>{t("Kod","Code")}</th><th>{t("Typ","Type")}</th><th>{t("Wartość","Value")}</th><th>{t("Użycia","Uses")}</th><th>{t("Wygasa","Expires")}</th><th>{t("Status","Status")}</th><th>{t("Akcje","Actions")}</th></tr></thead>
                     <tbody>
-                      {services.map(s => (
-                        <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
-                          <td style={{ fontWeight: 500 }}>{s.name}</td>
-                          <td>{s.duration_min} min</td>
-                          <td>{s.price_pln > 0 ? `${s.price_pln} zł` : "—"}</td>
-                          <td>
-                            <span style={{ fontSize: "0.78rem", padding: "0.15rem 0.5rem", borderRadius: 4, background: s.active ? "#EBF5EA" : "#F0F0F0", color: s.active ? "var(--sage-dark)" : "var(--mid)" }}>
-                              {s.active ? t("Aktywna","Active") : t("Nieaktywna","Inactive")}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingService(s); setServiceForm({ name: s.name, duration_min: s.duration_min, price_pln: s.price_pln || "" }); }}>{t("Edytuj","Edit")}</button>
-                              <button className="btn btn-secondary btn-sm" onClick={() => handleToggleService(s)}>{s.active ? t("Dezaktywuj","Deactivate") : t("Aktywuj","Activate")}</button>
-                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteService(s.id)}>{t("Usuń","Delete")}</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {vouchers.map(v => {
+                        const expired = v.expires_at && new Date(v.expires_at) < new Date();
+                        const exhausted = v.uses_count >= v.max_uses;
+                        return (
+                          <tr key={v.id} style={{ opacity: !v.active || expired || exhausted ? 0.6 : 1 }}>
+                            <td><code style={{ fontFamily: "monospace", fontWeight: 600, fontSize: "0.9rem", background: "var(--cream)", padding: "0.15rem 0.4rem", borderRadius: 4 }}>{v.code}</code></td>
+                            <td style={{ fontSize: "0.85rem" }}>{v.type === "percent" ? `${v.value}%` : `${v.value} zł`}</td>
+                            <td style={{ fontSize: "0.85rem" }}>{v.type === "percent" ? t("rabat procentowy","percent off") : t("doładowanie","credit")}</td>
+                            <td style={{ fontSize: "0.85rem" }}>{v.uses_count} / {v.max_uses}</td>
+                            <td style={{ fontSize: "0.85rem" }}>{v.expires_at ? new Date(v.expires_at).toLocaleDateString("pl-PL") : "—"}</td>
+                            <td>
+                              <span style={{ fontSize: "0.75rem", padding: "0.15rem 0.5rem", borderRadius: 4, background: !v.active || expired || exhausted ? "#F0F0F0" : "#EBF5EA", color: !v.active || expired || exhausted ? "var(--mid)" : "var(--sage-dark)" }}>
+                                {exhausted ? t("Wyczerpany","Exhausted") : expired ? t("Wygasły","Expired") : v.active ? t("Aktywny","Active") : t("Nieaktywny","Inactive")}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", gap: "0.4rem" }}>
+                                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingVoucher(v); setVoucherForm({ code: v.code, type: v.type, value: v.value, max_uses: v.max_uses, expires_at: v.expires_at || "" }); }}>{t("Edytuj","Edit")}</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => handleToggleVoucher(v)}>{v.active ? t("Dezaktywuj","Deactivate") : t("Aktywuj","Activate")}</button>
+                                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteVoucher(v.id)}>{t("Usuń","Delete")}</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
             }
+          </>
+        )}
+
+        {/* SUBSKRYPCJE */}
+        {tab === "subscriptions" && subscriptionsEnabled && (
+          <>
+            <div className="page-header"><h2>{t("Subskrypcje","Subscriptions")}</h2></div>
+            <div className="card" style={{ maxWidth: 560 }}>
+              <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "1rem" }}>
+                <NavIcon name="repeat" />
+                <h3 style={{ margin: 0 }}>{t("Plany abonamentowe","Subscription plans")}</h3>
+              </div>
+              <p style={{ fontSize: "0.85rem", color: "var(--mid)", marginBottom: "1.25rem" }}>
+                {t("Klienci płacą stałą miesięczną opłatę zamiast jednorazowych płatności za wizyty. Wymaga integracji ze Stripe Subscriptions.","Clients pay a fixed monthly fee instead of per-visit payments. Requires Stripe Subscriptions integration.")}
+              </p>
+              <div style={{ background: "var(--cream)", border: "1px dashed var(--border)", borderRadius: 8, padding: "1.5rem", textAlign: "center", color: "var(--mid)", fontSize: "0.85rem" }}>
+                {t("Funkcja w przygotowaniu — dostępna po konfiguracji Stripe Subscriptions.","Feature in preparation — available after Stripe Subscriptions setup.")}
+              </div>
+            </div>
           </>
         )}
 
@@ -2438,11 +2682,13 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <span className="settings-section-chevron" style={{ transform: settingsOpen.appearance ? "rotate(180deg)" : "none" }}>▾</span>
               </div>
               {settingsOpen.appearance && <div className="settings-section-body">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
                   {[
                     { key: "color_sage", label: t("Kolor główny","Primary color"), desc: t("przyciski, akcenty","buttons, accents") },
                     { key: "color_clay", label: t("Kolor drugorzędny","Secondary color"), desc: t("tagi, oznaczenia","tags, labels") },
                     { key: "color_cream", label: t("Tło","Background"), desc: t("główne tło aplikacji","main app background") },
+                    { key: "color_charcoal", label: t("Tekst główny","Main text"), desc: t("nagłówki, treść","headings, body") },
+                    { key: "color_mid", label: t("Tekst pomocniczy","Secondary text"), desc: t("etykiety, opisy","labels, descriptions") },
                   ].map(({ key, label, desc }) => (
                     <div key={key} className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
