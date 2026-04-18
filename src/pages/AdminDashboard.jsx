@@ -483,6 +483,21 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
   async function handleSave() {
     if (!form.name || !form.starts_at) return;
+
+    // Zapobiega duplikatom — ta sama godzina i ten sam pracownik
+    if (!editClass && form.staff_id) {
+      const newStart = new Date(form.starts_at).toISOString();
+      const duplicate = classes.find(c =>
+        !c.cancelled &&
+        c.staff_id === form.staff_id &&
+        new Date(c.starts_at).toISOString().slice(0, 16) === newStart.slice(0, 16)
+      );
+      if (duplicate) {
+        showMsg(`Ten pracownik ma już wizytę o ${formatTime(duplicate.starts_at)}.`, "error");
+        return;
+      }
+    }
+
     const basePayload = {
       name: form.name, starts_at: new Date(form.starts_at).toISOString(),
       duration_min: +form.duration_min, max_spots: +form.max_spots,
@@ -956,7 +971,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           {/* Sekcja Statystyki — rozwijana */}
           <div
             onClick={() => setStatsOpen(o => !o)}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 1rem 0.5rem 1.1rem", cursor: "pointer", color: ["reports","stats","history"].includes(tab) ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", userSelect: "none", marginTop: "0.25rem" }}>
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.8rem 2rem", cursor: "pointer", color: ["reports","stats","history"].includes(tab) ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.9rem", fontWeight: 600, userSelect: "none", marginTop: "0.25rem", borderLeft: "3px solid transparent" }}>
             <span>📊 Statystyki</span>
             <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
           </div>
@@ -987,13 +1002,13 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* ZAJĘCIA */}
         {tab === "classes" && (
           <>
-            <div className="page-header"><h2>Zarządzanie zajęciami</h2></div>
+            <div className="page-header"><h2>{serviceMode === "services" ? "Zarządzanie usługami" : "Zarządzanie zajęciami"}</h2></div>
             <div className="stats-row">
-              <div className="stat-card"><div className="stat-value">{stats.totalClasses}</div><div className="stat-label">Nadchodzące zajęcia</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.totalClasses}</div><div className="stat-label">{serviceMode === "services" ? "Nadchodzące wizyty" : "Nadchodzące zajęcia"}</div></div>
               <div className="stat-card"><div className="stat-value">{stats.totalBookings}</div><div className="stat-label">Aktywne rezerwacje</div></div>
               <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">Klientów łącznie</div></div>
             </div>
-            <div className="section-header"><h3>Nadchodzące zajęcia</h3><button className="btn btn-primary" onClick={openCreate}>+ Nowe zajęcia</button></div>
+            <div className="section-header"><h3>{serviceMode === "services" ? "Nadchodzące wizyty" : "Nadchodzące zajęcia"}</h3><button className="btn btn-primary" onClick={openCreate}>+ {serviceMode === "services" ? "Nowa wizyta" : "Nowe zajęcia"}</button></div>
             {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
               : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
               : (
@@ -2488,9 +2503,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             })()}
 
             <div className="modal-actions" style={{ justifyContent: "space-between" }}>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
-                {!editClass && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title="Zapisz jako szablon">📋 Zapisz jako szablon</button>}
+                {!editClass && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title="Zapisz jako szablon">📋 Szablon</button>}
+                {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); setShowCancelModal(editClass); }}>🚫 Odwołaj</button>}
+                {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); handleDelete(editClass.id); }}>🗑 Usuń</button>}
               </div>
               <button className="btn btn-primary" onClick={handleSave} disabled={!form.name || !form.starts_at}>{editClass ? "Zapisz" : "Utwórz"}</button>
             </div>

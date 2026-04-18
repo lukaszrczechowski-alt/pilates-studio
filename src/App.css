@@ -339,11 +339,11 @@ h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
 .nav-item {
   display: flex; align-items: center; gap: 0.75rem;
   padding: 0.8rem 2rem; cursor: pointer; color: var(--mid);
-  font-size: 0.9rem; font-weight: 400; transition: all 0.2s;
+  font-size: 0.9rem; font-weight: 600; transition: all 0.2s;
   border-left: 3px solid transparent;
 }
 .nav-item:hover { color: var(--charcoal); background: var(--cream); }
-.nav-item.active { color: var(--sage-dark); background: var(--cream); border-left-color: var(--sage); font-weight: 500; }
+.nav-item.active { color: var(--sage-dark); background: var(--cream); border-left-color: var(--sage); font-weight: 700; }
 .nav-icon { font-size: 1.1rem; width: 20px; text-align: center; }
 
 .sidebar-footer { padding: 1.5rem 2rem; border-top: 1px solid var(--border); }

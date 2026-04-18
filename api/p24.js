@@ -31,7 +31,7 @@ async function handleCreate(req, res) {
 
   const { data: cls, error: classError } = await supabase
     .from("classes")
-    .select("id, name, starts_at, price_pln, max_spots")
+    .select("id, name, starts_at, price_pln, max_spots, studio_id")
     .eq("id", classId)
     .maybeSingle();
 
@@ -54,7 +54,7 @@ async function handleCreate(req, res) {
 
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
-    .insert({ class_id: classId, user_id: user.id, payment_method: "online", payment_status: "pending", payment_session_id: sessionId })
+    .insert({ class_id: classId, user_id: user.id, payment_method: "online", payment_status: "pending", payment_session_id: sessionId, studio_id: cls.studio_id })
     .select().single();
 
   if (bookingError) return res.status(500).json({ error: bookingError.message });

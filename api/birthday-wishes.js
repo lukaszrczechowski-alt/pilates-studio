@@ -21,7 +21,7 @@ async function sendSmsApi(to, message) {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ to: normPhone(to), message, format: "json", encoding: "utf-8" }).toString(),
+    body: new URLSearchParams({ to: normPhone(to), message, format: "json", encoding: "utf-8", from: sig }).toString(),
   });
   return response.json();
 }
@@ -60,6 +60,7 @@ export default async function handler(req, res) {
     await supabase.from("notifications").insert({
       type: "birthday",
       user_id: p.id,
+      studio_id: p.studio_id,
       message: `Wszystkiego najlepszego, ${p.first_name}! Zycze Ci duzo zdrowia i energii do cwiczen! ${sig}`,
     });
 

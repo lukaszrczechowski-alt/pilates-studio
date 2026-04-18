@@ -38,12 +38,10 @@ export default function PublicBooking({ studioId }) {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg }),
+        body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg, studioId }),
       });
       const json = await res.json();
-      console.log("contact response:", res.status, json);
       if (!res.ok) { alert("Błąd: " + (json.error || res.status)); setContactSending(false); return; }
-      alert("DEBUG odpowiedź:\n" + JSON.stringify(json.debug, null, 2));
     } catch (err) {
       alert("Błąd połączenia: " + err.message);
       setContactSending(false);
