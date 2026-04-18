@@ -1,13 +1,16 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import { useStudio } from "./StudioContext";
 
-const LanguageContext = createContext("pl");
+const LanguageContext = createContext({ lang: "pl", setLang: () => {} });
 
 export function useLang() {
-  return useContext(LanguageContext);
+  return useContext(LanguageContext).lang;
 }
 
-// t(pl, en) — returns en when lang=en, pl otherwise
+export function useSetLang() {
+  return useContext(LanguageContext).setLang;
+}
+
 export function useT() {
   const lang = useLang();
   return (pl, en) => lang === "en" ? (en ?? pl) : pl;
@@ -16,11 +19,23 @@ export function useT() {
 export function LanguageProvider({ children }) {
   const { studio } = useStudio();
   const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
-  const browserLang = navigator.language?.startsWith("pl") ? "pl" : "en";
-  const lang = isMultilingual ? browserLang : "pl";
+
+  const getInitialLang = () => {
+    if (!isMultilingual) return "pl";
+    const saved = localStorage.getItem("lang");
+    if (saved === "pl" || saved === "en") return saved;
+    return navigator.language?.startsWith("pl") ? "pl" : "en";
+  };
+
+  const [lang, setLangState] = useState(getInitialLang);
+
+  const setLang = (l) => {
+    setLangState(l);
+    localStorage.setItem("lang", l);
+  };
 
   return (
-    <LanguageContext.Provider value={lang}>
+    <LanguageContext.Provider value={{ lang: isMultilingual ? lang : "pl", setLang }}>
       {children}
     </LanguageContext.Provider>
   );

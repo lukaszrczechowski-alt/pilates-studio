@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useStudio } from "../StudioContext";
-import { useT, useLang } from "../LanguageContext";
+import { useT, useLang, useSetLang } from "../LanguageContext";
 import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
@@ -9,7 +9,9 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   const { studio } = useStudio();
   const t = useT();
   const lang = useLang();
+  const setLang = useSetLang();
   const locale = lang === "en" ? "en-GB" : "pl-PL";
+  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
   const studioName = studio?.name || "Studio";
   const studioLetter = studioName[0] || "S";
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
@@ -706,10 +708,18 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">{t("Klient", "Client")}</div></div>
           </div>
           <button className="btn-logout" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
-          <button onClick={() => setDarkMode(!darkMode)}
-            style={{ marginTop: "0.5rem", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.75rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", width: "100%" }}>
-            {darkMode ? t("☀️ Tryb jasny", "☀️ Light mode") : t("🌙 Tryb ciemny", "🌙 Dark mode")}
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+            <button onClick={() => setDarkMode(!darkMode)}
+              style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem" }}>
+              {darkMode ? t("☀️ Jasny", "☀️ Light") : t("🌙 Ciemny", "🌙 Dark")}
+            </button>
+            {isMultilingual && (
+              <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
+                style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem" }}>
+                {lang === "pl" ? "🇬🇧 EN" : "🇵🇱 PL"}
+              </button>
+            )}
+          </div>
         </div>
       </aside>
 

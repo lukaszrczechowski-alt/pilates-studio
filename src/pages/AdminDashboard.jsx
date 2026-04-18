@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useStudio } from "../StudioContext";
-import { useT, useLang } from "../LanguageContext";
+import { useT, useLang, useSetLang } from "../LanguageContext";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
@@ -9,7 +9,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const { studio } = useStudio();
   const t = useT();
   const lang = useLang();
+  const setLang = useSetLang();
   const locale = lang === "en" ? "en-GB" : "pl-PL";
+  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
   const studioName = studio?.name || "Studio";
   const smsSig = studio?.branding?.sms_signature || studioName;
   const isDemo = studio?.features?.is_demo === true;
@@ -1002,6 +1004,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
               {darkMode ? "☀️" : "🌙"} {darkMode ? t("Jasny", "Light") : t("Ciemny", "Dark")}
             </button>
+            {isMultilingual && (
+              <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
+                style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
+                {lang === "pl" ? "🇬🇧 EN" : "🇵🇱 PL"}
+              </button>
+            )}
             <button onClick={() => switchTab("studio_settings")}
               style={{ flex: 1, background: tab === "studio_settings" ? "var(--cream)" : "none", border: `1px solid ${tab === "studio_settings" ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: tab === "studio_settings" ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.8rem", fontWeight: tab === "studio_settings" ? 600 : 500, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
               ⚙️ {t("Ustawienia", "Settings")}
