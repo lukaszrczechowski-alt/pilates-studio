@@ -970,18 +970,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
           {/* Sekcja Statystyki — rozwijana */}
           <div
+            className={["reports","stats","history"].includes(tab) ? "nav-item active" : "nav-item"}
             onClick={() => setStatsOpen(o => !o)}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.8rem 2rem", cursor: "pointer", color: ["reports","stats","history"].includes(tab) ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.9rem", fontWeight: 600, userSelect: "none", marginTop: "0.25rem", borderLeft: "3px solid transparent" }}>
-            <span>📊 Statystyki</span>
+            style={{ justifyContent: "space-between", marginTop: "0.25rem", userSelect: "none" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span className="nav-icon">📊</span> Statystyki
+            </span>
             <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
           </div>
           {(statsOpen || ["reports","stats","history"].includes(tab)) && <>
-            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "1.75rem" }}><span className="nav-icon">📈</span> Raporty</div>
-            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "1.75rem" }}><span className="nav-icon">📊</span> Dane</div>
-            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "1.75rem" }}><span className="nav-icon">📋</span> Historia</div>
+            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📈</span> Raporty</div>
+            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📊</span> Dane</div>
+            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📋</span> Historia</div>
           </>}
-
-          <div className={`nav-item ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")} style={{ marginTop: "0.25rem" }}><span className="nav-icon">⚙️</span> Moje studio</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -992,6 +993,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <button onClick={() => setDarkMode(!darkMode)}
             style={{ marginTop: "0.5rem", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.75rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", width: "100%" }}>
             {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+          </button>
+          <button
+            onClick={() => switchTab("studio_settings")}
+            style={{ marginTop: "0.5rem", background: tab === "studio_settings" ? "var(--cream)" : "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.75rem", cursor: "pointer", color: tab === "studio_settings" ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.8rem", width: "100%", fontWeight: tab === "studio_settings" ? 700 : 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            ⚙️ Ustawienia
           </button>
         </div>
       </aside>
