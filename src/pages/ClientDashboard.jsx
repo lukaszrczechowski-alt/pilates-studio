@@ -9,8 +9,10 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   const studioName = studio?.name || "Studio";
   const studioLetter = studioName[0] || "S";
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
-  const multiStaff = studio?.features?.multi_staff === true;
-  const classLabel = studio?.features?.service_mode === "services" ? "Usługi" : "Zajęcia";
+  const serviceMode = studio?.features?.service_mode || "classes";
+  const hasServices = serviceMode === "services";
+  const multiStaff = hasServices && studio?.features?.multi_staff === true;
+  const classLabel = hasServices ? "Wizyty" : "Zajęcia";
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
