@@ -102,6 +102,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
 
   useEffect(() => {
+    if (tab === "studio_settings" && !paymentCfg && !isDemo) loadPaymentConfig();
+  }, [tab, isDemo]);
+
+  useEffect(() => {
     if (!studio) return;
     const b = studio.branding || {};
     const f = studio.features || {};
