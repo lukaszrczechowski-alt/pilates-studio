@@ -129,7 +129,7 @@ export default function PublicBooking({ studioId }) {
 
       {/* HEADER */}
       <div style={{ background: sage, padding: "1.5rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <a href="/" style={{ display: "flex", alignItems: "center", gap: "0.75rem", textDecoration: "none" }}>
           {b.logo_url
             ? <img src={b.logo_url} alt={name} style={{ height: 44, maxWidth: 160, objectFit: "contain" }} />
             : <>
@@ -139,7 +139,7 @@ export default function PublicBooking({ studioId }) {
                   {b.nav_name && b.nav_name !== name && <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", letterSpacing: "0.15em", textTransform: "uppercase" }}>{b.nav_name}</div>}
                 </div>
               </>}
-        </div>
+        </a>
         <a href="/" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
           Zaloguj się →
         </a>
