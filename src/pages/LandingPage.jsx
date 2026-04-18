@@ -116,8 +116,12 @@ export default function LandingPage({ onLogin, onRegister }) {
       {/* FOOTER */}
       <footer className="landing-footer">
         <div className="landing-container landing-footer-inner">
-          <span className="landing-footer-logo">{b.nav_name || name}</span>
-          <span className="landing-footer-copy">© {new Date().getFullYear()}</span>
+          <span className="landing-footer-logo">
+            {b.logo_url
+              ? <img src={b.logo_url} alt={name} style={{ height: 36, maxWidth: 140, objectFit: "contain" }} />
+              : (b.nav_name || name)}
+          </span>
+          <span className="landing-footer-copy">© {new Date().getFullYear()} {name}. Wszelkie prawa zastrzeżone.</span>
         </div>
       </footer>
 
