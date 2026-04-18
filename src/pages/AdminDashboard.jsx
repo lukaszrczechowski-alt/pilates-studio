@@ -986,22 +986,21 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           </>}
         </nav>
         <div className="sidebar-footer">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <div className="user-info">
             <div className="user-avatar">{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="user-name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile?.first_name} {profile?.last_name}</div>
-              <div className="user-role">Administrator</div>
-            </div>
-            <button onClick={() => setDarkMode(!darkMode)} title={darkMode ? "Tryb jasny" : "Tryb ciemny"}
-              style={{ flexShrink: 0, width: 30, height: 30, border: "1px solid var(--border)", borderRadius: 7, background: "none", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--mid)" }}>
-              {darkMode ? "☀️" : "🌙"}
+            <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">Administrator</div></div>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+            <button onClick={() => setDarkMode(!darkMode)}
+              style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
+              {darkMode ? "☀️" : "🌙"} {darkMode ? "Jasny" : "Ciemny"}
             </button>
-            <button onClick={() => switchTab("studio_settings")} title="Ustawienia"
-              style={{ flexShrink: 0, width: 30, height: 30, border: `1px solid ${tab === "studio_settings" ? "var(--sage)" : "var(--border)"}`, borderRadius: 7, background: tab === "studio_settings" ? "var(--cream)" : "none", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              ⚙️
+            <button onClick={() => switchTab("studio_settings")}
+              style={{ flex: 1, background: tab === "studio_settings" ? "var(--cream)" : "none", border: `1px solid ${tab === "studio_settings" ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: tab === "studio_settings" ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.8rem", fontWeight: tab === "studio_settings" ? 600 : 500, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
+              ⚙️ Ustawienia
             </button>
           </div>
-          <button className="btn-logout" onClick={() => supabase.auth.signOut()} style={{ marginTop: "0.75rem" }}>Wyloguj się</button>
+          <button className="btn-logout" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
         </div>
       </aside>
 
