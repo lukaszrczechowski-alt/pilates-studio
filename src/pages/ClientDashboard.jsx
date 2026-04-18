@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useStudio } from "../StudioContext";
+import { useT, useLang } from "../LanguageContext";
 import { sendEmail, formatEmailDate, formatEmailTime } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
 export default function ClientDashboard({ session, profile, studioId, onProfileUpdate, darkMode, setDarkMode }) {
   const { studio } = useStudio();
+  const t = useT();
+  const lang = useLang();
+  const locale = lang === "en" ? "en-GB" : "pl-PL";
   const studioName = studio?.name || "Studio";
   const studioLetter = studioName[0] || "S";
   const tokensEnabled = studio?.features?.tokens_enabled !== false;
   const serviceMode = studio?.features?.service_mode || "classes";
   const hasServices = serviceMode === "services";
   const multiStaff = hasServices && studio?.features?.multi_staff === true;
-  const classLabel = hasServices ? "Wizyty" : "Zajęcia";
+  const classLabel = hasServices ? t("Wizyty", "Appointments") : t("Zajęcia", "Classes");
   const [tab, setTab] = useState("upcoming");
   const [viewMode, setViewMode] = useState(() => window.innerWidth <= 768 ? "list" : "calendar");
   const [classes, setClasses] = useState([]);
@@ -118,6 +122,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   }
 
   function monthName(m) {
+    if (lang === "en") return ["January","February","March","April","May","June","July","August","September","October","November","December"][m - 1];
     return ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"][m - 1];
   }
 
@@ -286,9 +291,9 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     await fetchData(); setActionLoading(null);
   }
 
-  function formatDate(iso) { return new Date(iso).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); }
-  function formatDateShort(iso) { return new Date(iso).toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" }); }
-  function formatTime(iso) { return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }); }
+  function formatDate(iso) { return new Date(iso).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }); }
+  function formatDateShort(iso) { return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }); }
+  function formatTime(iso) { return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }); }
 
   const upcomingMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) >= new Date() && !b.classes?.cancelled);
   const pastMyClasses = myBookings.filter(b => new Date(b.classes?.starts_at) < new Date())
@@ -305,7 +310,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     return d;
   });
 
-  const dayNames = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+  const dayNames = lang === "en" ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] : ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
   function getClassesForDay(date) {
     return classes.filter(cls => {
@@ -329,7 +334,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         onMouseEnter={e => e.currentTarget.style.opacity = "0.85"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
         <div style={{ fontSize: "0.78rem", fontWeight: 500, color }}>{formatTime(cls.starts_at)}</div>
         <div style={{ fontSize: "0.75rem", color: "var(--charcoal)", fontWeight: booked ? 500 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cls.name}</div>
-        <div style={{ fontSize: "0.7rem", color: "var(--light)", marginTop: 1 }}>{count}/{cls.max_spots} miejsc</div>
+        <div style={{ fontSize: "0.7rem", color: "var(--light)", marginTop: 1 }}>{count}/{cls.max_spots} {t("miejsc", "spots")}</div>
       </div>
     );
   }
@@ -347,7 +352,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 440 }}>
-          <div className="modal-header"><h3>Wybierz sposób płatności</h3><button className="modal-close" onClick={onClose}>×</button></div>
+          <div className="modal-header"><h3>{t("Wybierz sposób płatności", "Choose payment method")}</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>
             <strong>{cls.name}</strong><br/>{formatDate(cls.starts_at)}, {formatTime(cls.starts_at)}{cls.price_pln ? ` · ${cls.price_pln} zł` : ""}
           </p>
@@ -355,14 +360,14 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             <div onClick={() => setMethod("cash")} style={{ border: `2px solid ${method === "cash" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: "pointer", background: method === "cash" ? "#EBF5EA" : "var(--warm-white)", transition: "all 0.15s" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>💵</span>
-                <div><div style={{ fontWeight: 500 }}>Gotówka na miejscu</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Płacisz gotówką w dniu zajęć</div></div>
+                <div><div style={{ fontWeight: 500 }}>{t("Gotówka na miejscu", "Cash on site")}</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{t("Płacisz gotówką w dniu zajęć", "Pay cash on the day of class")}</div></div>
               </div>
             </div>
             {tokensEnabled && (
             <div onClick={() => classEntries > 0 && setMethod("entries")} style={{ border: `2px solid ${method === "entries" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: classEntries > 0 ? "pointer" : "not-allowed", background: method === "entries" ? "#EBF5EA" : classEntries === 0 ? "var(--cream)" : "var(--warm-white)", opacity: classEntries === 0 ? 0.6 : 1, transition: "all 0.15s" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>🎫</span>
-                <div><div style={{ fontWeight: 500 }}>Wejście z karnetu</div><div style={{ fontSize: "0.8rem", color: classEntries > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{classEntries > 0 ? `Masz ${classEntries} wejść na ${monthName(month)}` : `Brak wejść na ${monthName(month)}`}</div></div>
+                <div><div style={{ fontWeight: 500 }}>{t("Wejście z karnetu", "Use a credit")}</div><div style={{ fontSize: "0.8rem", color: classEntries > 0 ? "var(--sage-dark)" : "var(--clay)" }}>{classEntries > 0 ? t(`Masz ${classEntries} wejść na ${monthName(month)}`, `You have ${classEntries} credits for ${monthName(month)}`) : t(`Brak wejść na ${monthName(month)}`, `No credits for ${monthName(month)}`)}</div></div>
               </div>
             </div>
             )}
@@ -370,22 +375,22 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
               <div onClick={() => setMethod("online")} style={{ border: `2px solid ${method === "online" ? "var(--sage)" : "var(--border)"}`, borderRadius: 10, padding: "1rem", cursor: "pointer", background: method === "online" ? "#EBF5EA" : "var(--warm-white)", transition: "all 0.15s" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <span style={{ fontSize: "1.5rem" }}>💳</span>
-                  <div><div style={{ fontWeight: 500 }}>Płatność online</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Karta, BLIK, przelew — {cls.price_pln} zł</div></div>
+                  <div><div style={{ fontWeight: 500 }}>{t("Płatność online", "Online payment")}</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{t(`Karta, BLIK, przelew — ${cls.price_pln} zł`, `Card, transfer — ${cls.price_pln} zł`)}</div></div>
                 </div>
               </div>
             )}
           </div>
-          {tokensEnabled && method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.</div>}
-          {method === "online" && <div style={{ background: "#EBF5EA", border: "1px solid var(--sage-light)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "var(--sage-dark)" }}>💳 Zostaniesz przekierowany do bezpiecznej strony Przelewy24.</div>}
+          {tokensEnabled && method === "entries" && classEntries > 0 && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ {t("Zapis zdejmie 1 wejście. Anulując przed 12:00 — wejście wraca.", "Booking will use 1 credit. Cancel before 12:00 to get it back.")}</div>}
+          {method === "online" && <div style={{ background: "#EBF5EA", border: "1px solid var(--sage-light)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "var(--sage-dark)" }}>💳 {t("Zostaniesz przekierowany do bezpiecznej strony Przelewy24.", "You will be redirected to the secure Przelewy24 payment page.")}</div>}
           {cls.series_id && seriesRemaining > 1 && method !== "online" && (
             <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
               <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", fontSize: "0.875rem" }}>
                 <input type="checkbox" checked={bookSeries} onChange={e => setBookSeries(e.target.checked)}
                   style={{ width: 16, height: 16, accentColor: "var(--sage)", marginTop: 2, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontWeight: 500 }}>🔁 Zapisz na całą serię</div>
+                  <div style={{ fontWeight: 500 }}>🔁 {t("Zapisz na całą serię", "Book the whole series")}</div>
                   <div style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: 2 }}>
-                    Automatycznie zapisze Cię na {seriesRemaining} nadchodzące zajęcia z tej serii
+                    {t(`Automatycznie zapisze Cię na ${seriesRemaining} nadchodzące zajęcia z tej serii`, `Automatically books you into ${seriesRemaining} upcoming classes in this series`)}
                   </div>
                 </div>
               </label>
@@ -395,12 +400,12 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             onClick={() => bookSeries ? handleBookSeries(cls.series_id, method) : handleBook(cls, method)}
             disabled={actionLoading === cls.id || actionLoading === "series" || (method === "entries" && classEntries === 0)}>
             {actionLoading === cls.id || actionLoading === "series"
-              ? "Zapisuję..."
+              ? t("Zapisuję...", "Booking...")
               : bookSeries
-                ? `Zapisz na ${seriesRemaining} zajęć z serii`
+                ? t(`Zapisz na ${seriesRemaining} zajęć z serii`, `Book ${seriesRemaining} classes in series`)
                 : method === "online"
-                  ? `Przejdź do płatności — ${cls.price_pln} zł`
-                  : method === "entries" ? "Zapisz i zdejmij wejście" : "Zapisz (gotówka)"}
+                  ? t(`Przejdź do płatności — ${cls.price_pln} zł`, `Go to payment — ${cls.price_pln} zł`)
+                  : method === "entries" ? t("Zapisz i zdejmij wejście", "Book and use credit") : t("Zapisz (gotówka)", "Book (cash)")}
           </button>
         </div>
       </div>
@@ -413,15 +418,15 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 420 }}>
-          <div className="modal-header"><h3>Uwaga — późne anulowanie</h3><button className="modal-close" onClick={onClose}>×</button></div>
+          <div className="modal-header"><h3>{t("Uwaga — późne anulowanie", "Warning — late cancellation")}</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <div style={{ background: "#FDE8E8", border: "1px solid #F5C6C6", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>Po 12:00 w dniu zajęć. {loseEntry ? <strong>Stracisz 1 wejście.</strong> : "Bez konsekwencji."}</p>
+            <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>{t("Po 12:00 w dniu zajęć.", "After 12:00 on the day of class.")} {loseEntry ? <strong>{t("Stracisz 1 wejście.", "You will lose 1 credit.")}</strong> : t("Bez konsekwencji.", "No penalty.")}</p>
           </div>
           <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}><strong>{cls?.name}</strong><br/>{cls?.starts_at && formatDate(cls.starts_at)}</p>
           <div style={{ display: "flex", gap: "0.75rem" }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Nie anuluj</button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t("Nie anuluj", "Keep booking")}</button>
             <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => handleCancel(booking, true)} disabled={actionLoading === booking.class_id}>
-              {loseEntry ? "Anuluj (stracę wejście)" : "Anuluj"}
+              {loseEntry ? t("Anuluj (stracę wejście)", "Cancel (lose credit)") : t("Anuluj", "Cancel")}
             </button>
           </div>
         </div>
@@ -592,13 +597,13 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         <div className="modal" style={{ maxWidth: 500 }}>
           <div className="modal-header"><h3>{cls.name}</h3><button className="modal-close" onClick={onClose}>×</button></div>
           <div style={{ marginBottom: "1.25rem" }}>
-            {booked ? <span className="class-badge badge-yours">Zapisano · {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
-              : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span>
-              : isFull ? <span className="class-badge badge-full">Brak miejsc</span>
-              : <span className="class-badge badge-open">Wolne miejsca</span>}
+            {booked ? <span className="class-badge badge-yours">{t("Zapisano", "Booked")} · {booking?.payment_method === "entries" ? "🎫" : "💵"}</span>
+              : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>{t("W kolejce", "Waitlisted")}</span>
+              : isFull ? <span className="class-badge badge-full">{t("Brak miejsc", "Full")}</span>
+              : <span className="class-badge badge-open">{t("Wolne miejsca", "Spots available")}</span>}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem" }}>
-            {[{ icon: "📅", label: "Data", val: formatDate(cls.starts_at) }, { icon: "🕐", label: "Godzina", val: `${formatTime(cls.starts_at)} · ${cls.duration_min} min` }, cls.location && { icon: "📍", label: "Lokalizacja", val: cls.location, maps: true }, cls.price_pln && { icon: "💰", label: "Cena", val: `${cls.price_pln} zł` }].filter(Boolean).map((item, i) => (
+            {[{ icon: "📅", label: t("Data", "Date"), val: formatDate(cls.starts_at) }, { icon: "🕐", label: t("Godzina", "Time"), val: `${formatTime(cls.starts_at)} · ${cls.duration_min} min` }, cls.location && { icon: "📍", label: t("Lokalizacja", "Location"), val: cls.location, maps: true }, cls.price_pln && { icon: "💰", label: t("Cena", "Price"), val: `${cls.price_pln} zł` }].filter(Boolean).map((item, i) => (
               <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                 <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
                 <div>
@@ -613,23 +618,23 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
               <span style={{ fontSize: "1.1rem" }}>👥</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Dostępność</div>
-                <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{count} / {cls.max_spots} miejsc</div>
+                <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{t("Dostępność", "Availability")}</div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{count} / {cls.max_spots} {t("miejsc", "spots")}</div>
                 <div className="spots-bar" style={{ marginTop: "0.4rem" }}><div className={`spots-fill ${isFull ? "full" : fillPct >= 80 ? "almost-full" : ""}`} style={{ width: `${fillPct}%` }} /></div>
               </div>
             </div>
           </div>
           {cls.notes && <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
-            <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>📌 Informacje dodatkowe</div>
+            <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>📌 {t("Informacje dodatkowe", "Additional info")}</div>
             <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", lineHeight: 1.6 }}>{cls.notes}</p>
           </div>}
           {booked ? (
             <>
               {status === "past"
-                ? <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", fontSize: "0.875rem", color: "var(--mid)", textAlign: "center" }}>✓ Zajęcia odbyły się</div>
+                ? <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", fontSize: "0.875rem", color: "var(--mid)", textAlign: "center" }}>✓ {t("Zajęcia odbyły się", "Class completed")}</div>
                 : <>
-                    {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ Po 12:00 — {booking?.payment_method === "entries" ? "stracisz wejście" : "bez konsekwencji"}.</div>}
-                    <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : "Anuluj rezerwację"}</button>
+                    {status === "after_cutoff" && <div style={{ background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem", fontSize: "0.8rem", color: "#8B5A2B" }}>⚠️ {t("Po 12:00", "After 12:00")} — {booking?.payment_method === "entries" ? t("stracisz wejście", "you'll lose a credit") : t("bez konsekwencji", "no penalty")}.</div>}
+                    <button className="btn btn-danger btn-full" onClick={() => handleCancel(booking)} disabled={actionLoading === cls.id}>{actionLoading === cls.id ? "..." : t("Anuluj rezerwację", "Cancel booking")}</button>
                   </>
               }
               {status !== "past" && (
@@ -646,11 +651,11 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
               )}
             </>
           ) : onWaitlist ? (
-            <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)}>{actionLoading === cls.id ? "..." : "Wypisz się z kolejki"}</button>
+            <button className="btn btn-secondary btn-full" onClick={() => handleLeaveWaitlist(cls)}>{actionLoading === cls.id ? "..." : t("Wypisz się z kolejki", "Leave waitlist")}</button>
           ) : isFull ? (
-            <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)}>{actionLoading === cls.id ? "..." : "Dołącz do kolejki"}</button>
+            <button className="btn btn-secondary btn-full" onClick={() => handleJoinWaitlist(cls)}>{actionLoading === cls.id ? "..." : t("Dołącz do kolejki", "Join waitlist")}</button>
           ) : (
-            <button className="btn btn-primary btn-full" onClick={() => { onClose(); setShowBookModal(cls); }}>Zapisz się →</button>
+            <button className="btn btn-primary btn-full" onClick={() => { onClose(); setShowBookModal(cls); }}>{t("Zapisz się →", "Sign up →")}</button>
           )}
         </div>
       </div>
@@ -660,11 +665,11 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
   function NotifFilters({ notifications, filter, setFilter }) {
     const unread = notifications.filter(n => !n.read).length;
     const filters = [
-      { key: "all", label: "Wszystkie" },
-      { key: "unread", label: `Nieprzeczytane${unread > 0 ? ` (${unread})` : ""}` },
-      { key: "class_cancelled", label: "Odwołania" },
-      { key: "booking", label: "Wiadomości" },
-      { key: "tokens_added", label: "Wejścia" },
+      { key: "all", label: t("Wszystkie", "All") },
+      { key: "unread", label: `${t("Nieprzeczytane", "Unread")}${unread > 0 ? ` (${unread})` : ""}` },
+      { key: "class_cancelled", label: t("Odwołania", "Cancellations") },
+      { key: "booking", label: t("Wiadomości", "Messages") },
+      { key: "tokens_added", label: t("Wejścia", "Credits") },
     ];
     return (
       <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
@@ -688,22 +693,22 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> {classLabel}</div>
-          <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> Moje rezerwacje</div>
+          <div className={`nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="nav-icon">✦</span> {t("Moje rezerwacje", "My bookings")}</div>
           <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ justifyContent: "space-between" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}><span className="nav-icon">🔔</span> Powiadomienia</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}><span className="nav-icon">🔔</span> {t("Powiadomienia", "Notifications")}</span>
             {unreadCount > 0 && <span style={{ background: "var(--clay)", color: "white", borderRadius: 20, fontSize: "0.7rem", padding: "0.1rem 0.45rem", fontWeight: 600 }}>{unreadCount}</span>}
           </div>
-          <div className={`nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="nav-icon">👤</span> Moje konto</div>
+          <div className={`nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="nav-icon">👤</span> {t("Moje konto", "My account")}</div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
             <div className="user-avatar">{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
-            <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">Klient</div></div>
+            <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">{t("Klient", "Client")}</div></div>
           </div>
-          <button className="btn-logout" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+          <button className="btn-logout" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
           <button onClick={() => setDarkMode(!darkMode)}
             style={{ marginTop: "0.5rem", background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.75rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", width: "100%" }}>
-            {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+            {darkMode ? t("☀️ Tryb jasny", "☀️ Light mode") : t("🌙 Tryb ciemny", "🌙 Dark mode")}
           </button>
         </div>
       </aside>
@@ -716,24 +721,24 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             {/* Nagłówek z przełącznikiem widoku */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
               <div className="page-header" style={{ margin: 0 }}>
-                <h2>Nadchodzące zajęcia</h2>
-                <p>Kliknij w zajęcia, aby się zapisać</p>
+                <h2>{hasServices ? t("Nadchodzące wizyty", "Upcoming appointments") : t("Nadchodzące zajęcia", "Upcoming classes")}</h2>
+                <p>{hasServices ? t("Kliknij wizytę, aby się zapisać", "Click an appointment to book") : t("Kliknij w zajęcia, aby się zapisać", "Click a class to sign up")}</p>
               </div>
               <div style={{ display: "flex", gap: "0.4rem" }}>
-                <button className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("calendar")}>📅 Kalendarz</button>
-                <button className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("list")}>☰ Lista</button>
+                <button className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("calendar")}>📅 {t("Kalendarz", "Calendar")}</button>
+                <button className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("list")}>☰ {t("Lista", "List")}</button>
               </div>
             </div>
 
             {currentTokens && currentTokens.amount > 0 && (
               <div className="card" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
                 <span style={{ fontSize: "1.5rem" }}>🎫</span>
-                <div><div style={{ fontWeight: 500 }}>Wejścia w tym miesiącu: <strong style={{ color: "var(--sage-dark)" }}>{currentTokens.amount}</strong></div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Możesz użyć wejść przy zapisie</div></div>
+                <div><div style={{ fontWeight: 500 }}>{t("Wejścia w tym miesiącu:", "Credits this month:")} <strong style={{ color: "var(--sage-dark)" }}>{currentTokens.amount}</strong></div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{t("Możesz użyć wejść przy zapisie", "You can use credits when booking")}</div></div>
               </div>
             )}
 
-            {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
-              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak nadchodzących zajęć.</p></div>
+            {loading ? <div className="empty-state"><p>{t("Ładowanie...", "Loading...")}</p></div>
+              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>{t("Brak nadchodzących zajęć.", "No upcoming classes.")}</p></div>
               : viewMode === "calendar" ? (
                 /* WIDOK KALENDARZA */
                 <div>
@@ -748,8 +753,8 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     const rangeLabel = (() => {
                       const s = days[0], e = days[DAYS - 1];
                       if (s.getMonth() === e.getMonth())
-                        return `${s.getDate()}–${e.getDate()} ${e.toLocaleDateString("pl-PL", { month: "long" })}`;
-                      return `${s.getDate()} ${s.toLocaleDateString("pl-PL",{month:"short"})} – ${e.getDate()} ${e.toLocaleDateString("pl-PL",{month:"short"})}`;
+                        return `${s.getDate()}–${e.getDate()} ${e.toLocaleDateString(locale, { month: "long" })}`;
+                      return `${s.getDate()} ${s.toLocaleDateString(locale,{month:"short"})} – ${e.getDate()} ${e.toLocaleDateString(locale,{month:"short"})}`;
                     })();
                     const shiftDays = (n) => {
                       const d = new Date(mobileCalStart);
@@ -767,7 +772,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                           {days.map((day, di) => {
                             const isToday = day.toDateString() === new Date().toDateString();
                             const dayClasses = classes.filter(c => new Date(c.starts_at).toDateString() === day.toDateString());
-                            const dayName = day.toLocaleDateString("pl-PL", { weekday: "short" });
+                            const dayName = day.toLocaleDateString(locale, { weekday: "short" });
                             return (
                               <div key={di} className={`cal-mobile-col${isToday ? " today" : ""}`}>
                                 <div className="cal-mobile-col-head">
@@ -784,7 +789,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                                         const chipCls = booked ? "chip-booked" : onWaitlist ? "chip-waitlist" : isFull ? "chip-full" : "chip-open";
                                         return (
                                           <div key={cls.id} className={`cal-mobile-chip ${chipCls}`} onClick={() => setDetailClass(cls)}>
-                                            <span className="chip-time">{new Date(cls.starts_at).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}</span>
+                                            <span className="chip-time">{new Date(cls.starts_at).toLocaleTimeString(locale,{hour:"2-digit",minute:"2-digit"})}</span>
                                             <span className="chip-name">{cls.name}</span>
                                           </div>
                                         );
@@ -795,7 +800,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                           })}
                         </div>
                         <div className="cal-mobile-legend">
-                          {[["chip-booked","Moje"],["chip-waitlist","Kolejka"],["chip-full","Brak"],["chip-open","Wolne"]].map(([cls,label]) => (
+                          {[["chip-booked",t("Moje","Mine")],["chip-waitlist",t("Kolejka","Queue")],["chip-full",t("Brak","Full")],["chip-open",t("Wolne","Open")]].map(([cls,label]) => (
                             <div key={label} className="cal-legend-item"><span className={`cal-legend-dot ${cls}`} />{label}</div>
                           ))}
                         </div>
@@ -806,16 +811,16 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                   {/* === DESKTOPOWY KALENDARZ MIESIĘCZNY === */}
                   <div className="cal-desktop">
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setCalendarWeek(d); }}>← Poprzedni</button>
-                    <span style={{ fontWeight: 500, fontSize: "1rem" }}>{calendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setCalendarWeek(d); }}>Następny →</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setCalendarWeek(d); }}>← {t("Poprzedni", "Prev")}</button>
+                    <span style={{ fontWeight: 500, fontSize: "1rem" }}>{calendarWeek.toLocaleDateString(locale, { month: "long", year: "numeric" })}</span>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(calendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setCalendarWeek(d); }}>{t("Następny", "Next")} →</button>
                   </div>
                   {(() => {
                     const year = calendarWeek.getFullYear();
                     const month = calendarWeek.getMonth();
                     const firstDay = new Date(year, month, 1);
                     const lastDay = new Date(year, month + 1, 0);
-                    const mDayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
+                    const mDayNames = lang === "en" ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] : ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
                     let startOffset = firstDay.getDay() - 1;
                     if (startOffset < 0) startOffset = 6;
                     const cells = [];
@@ -848,7 +853,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                                       style={{ background: bg, border: `1px solid ${border}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
                                       onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
                                       onMouseLeave={e => e.currentTarget.style.opacity="1"}>
-                                      <div style={{ fontSize: "0.68rem", fontWeight: 500, color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{new Date(cls.starts_at).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})} {cls.name}</div>
+                                      <div style={{ fontSize: "0.68rem", fontWeight: 500, color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{new Date(cls.starts_at).toLocaleTimeString(locale,{hour:"2-digit",minute:"2-digit"})} {cls.name}</div>
                                     </div>
                                   );
                                 })}
@@ -860,7 +865,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     );
                   })()}
                   <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                    {[["#EBF5EA","#8A9E85","Moje zajęcia"],["#FEF3E8","#E8C5B5","W kolejce"],["#FDE8E8","#F5C6C6","Brak miejsc"],["var(--cream)","var(--border)","Wolne miejsca"]].map(([bg,border,label]) => (
+                    {[["#EBF5EA","#8A9E85",t("Moje zajęcia","My classes")],["#FEF3E8","#E8C5B5",t("W kolejce","Waitlisted")],["#FDE8E8","#F5C6C6",t("Brak miejsc","Full")],["var(--cream)","var(--border)",t("Wolne miejsca","Available")]].map(([bg,border,label]) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
                         <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
                         {label}
@@ -883,12 +888,12 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                       {Object.entries(byDay).map(([dayKey, dayCls]) => {
                         const dayDate = new Date(dayCls[0].starts_at);
                         const isToday = dayDate.toDateString() === new Date().toDateString();
-                        const dayLabel = dayDate.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+                        const dayLabel = dayDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
                         return (
                           <div key={dayKey}>
                             <div className="day-section-header">
                               <span className="day-section-label">{dayLabel}</span>
-                              {isToday && <span className="day-section-today">dzisiaj</span>}
+                              {isToday && <span className="day-section-today">{t("dzisiaj", "today")}</span>}
                             </div>
                             <div className="classes-day-list">
                               {dayCls.map(cls => {
@@ -913,7 +918,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                                         {cls.location && <span>📍 {cls.location} <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cls.location)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ color: "var(--sage-dark)", textDecoration: "none", fontSize: "0.7rem", border: "1px solid var(--sage)", borderRadius: 10, padding: "0.05rem 0.4rem" }}>↗</a></span>}
                                         {cls.price_pln ? <span>💰 {cls.price_pln} zł</span> : null}
                                         <span style={{ color: isFull ? "#C44B4B" : "inherit" }}>
-                                          {count}/{cls.max_spots} miejsc{waitlistCount > 0 && ` · ${waitlistCount} w kolejce`}
+                                          {count}/{cls.max_spots} {t("miejsc", "spots")}{waitlistCount > 0 && ` · ${waitlistCount} ${t("w kolejce", "waitlisted")}`}
                                         </span>
                                       </div>
                                       {cls.notes && <div className="class-row-note">📌 {cls.notes.length > 60 ? cls.notes.slice(0, 60) + "…" : cls.notes}</div>}
@@ -923,10 +928,10 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                                     </div>
                                     <div className="class-row-status">
                                       {booked
-                                        ? <span className="class-badge badge-yours">{booking?.payment_method === "entries" ? "🎫" : "💵"} Zapisano</span>
-                                        : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>Kolejka</span>
-                                        : isFull ? <span className="class-badge badge-full">Brak</span>
-                                        : <span className="class-badge badge-open">Wolne</span>}
+                                        ? <span className="class-badge badge-yours">{booking?.payment_method === "entries" ? "🎫" : "💵"} {t("Zapisano", "Booked")}</span>
+                                        : onWaitlist ? <span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>{t("Kolejka", "Queue")}</span>
+                                        : isFull ? <span className="class-badge badge-full">{t("Brak", "Full")}</span>
+                                        : <span className="class-badge badge-open">{t("Wolne", "Open")}</span>}
                                     </div>
                                   </div>
                                 );
@@ -944,34 +949,34 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
 
         {tab === "my" && (
           <>
-            <div className="page-header"><h2>Moje rezerwacje</h2></div>
+            <div className="page-header"><h2>{t("Moje rezerwacje", "My bookings")}</h2></div>
             {upcomingMyClasses.length === 0
-              ? <div className="empty-state"><div className="empty-icon">✦</div><p>Brak nadchodzących rezerwacji.</p></div>
+              ? <div className="empty-state"><div className="empty-icon">✦</div><p>{t("Brak nadchodzących rezerwacji.", "No upcoming bookings.")}</p></div>
               : <div className="cards-grid">{upcomingMyClasses.map(b => {
                 const status = cancelStatus(b.classes?.starts_at);
                 return (
                   <div className="class-card" key={b.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(classes.find(c => c.id === b.class_id) || b.classes)}>
                     <div className="class-card-header">
                       <span className="class-title">{b.classes?.name}</span>
-                      <span className="class-badge badge-yours">{b.payment_method === "entries" ? "🎫 wejście" : "💵 gotówka"}</span>
+                      <span className="class-badge badge-yours">{b.payment_method === "entries" ? `🎫 ${t("wejście","credit")}` : `💵 ${t("gotówka","cash")}`}</span>
                     </div>
                     <div className="class-card-body">
                       <div className="class-meta">
                         <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(b.classes?.starts_at)}</div>
                         <div className="meta-item"><span className="meta-icon">🕐</span>{formatTime(b.classes?.starts_at)} · {b.classes?.duration_min} min</div>
                       </div>
-                      {status === "after_cutoff" && <p style={{ fontSize: "0.75rem", color: "var(--clay)", marginTop: "0.5rem" }}>⚠️ Po 12:00 — anulowanie bez zwrotu</p>}
-                      <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>Kliknij, aby zobaczyć szczegóły →</p>
+                      {status === "after_cutoff" && <p style={{ fontSize: "0.75rem", color: "var(--clay)", marginTop: "0.5rem" }}>⚠️ {t("Po 12:00 — anulowanie bez zwrotu", "After 12:00 — cancellation without refund")}</p>}
+                      <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>{t("Kliknij, aby zobaczyć szczegóły →", "Click to see details →")}</p>
                     </div>
                   </div>
                 );
               })}</div>}
             {myWaitlist.length > 0 && (
               <>
-                <div className="page-header" style={{ marginTop: "2rem" }}><h2>Lista oczekujących</h2></div>
+                <div className="page-header" style={{ marginTop: "2rem" }}><h2>{t("Lista oczekujących", "Waitlist")}</h2></div>
                 <div className="cards-grid">{myWaitlist.map(w => (
                   <div className="class-card" key={w.id} style={{ cursor: "pointer" }} onClick={() => setDetailClass(w.classes)}>
-                    <div className="class-card-header"><span className="class-title">{w.classes?.name}</span><span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>W kolejce</span></div>
+                    <div className="class-card-header"><span className="class-title">{w.classes?.name}</span><span className="class-badge" style={{ background: "#FEF3E8", color: "#B87333" }}>{t("W kolejce", "Waitlisted")}</span></div>
                     <div className="class-card-body">
                       <div className="class-meta">
                         <div className="meta-item"><span className="meta-icon">📅</span>{formatDate(w.classes?.starts_at)}</div>
@@ -987,7 +992,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
 
         {tab === "account" && (
           <>
-            <div className="page-header"><h2>Moje konto</h2></div>
+            <div className="page-header"><h2>{t("Moje konto", "My account")}</h2></div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
               <div className="card">
                 <div className="user-info" style={{ marginBottom: "1.5rem" }}>
@@ -997,22 +1002,22 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
                   <div style={{ flex: 1, background: "var(--cream)", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--sage-dark)" }}>{myBookings.length}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>Wszystkich</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>{t("Wszystkich", "Total")}</div>
                   </div>
                   <div style={{ flex: 1, background: "var(--cream)", borderRadius: 8, padding: "0.75rem", textAlign: "center" }}>
                     <div style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--sage-dark)" }}>{pastMyClasses.length}</div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>Ukończonych</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--mid)", textTransform: "uppercase" }}>{t("Ukończonych", "Completed")}</div>
                   </div>
                 </div>
                 <button onClick={() => setDarkMode(!darkMode)} className="btn btn-secondary btn-full" style={{ marginBottom: "0.75rem" }}>
-                  {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+                  {darkMode ? t("☀️ Tryb jasny", "☀️ Light mode") : t("🌙 Tryb ciemny", "🌙 Dark mode")}
                 </button>
-                <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+                <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
               </div>
               <div className="card">
-                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>📱 Powiadomienia SMS</h3>
+                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>📱 {t("Powiadomienia SMS", "SMS Notifications")}</h3>
                 <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginBottom: "1rem", lineHeight: 1.6 }}>
-                  Podaj numer, aby otrzymywać SMS-y o odwołanych zajęciach, awansie z kolejki i przypomnieniach dzień przed zajęciami.
+                  {t("Podaj numer, aby otrzymywać SMS-y o odwołanych zajęciach, awansie z kolejki i przypomnieniach dzień przed zajęciami.", "Enter your number to receive SMS about cancelled classes, waitlist promotions and day-before reminders.")}
                 </p>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <input
@@ -1024,15 +1029,15 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     style={{ flex: 1 }}
                   />
                   <button className="btn btn-primary" onClick={savePhone} disabled={phoneSaving}>
-                    {phoneSaving ? "..." : "Zapisz"}
+                    {phoneSaving ? "..." : t("Zapisz", "Save")}
                   </button>
                 </div>
-                {phoneInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ SMS-y aktywne</p>}
+                {phoneInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ {t("SMS-y aktywne", "SMS active")}</p>}
               </div>
               <div className="card">
-                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎂 Data urodzin</h3>
+                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎂 {t("Data urodzin", "Birthday")}</h3>
                 <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginBottom: "1rem", lineHeight: 1.6 }}>
-                  Podaj datę urodzin, aby otrzymać życzenia w swoim dniu.
+                  {t("Podaj datę urodzin, aby otrzymać życzenia w swoim dniu.", "Enter your birthday to receive wishes on your special day.")}
                 </p>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <input
@@ -1043,31 +1048,31 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     style={{ flex: 1 }}
                   />
                   <button className="btn btn-primary" onClick={saveBirth} disabled={birthSaving}>
-                    {birthSaving ? "..." : "Zapisz"}
+                    {birthSaving ? "..." : t("Zapisz", "Save")}
                   </button>
                 </div>
-                {birthInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ Aktywne</p>}
+                {birthInput && <p style={{ fontSize: "0.75rem", color: "var(--sage-dark)", marginTop: "0.5rem" }}>✓ {t("Aktywne", "Active")}</p>}
               </div>
               {tokensEnabled && (
               <div className="card">
-                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎫 Moje wejścia</h3>
+                <h3 style={{ marginBottom: "1rem", fontSize: "1.3rem" }}>🎫 {t("Moje wejścia", "My credits")}</h3>
                 {myTokens.length === 0
-                  ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Brak wejść. Skontaktuj się z {studioName}.</p>
+                  ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>{t(`Brak wejść. Skontaktuj się z ${studioName}.`, `No credits. Contact ${studioName}.`)}</p>
                   : <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {myTokens.map(t => (
-                      <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: "1px solid var(--border)" }}>
-                        <span style={{ color: "var(--mid)", fontSize: "0.875rem" }}>{monthName(t.month)} {t.year}</span>
-                        <span style={{ fontWeight: 600, color: t.amount > 0 ? "var(--sage-dark)" : "var(--light)", fontSize: "1.1rem" }}>{t.amount} {t.amount === 1 ? "wejście" : t.amount < 5 ? "wejścia" : "wejść"}</span>
+                    {myTokens.map(tok => (
+                      <div key={tok.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.6rem 0", borderBottom: "1px solid var(--border)" }}>
+                        <span style={{ color: "var(--mid)", fontSize: "0.875rem" }}>{monthName(tok.month)} {tok.year}</span>
+                        <span style={{ fontWeight: 600, color: tok.amount > 0 ? "var(--sage-dark)" : "var(--light)", fontSize: "1.1rem" }}>{tok.amount} {lang === "en" ? (tok.amount === 1 ? "credit" : "credits") : (tok.amount === 1 ? "wejście" : tok.amount < 5 ? "wejścia" : "wejść")}</span>
                       </div>
                     ))}
                   </div>}
-                <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--light)" }}>Anuluj przed 12:00 w dniu zajęć aby odzyskać wejście.</p>
+                <p style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--light)" }}>{t("Anuluj przed 12:00 w dniu zajęć aby odzyskać wejście.", "Cancel before 12:00 on the day of class to get your credit back.")}</p>
               </div>
               )}
             </div>
             <div className="section-header" style={{ marginBottom: "1rem" }}>
-              <h3>Historia moich zajęć</h3>
-              <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{pastMyClasses.length} zajęć</span>
+              <h3>{t("Historia moich zajęć", "Class history")}</h3>
+              <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{pastMyClasses.length} {t("zajęć", "classes")}</span>
             </div>
             {/* Powiadomienia push */}
             {(() => {
@@ -1080,15 +1085,15 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                       <span style={{ fontSize: "1.5rem" }}>🔔</span>
                       <div>
-                        <div style={{ fontWeight: 500 }}>{pushEnabled ? "Powiadomienia włączone" : "Powiadomienia push"}</div>
+                        <div style={{ fontWeight: 500 }}>{pushEnabled ? t("Powiadomienia włączone", "Notifications enabled") : t("Powiadomienia push", "Push notifications")}</div>
                         <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>
-                          {pushEnabled ? "Otrzymasz powiadomienia o zajęciach" : iosNotReady ? "Wymaga dodania do ekranu głównego" : "Włącz aby dostawać powiadomienia na telefon"}
+                          {pushEnabled ? t("Otrzymasz powiadomienia o zajęciach", "You'll receive class notifications") : iosNotReady ? t("Wymaga dodania do ekranu głównego", "Requires adding to home screen") : t("Włącz aby dostawać powiadomienia na telefon", "Enable to get notifications on your phone")}
                         </div>
                       </div>
                     </div>
                     {pushEnabled
-                      ? <span style={{ color: "var(--sage-dark)", fontSize: "0.875rem", fontWeight: 500 }}>✅ Aktywne</span>
-                      : <button className="btn btn-primary btn-sm" onClick={registerPush}>Włącz</button>}
+                      ? <span style={{ color: "var(--sage-dark)", fontSize: "0.875rem", fontWeight: 500 }}>✅ {t("Aktywne", "Active")}</span>
+                      : <button className="btn btn-primary btn-sm" onClick={registerPush}>{t("Włącz", "Enable")}</button>}
                   </div>
                   {iosNotReady && !pushEnabled && (
                     <div style={{ marginTop: "0.75rem", background: "#FEF3E8", border: "1px solid #E8C5B5", borderRadius: 8, padding: "0.75rem", fontSize: "0.8rem", color: "#8B5A2B" }}>
@@ -1100,9 +1105,9 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
             })()}
 
             {pastMyClasses.length === 0
-              ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak historii zajęć.</p></div>
+              ? <div className="empty-state"><div className="empty-icon">🌿</div><p>{t("Brak historii zajęć.", "No class history.")}</p></div>
               : <div className="table-wrapper"><table>
-                <thead><tr><th>Zajęcia</th><th>Data</th><th>Godzina</th><th>Płatność</th><th>Cena</th><th>Ocena</th></tr></thead>
+                <thead><tr><th>{t("Zajęcia","Class")}</th><th>{t("Data","Date")}</th><th>{t("Godzina","Time")}</th><th>{t("Płatność","Payment")}</th><th>{t("Cena","Price")}</th><th>{t("Ocena","Rating")}</th></tr></thead>
                 <tbody>{pastMyClasses.map(b => {
                   const rated = getRating(b.class_id);
                   return (
@@ -1115,7 +1120,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                     <td>
                       {rated
                         ? <span style={{ cursor: "pointer", fontSize: "0.85rem" }} onClick={() => { setShowRatingModal(b.classes); setRatingValue(rated.rating); setRatingComment(rated.comment || ""); }}>{"⭐".repeat(rated.rating)}</span>
-                        : <button className="btn btn-secondary btn-sm" onClick={() => { setShowRatingModal(b.classes); setRatingValue(5); setRatingComment(""); }}>Oceń</button>}
+                        : <button className="btn btn-secondary btn-sm" onClick={() => { setShowRatingModal(b.classes); setRatingValue(5); setRatingComment(""); }}>{t("Oceń", "Rate")}</button>}
                     </td>
                   </tr>
                   );
@@ -1125,7 +1130,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         {tab === "notifications" && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-              <div className="page-header" style={{ margin: 0 }}><h2>Powiadomienia</h2></div>
+              <div className="page-header" style={{ margin: 0 }}><h2>{t("Powiadomienia", "Notifications")}</h2></div>
               <NotifFilters notifications={notifications} filter={notifFilter} setFilter={setNotifFilter} />
             </div>
             {(() => {
@@ -1137,7 +1142,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 true
               );
               return filtered.length === 0
-                ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień{notifFilter !== "all" ? " w tej kategorii" : ""}.</p></div>
+                ? <div className="empty-state"><div className="empty-icon">🔔</div><p>{t("Brak powiadomień", "No notifications")}{notifFilter !== "all" ? t(" w tej kategorii", " in this category") : ""}.</p></div>
                 : <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxWidth: 600 }}>
                     {filtered.map(n => (
                       <div key={n.id} className="card" style={{ display: "flex", gap: "1rem", alignItems: "flex-start", opacity: n.read ? 0.65 : 1, borderLeft: n.read ? "3px solid var(--border)" : "3px solid var(--sage)" }}>
@@ -1164,7 +1169,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRatingModal(null)}>
           <div className="modal" style={{ maxWidth: 420 }}>
             <div className="modal-header">
-              <h3>Oceń zajęcia</h3>
+              <h3>{t("Oceń zajęcia", "Rate this class")}</h3>
               <button className="modal-close" onClick={() => setShowRatingModal(null)}>×</button>
             </div>
             <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>
@@ -1172,7 +1177,7 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
               {showRatingModal?.starts_at && formatDate(showRatingModal.starts_at)}
             </p>
             <div style={{ marginBottom: "1.25rem" }}>
-              <label className="form-label">Twoja ocena</label>
+              <label className="form-label">{t("Twoja ocena", "Your rating")}</label>
               <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                 {[1,2,3,4,5].map(star => (
                   <button key={star} onClick={() => setRatingValue(star)}
@@ -1182,17 +1187,19 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
                 ))}
               </div>
               <p style={{ fontSize: "0.8rem", color: "var(--mid)", marginTop: "0.4rem" }}>
-                {["","Słabe","Poniżej oczekiwań","W porządku","Bardzo dobre","Doskonałe!"][ratingValue]}
+                {lang === "en"
+                  ? ["","Poor","Below expectations","OK","Very good","Excellent!"][ratingValue]
+                  : ["","Słabe","Poniżej oczekiwań","W porządku","Bardzo dobre","Doskonałe!"][ratingValue]}
               </p>
             </div>
             <div className="form-group">
-              <label className="form-label">Komentarz (opcjonalnie)</label>
-              <textarea className="form-input" rows={3} placeholder="Co Ci się podobało? Co można poprawić?"
+              <label className="form-label">{t("Komentarz (opcjonalnie)", "Comment (optional)")}</label>
+              <textarea className="form-input" rows={3} placeholder={t("Co Ci się podobało? Co można poprawić?", "What did you like? What could be improved?")}
                 value={ratingComment} onChange={e => setRatingComment(e.target.value)}
                 style={{ resize: "none" }} />
             </div>
             <button className="btn btn-primary btn-full" onClick={() => handleSubmitRating(showRatingModal)}>
-              Wyślij ocenę ⭐
+              {t("Wyślij ocenę ⭐", "Submit rating ⭐")}
             </button>
           </div>
         </div>
@@ -1200,13 +1207,13 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
 
       <nav className="mobile-nav">
         <div className={`mobile-nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="mobile-nav-icon">🗓</span><span>{classLabel}</span></div>
-        <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>Rezerwacje</span></div>
+        <div className={`mobile-nav-item ${tab === "my" ? "active" : ""}`} onClick={() => setTab("my")}><span className="mobile-nav-icon">✦</span><span>{t("Rezerwacje", "Bookings")}</span></div>
         <div className={`mobile-nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { setTab("notifications"); markNotificationsRead(); }} style={{ position: "relative" }}>
           <span className="mobile-nav-icon">🔔</span>
           {unreadCount > 0 && <span style={{ position: "absolute", top: 6, right: "50%", marginRight: -18, background: "var(--clay)", color: "white", borderRadius: 20, fontSize: "0.6rem", padding: "0.05rem 0.35rem", fontWeight: 600, minWidth: 16, textAlign: "center" }}>{unreadCount}</span>}
-          <span>Powiad.</span>
+          <span>{t("Powiad.", "Notif.")}</span>
         </div>
-        <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
+        <div className={`mobile-nav-item ${tab === "account" ? "active" : ""}`} onClick={() => setTab("account")}><span className="mobile-nav-icon">👤</span><span>{t("Konto", "Account")}</span></div>
       </nav>
     </div>
   );

@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useStudio } from "../StudioContext";
+import { useT, useLang } from "../LanguageContext";
 import { sendEmail, formatEmailDate, formatEmailTime, monthNamePL } from "../emailService";
 import { sendSms, smsDate } from "../smsService";
 
 export default function AdminDashboard({ session, profile, studioId, darkMode, setDarkMode }) {
   const { studio } = useStudio();
+  const t = useT();
+  const lang = useLang();
+  const locale = lang === "en" ? "en-GB" : "pl-PL";
   const studioName = studio?.name || "Studio";
   const smsSig = studio?.branding?.sms_signature || studioName;
   const isDemo = studio?.features?.is_demo === true;
@@ -13,7 +17,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const serviceMode = studio?.features?.service_mode || "classes";
   const hasServices = serviceMode === "services";
   const multiStaff = hasServices && studio?.features?.multi_staff === true;
-  const classLabel = hasServices ? "Wizyty" : "Zajęcia";
+  const classLabel = hasServices ? t("Wizyty", "Appointments") : t("Zajęcia", "Classes");
   const [tab, setTab] = useState("classes");
   const [classes, setClasses] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
@@ -750,14 +754,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     await fetchAll();
   }
 
-  function monthName(m) { return ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"][m - 1]; }
-  function formatDate(iso) { return new Date(iso).toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
-  function formatTime(iso) { return new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }); }
+  function monthName(m) {
+    if (lang === "en") return ["January","February","March","April","May","June","July","August","September","October","November","December"][m - 1];
+    return ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"][m - 1];
+  }
+  function formatDate(iso) { return new Date(iso).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
+  function formatTime(iso) { return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }); }
   function formatRelative(iso) {
     const diff = (new Date() - new Date(iso)) / 1000;
-    if (diff < 60) return "przed chwilą";
-    if (diff < 3600) return `${Math.floor(diff / 60)} min temu`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} godz. temu`;
+    if (diff < 60) return t("przed chwilą", "just now");
+    if (diff < 3600) return `${Math.floor(diff / 60)} ${t("min temu", "min ago")}`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ${t("godz. temu", "hr ago")}`;
     return formatDate(iso);
   }
 
@@ -955,19 +962,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><span className="nav-icon">🗓</span> {classLabel}</div>
-          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="nav-icon">📅</span> Kalendarz</div>
+          <div className={`nav-item ${tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="nav-icon">📅</span> {t("Kalendarz", "Calendar")}</div>
           <div className={`nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => switchTab("settle")}>
-            <span className="nav-icon">💰</span> Do rozliczenia
+            <span className="nav-icon">💰</span> {t("Do rozliczenia", "Pending")}
             {toSettle.length > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{toSettle.length}</span>}
           </div>
           <div className={`nav-item ${tab === "notifications" ? "active" : ""}`} onClick={() => { switchTab("notifications"); markAllRead(); }}>
-            <span className="nav-icon">🔔</span> Powiadomienia
+            <span className="nav-icon">🔔</span> {t("Powiadomienia", "Notifications")}
             {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "var(--clay)", color: "white", borderRadius: "10px", padding: "0.1rem 0.5rem", fontSize: "0.7rem" }}>{unreadCount}</span>}
           </div>
-          <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
-          {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> Pracownicy</div>}
-          {hasServices && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> Cennik usług</div>}
-          {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
+          <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> {t("Klienci", "Clients")}</div>
+          {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> {t("Pracownicy", "Staff")}</div>}
+          {hasServices && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> {t("Cennik usług", "Services")}</div>}
+          {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> {t("Uczestnicy", "Participants")}</div>}
 
           {/* Sekcja Statystyki — rozwijana */}
           <div
@@ -975,32 +982,32 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             onClick={() => setStatsOpen(o => !o)}
             style={{ justifyContent: "space-between", marginTop: "0.25rem", userSelect: "none" }}>
             <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <span className="nav-icon">📊</span> Statystyki
+              <span className="nav-icon">📊</span> {t("Statystyki", "Statistics")}
             </span>
             <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
           </div>
           {(statsOpen || ["reports","stats","history"].includes(tab)) && <>
-            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📈</span> Raporty</div>
-            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📊</span> Dane</div>
-            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📋</span> Historia</div>
+            <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📈</span> {t("Raporty", "Reports")}</div>
+            <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📊</span> {t("Dane", "Data")}</div>
+            <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><span className="nav-icon">📋</span> {t("Historia", "History")}</div>
           </>}
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
             <div className="user-avatar">{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
-            <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">Administrator</div></div>
+            <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">{t("Administrator", "Administrator")}</div></div>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
             <button onClick={() => setDarkMode(!darkMode)}
               style={{ flex: 1, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: "var(--mid)", fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-              {darkMode ? "☀️" : "🌙"} {darkMode ? "Jasny" : "Ciemny"}
+              {darkMode ? "☀️" : "🌙"} {darkMode ? t("Jasny", "Light") : t("Ciemny", "Dark")}
             </button>
             <button onClick={() => switchTab("studio_settings")}
               style={{ flex: 1, background: tab === "studio_settings" ? "var(--cream)" : "none", border: `1px solid ${tab === "studio_settings" ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", color: tab === "studio_settings" ? "var(--sage-dark)" : "var(--mid)", fontSize: "0.8rem", fontWeight: tab === "studio_settings" ? 600 : 500, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-              ⚙️ Ustawienia
+              ⚙️ {t("Ustawienia", "Settings")}
             </button>
           </div>
-          <button className="btn-logout" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+          <button className="btn-logout" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
         </div>
       </aside>
 
@@ -1010,19 +1017,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* ZAJĘCIA */}
         {tab === "classes" && (
           <>
-            <div className="page-header"><h2>{serviceMode === "services" ? "Zarządzanie usługami" : "Zarządzanie zajęciami"}</h2></div>
+            <div className="page-header"><h2>{serviceMode === "services" ? t("Zarządzanie usługami", "Manage services") : t("Zarządzanie zajęciami", "Manage classes")}</h2></div>
             <div className="stats-row">
-              <div className="stat-card"><div className="stat-value">{stats.totalClasses}</div><div className="stat-label">{serviceMode === "services" ? "Nadchodzące wizyty" : "Nadchodzące zajęcia"}</div></div>
-              <div className="stat-card"><div className="stat-value">{stats.totalBookings}</div><div className="stat-label">Aktywne rezerwacje</div></div>
-              <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">Klientów łącznie</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.totalClasses}</div><div className="stat-label">{serviceMode === "services" ? t("Nadchodzące wizyty", "Upcoming appointments") : t("Nadchodzące zajęcia", "Upcoming classes")}</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.totalBookings}</div><div className="stat-label">{t("Aktywne rezerwacje", "Active bookings")}</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">{t("Klientów łącznie", "Total clients")}</div></div>
             </div>
-            <div className="section-header"><h3>{serviceMode === "services" ? "Nadchodzące wizyty" : "Nadchodzące zajęcia"}</h3><button className="btn btn-primary" onClick={openCreate}>+ {serviceMode === "services" ? "Nowa wizyta" : "Nowe zajęcia"}</button></div>
-            {loading ? <div className="empty-state"><p>Ładowanie...</p></div>
-              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>Brak zajęć.</p></div>
+            <div className="section-header"><h3>{serviceMode === "services" ? t("Nadchodzące wizyty", "Upcoming appointments") : t("Nadchodzące zajęcia", "Upcoming classes")}</h3><button className="btn btn-primary" onClick={openCreate}>+ {serviceMode === "services" ? t("Nowa wizyta", "New appointment") : t("Nowe zajęcia", "New class")}</button></div>
+            {loading ? <div className="empty-state"><p>{t("Ładowanie...", "Loading...")}</p></div>
+              : upcomingClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">🌿</div><p>{t("Brak zajęć.", "No classes.")}</p></div>
               : (
                 <div className="table-wrapper" style={{ marginBottom: "2rem" }}>
                   <table>
-                    <thead><tr><th>Nazwa</th>{multiStaff && <th>Pracownik</th>}<th>Data</th><th>Godz.</th><th>Cena</th><th>Sala</th><th>Miejsca</th><th>Uczestnicy</th><th>Akcje</th></tr></thead>
+                    <thead><tr><th>{t("Nazwa","Name")}</th>{multiStaff && <th>{t("Pracownik","Staff")}</th>}<th>{t("Data","Date")}</th><th>{t("Godz.","Time")}</th><th>{t("Cena","Price")}</th><th>{t("Sala","Venue")}</th><th>{t("Miejsca","Spots")}</th><th>{t("Uczestnicy","Participants")}</th><th>{t("Akcje","Actions")}</th></tr></thead>
                     <tbody>
                       {upcomingClasses.map(cls => {
                         const count = cls.bookings?.length || 0;
@@ -1037,15 +1044,15 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             <td>{count} / {cls.max_spots}</td>
                             <td>
                               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => openParticipants(cls)}>Lista ({count})</button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(cls)} title="Wyślij wiadomość">💬</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => openParticipants(cls)}>{t("Lista", "List")} ({count})</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(cls)} title={t("Wyślij wiadomość", "Send message")}>💬</button>
                               </div>
                             </td>
                             <td>
                               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>Edytuj</button>
-                                <button className="btn btn-danger btn-sm" onClick={() => setShowCancelModal(cls)}>Odwołaj</button>
-                                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(cls.id)}>Usuń</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>{t("Edytuj", "Edit")}</button>
+                                <button className="btn btn-danger btn-sm" onClick={() => setShowCancelModal(cls)}>{t("Odwołaj", "Cancel")}</button>
+                                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(cls.id)}>{t("Usuń", "Delete")}</button>
                               </div>
                             </td>
                           </tr>
@@ -1057,10 +1064,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               )}
             {cancelledClasses.length > 0 && (
               <>
-                <div className="section-header" style={{ marginTop: "1rem" }}><h3 style={{ color: "var(--clay)" }}>🚫 Odwołane zajęcia</h3></div>
+                <div className="section-header" style={{ marginTop: "1rem" }}><h3 style={{ color: "var(--clay)" }}>🚫 {t("Odwołane zajęcia", "Cancelled classes")}</h3></div>
                 <div className="table-wrapper">
                   <table>
-                    <thead><tr><th>Nazwa</th><th>Data</th><th>Powód</th></tr></thead>
+                    <thead><tr><th>{t("Nazwa","Name")}</th><th>{t("Data","Date")}</th><th>{t("Powód","Reason")}</th></tr></thead>
                     <tbody>
                       {cancelledClasses.map(cls => (
                         <tr key={cls.id} style={{ opacity: 0.6 }}>
@@ -1111,19 +1118,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               return (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", gap: "1rem" }}>
-                    <button className="btn btn-secondary btn-sm" onClick={prevDay}>← Poprzedni</button>
+                    <button className="btn btn-secondary btn-sm" onClick={prevDay}>← {t("Poprzedni", "Prev")}</button>
                     <span style={{ fontWeight: 600, fontSize: "1rem", textAlign: "center" }}>
-                      {staffCalDay.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                      {isToday && <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", background: "var(--sage)", color: "white", padding: "0.1rem 0.4rem", borderRadius: 4 }}>Dziś</span>}
+                      {staffCalDay.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                      {isToday && <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", background: "var(--sage)", color: "white", padding: "0.1rem 0.4rem", borderRadius: 4 }}>{t("Dziś", "Today")}</span>}
                     </span>
-                    <button className="btn btn-secondary btn-sm" onClick={nextDay}>Następny →</button>
+                    <button className="btn btn-secondary btn-sm" onClick={nextDay}>{t("Następny", "Next")} →</button>
                   </div>
 
                   <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 10, background: "var(--warm-white)" }}>
                     <table style={{ borderCollapse: "collapse", width: "100%", minWidth: `${60 + staffCols.length * 160}px` }}>
                       <thead>
                         <tr style={{ background: "var(--cream)" }}>
-                          <th style={{ width: 60, padding: "0.6rem 0.5rem", fontSize: "0.72rem", color: "var(--mid)", fontWeight: 500, borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)" }}>Godz.</th>
+                          <th style={{ width: 60, padding: "0.6rem 0.5rem", fontSize: "0.72rem", color: "var(--mid)", fontWeight: 500, borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)" }}>{t("Godz.","Time")}</th>
                           {staffCols.map(s => (
                             <th key={s.id} style={{ padding: "0.6rem 0.75rem", borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)", textAlign: "left" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -1159,7 +1166,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                         onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
                                         <div style={{ fontWeight: 600, fontSize: "0.78rem" }}>{cls.name}</div>
                                         <div style={{ fontSize: "0.7rem", color: "var(--mid)" }}>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>
-                                        <div style={{ fontSize: "0.7rem", color: isFull ? "var(--clay)" : "var(--sage-dark)", fontWeight: 500 }}>{booked}/{cls.max_spots} {isFull ? "● pełne" : ""}</div>
+                                        <div style={{ fontSize: "0.7rem", color: isFull ? "var(--clay)" : "var(--sage-dark)", fontWeight: 500 }}>{booked}/{cls.max_spots} {isFull ? `● ${t("pełne", "full")}` : ""}</div>
                                       </div>
                                     );
                                   })}
@@ -1171,7 +1178,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                       </tbody>
                     </table>
                   </div>
-                  <p style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.5rem" }}>Kliknij pusty slot aby szybko dodać wizytę w wybranej godzinie i u wybranego pracownika.</p>
+                  <p style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.5rem" }}>{t("Kliknij pusty slot aby szybko dodać wizytę w wybranej godzinie i u wybranego pracownika.", "Click an empty slot to quickly add an appointment at the selected time and staff member.")}</p>
                 </>
               );
             })() : (() => {
@@ -1180,7 +1187,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               const month = adminCalendarWeek.getMonth();
               const firstDay = new Date(year, month, 1);
               const lastDay = new Date(year, month + 1, 0);
-              const aDayNames = ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
+              const aDayNames = lang === "en" ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] : ["Pon","Wt","Śr","Czw","Pt","Sob","Nd"];
               const isTodayA = d => d.toDateString() === new Date().toDateString();
               let startOffset = firstDay.getDay() - 1;
               if (startOffset < 0) startOffset = 6;
@@ -1194,12 +1201,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               return (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← Poprzedni</button>
-                    <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>Następny →</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← {t("Poprzedni","Prev")}</button>
+                    <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString(locale, { month: "long", year: "numeric" })}</span>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>{t("Następny","Next")} →</button>
                   </div>
                   <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-                    {[["Zajęć", mClasses.length],["Rezerwacji", mBookings.length],["Przychód", `${mRevenue} zł`]].map(([label, val], i) => (
+                    {[[t("Zajęć","Classes"), mClasses.length],[t("Rezerwacji","Bookings"), mBookings.length],[t("Przychód","Revenue"), `${mRevenue} zł`]].map(([label, val], i) => (
                       <div key={i} style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
                         <span style={{ fontWeight: 600, color: "var(--sage-dark)" }}>{val}</span>
                         <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{label}</span>
@@ -1239,7 +1246,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                    {[["var(--cream)","var(--border)","< 70%"],["#EBF5EA","#8A9E85","≥ 70%"],["#FEF3E8","#E8C5B5","Pełne"]].map(([bg,bdr,label]) => (
+                    {[["var(--cream)","var(--border)","< 70%"],["#EBF5EA","#8A9E85","≥ 70%"],["#FEF3E8","#E8C5B5",t("Pełne","Full")]].map(([bg,bdr,label]) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "var(--mid)" }}>
                         <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${bdr}` }} />
                         {label}
@@ -1261,19 +1268,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <p>{formatDate(selectedClass.starts_at)} o {formatTime(selectedClass.starts_at)}</p>
             </div>
             <div className="section-header">
-              <h3>Lista uczestników ({participants.length} / {selectedClass.max_spots})</h3>
+              <h3>{t("Lista uczestników", "Participants")} ({participants.length} / {selectedClass.max_spots})</h3>
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(selectedClass)}>💬 Wiadomość</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => printAttendanceList(selectedClass, participants)}>🖨️ Lista PDF</button>
-                <button className="btn btn-primary btn-sm" onClick={() => setShowAddUserModal(true)}>+ Dodaj</button>
-                <button className="btn btn-secondary" onClick={() => switchTab("classes")}>← Wróć</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(selectedClass)}>💬 {t("Wiadomość", "Message")}</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => printAttendanceList(selectedClass, participants)}>🖨️ {t("Lista PDF", "PDF list")}</button>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowAddUserModal(true)}>+ {t("Dodaj", "Add")}</button>
+                <button className="btn btn-secondary" onClick={() => switchTab("classes")}>← {t("Wróć", "Back")}</button>
               </div>
             </div>
 
             {/* Legenda obecności */}
             {new Date(selectedClass.starts_at) < new Date() && (
               <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>Oznacz obecność:</span>
+                <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{t("Oznacz obecność:", "Mark attendance:")}</span>
                 {["present","absent","late"].map(s => {
                   const st = statusStyle(s);
                   return <span key={s} style={{ fontSize: "0.8rem", background: st.bg, color: st.color, padding: "0.2rem 0.6rem", borderRadius: 20 }}>{st.label}</span>;
@@ -1281,13 +1288,13 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               </div>
             )}
 
-            {participants.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><p>Nikt się nie zapisał</p></div>
+            {participants.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><p>{t("Nikt się nie zapisał", "No participants yet")}</p></div>
               : (
                 <div className="table-wrapper">
                   <table>
-                    <thead><tr><th>#</th><th>Imię i nazwisko</th><th>Email</th><th>Płatność</th>
-                      {new Date(selectedClass.starts_at) < new Date() && <th>Obecność</th>}
-                      <th>Akcja</th></tr></thead>
+                    <thead><tr><th>#</th><th>{t("Imię i nazwisko","Name")}</th><th>Email</th><th>{t("Płatność","Payment")}</th>
+                      {new Date(selectedClass.starts_at) < new Date() && <th>{t("Obecność","Attendance")}</th>}
+                      <th>{t("Akcja","Action")}</th></tr></thead>
                     <tbody>
                       {participants.map((b, i) => {
                         const attStatus = attendance[b.user_id];
@@ -1320,7 +1327,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                 {isPast && b.payment_method !== "entries" && !settled.has(`${b.user_id}_${selectedClass.id}`) && (
                                   <button className="btn btn-secondary btn-sm" onClick={() => handleUseToken(b.user_id, selectedClass.id, selectedClass.name)}>🎫</button>
                                 )}
-                                <button className="btn btn-danger btn-sm" onClick={() => handleRemoveParticipant(b.id)}>Usuń</button>
+                                <button className="btn btn-danger btn-sm" onClick={() => handleRemoveParticipant(b.id)}>{t("Usuń","Remove")}</button>
                               </div>
                             </td>
                           </tr>
@@ -1344,7 +1351,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   ) : null;
                 })}
                 <div style={{ background: "var(--cream)", color: "var(--mid)", borderRadius: 8, padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
-                  Nieoznaczonych: {participants.length - Object.keys(attendance).length}
+                  {t("Nieoznaczonych:", "Unmarked:")} {participants.length - Object.keys(attendance).length}
                 </div>
               </div>
             )}
@@ -1354,17 +1361,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* DO ROZLICZENIA */}
         {tab === "settle" && (
           <>
-            <div className="page-header"><h2>Do rozliczenia</h2></div>
-            {toSettle.length === 0 ? <div className="empty-state"><div className="empty-icon">✅</div><p>Wszystko rozliczone!</p></div>
+            <div className="page-header"><h2>{t("Do rozliczenia", "Pending settlement")}</h2></div>
+            {toSettle.length === 0 ? <div className="empty-state"><div className="empty-icon">✅</div><p>{t("Wszystko rozliczone!", "All settled!")}</p></div>
               : (
                 <>
                   <div className="stats-row" style={{ marginBottom: "1.5rem" }}>
-                    <div className="stat-card"><div className="stat-value">{toSettle.length}</div><div className="stat-label">Nierozliczonych</div></div>
-                    {totalOwed > 0 && <div className="stat-card"><div className="stat-value" style={{ color: "var(--clay)" }}>{totalOwed} zł</div><div className="stat-label">Łącznie</div></div>}
+                    <div className="stat-card"><div className="stat-value">{toSettle.length}</div><div className="stat-label">{t("Nierozliczonych", "Unsettled")}</div></div>
+                    {totalOwed > 0 && <div className="stat-card"><div className="stat-value" style={{ color: "var(--clay)" }}>{totalOwed} zł</div><div className="stat-label">{t("Łącznie", "Total")}</div></div>}
                   </div>
                   <div className="table-wrapper">
                     <table>
-                      <thead><tr><th>Klientka</th><th>Zajęcia</th><th>Data</th><th>Metoda</th><th>Cena</th><th>Akcja</th></tr></thead>
+                      <thead><tr><th>{t("Klientka","Client")}</th><th>{t("Zajęcia","Class")}</th><th>{t("Data","Date")}</th><th>{t("Metoda","Method")}</th><th>{t("Cena","Price")}</th><th>{t("Akcja","Action")}</th></tr></thead>
                       <tbody>
                         {toSettle.map(b => (
                           <tr key={b.id}>
@@ -1373,7 +1380,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             <td>{b.classes?.starts_at ? formatDate(b.classes.starts_at) : "—"}</td>
                             <td>{b.payment_method === "entries" ? "🎫" : "💵"}</td>
                             <td>{b.classes?.price_pln ? <strong style={{ color: "var(--clay)" }}>{b.classes.price_pln} zł</strong> : "—"}</td>
-                            <td><button className="btn btn-primary btn-sm" onClick={() => handleSettleNow(b.user_id, b.class_id, b.classes?.name, b.classes?.starts_at)}>✓ Rozlicz</button></td>
+                            <td><button className="btn btn-primary btn-sm" onClick={() => handleSettleNow(b.user_id, b.class_id, b.classes?.name, b.classes?.starts_at)}>✓ {t("Rozlicz","Settle")}</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -1388,10 +1395,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {tab === "reports" && (
           <>
             <div className="print-header" style={{ marginBottom: "1rem" }}>
-              <h2>Pilates Studio — Raport {monthName(reportMonth)} {reportYear}</h2>
-              <p style={{ color: "#666", fontSize: "0.85rem" }}>Wygenerowano: {new Date().toLocaleDateString("pl-PL")}</p>
+              <h2>Pilates Studio — {t("Raport", "Report")} {monthName(reportMonth)} {reportYear}</h2>
+              <p style={{ color: "#666", fontSize: "0.85rem" }}>{t("Wygenerowano:", "Generated:")} {new Date().toLocaleDateString(locale)}</p>
             </div>
-            <div className="page-header no-print"><h2>Raporty i rozliczenia</h2></div>
+            <div className="page-header no-print"><h2>{t("Raporty i rozliczenia", "Reports & finances")}</h2></div>
             <div className="no-print" style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap" }}>
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <select className="form-input" style={{ width: "auto" }} value={reportMonth} onChange={e => setReportMonth(+e.target.value)}>
@@ -1404,13 +1411,13 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 {["annual","summary","venues","classes","clients","entries","ratings"].map(v => (
                   <button key={v} className={`btn ${reportView === v ? "btn-primary" : "btn-secondary"} btn-sm`} onClick={() => setReportView(v)}>
-                    {v === "annual" ? "📅 Rok" : v === "summary" ? "Podsumowanie" : v === "venues" ? "🏢 Sale" : v === "classes" ? "Zajęcia" : v === "clients" ? "Klienci" : v === "entries" ? "Wejścia" : "⭐ Oceny"}
+                    {v === "annual" ? `📅 ${t("Rok","Year")}` : v === "summary" ? t("Podsumowanie","Summary") : v === "venues" ? `🏢 ${t("Sale","Venues")}` : v === "classes" ? t("Zajęcia","Classes") : v === "clients" ? t("Klienci","Clients") : v === "entries" ? t("Wejścia","Credits") : `⭐ ${t("Oceny","Ratings")}`}
                   </button>
                 ))}
               </div>
               <div style={{ display: "flex", gap: "0.5rem", marginLeft: "auto" }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(rd)}>⬇️ CSV</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>🖨️ Drukuj</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>🖨️ {t("Drukuj","Print")}</button>
               </div>
             </div>
 
@@ -1428,11 +1435,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <>
                   <div className="venue-kpi-row" style={{ marginBottom: "1.5rem" }}>
                     {[
-                      { label: "Przychód roczny", value: `${totalRev} zł`, color: "var(--sage-dark)" },
-                      { label: "Zysk netto", value: `${totalProfit} zł`, color: totalProfit >= 0 ? "var(--sage-dark)" : "#C44B4B" },
-                      { label: "Rezerwacji", value: totalBookings, color: "var(--charcoal)" },
-                      { label: "Najlepszy miesiąc", value: bestMonth ? bestMonth.name : "—", color: "var(--sage-dark)", sub: bestMonth ? `${bestMonth.revenue} zł` : "" },
-                      { label: "Najsłabszy miesiąc", value: worstMonth ? worstMonth.name : "—", color: "var(--clay)", sub: worstMonth ? `${worstMonth.revenue} zł` : "" },
+                      { label: t("Przychód roczny","Annual revenue"), value: `${totalRev} zł`, color: "var(--sage-dark)" },
+                      { label: t("Zysk netto","Net profit"), value: `${totalProfit} zł`, color: totalProfit >= 0 ? "var(--sage-dark)" : "#C44B4B" },
+                      { label: t("Rezerwacji","Bookings"), value: totalBookings, color: "var(--charcoal)" },
+                      { label: t("Najlepszy miesiąc","Best month"), value: bestMonth ? bestMonth.name : "—", color: "var(--sage-dark)", sub: bestMonth ? `${bestMonth.revenue} zł` : "" },
+                      { label: t("Najsłabszy miesiąc","Worst month"), value: worstMonth ? worstMonth.name : "—", color: "var(--clay)", sub: worstMonth ? `${worstMonth.revenue} zł` : "" },
                     ].map(({ label, value, color, sub }) => (
                       <div key={label} className="venue-kpi-card">
                         <div className="venue-kpi-value" style={{ color }}>{value}</div>
@@ -1823,27 +1830,27 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* POWIADOMIENIA */}
         {tab === "notifications" && (
           <>
-            <div className="page-header"><h2>Powiadomienia</h2></div>
+            <div className="page-header"><h2>{t("Powiadomienia", "Notifications")}</h2></div>
 
             {/* Masowe powiadomienia */}
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "var(--charcoal)" }}>📢 Wyślij wiadomość</h3>
+              <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "var(--charcoal)" }}>📢 {t("Wyślij wiadomość", "Send message")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Odbiorcy</label>
+                  <label className="form-label">{t("Odbiorcy", "Recipients")}</label>
                   <select className="form-input" value={bulkMsgTarget} onChange={e => setBulkMsgTarget(e.target.value)}>
-                    <option value="all">Wszyscy klienci ({allProfiles.filter(p => p.role === "client").length} os.)</option>
-                    <optgroup label="Uczestnicy zajęć">
+                    <option value="all">{t("Wszyscy klienci", "All clients")} ({allProfiles.filter(p => p.role === "client").length})</option>
+                    <optgroup label={t("Uczestnicy zajęć", "Class participants")}>
                       {classes.slice().sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)).slice(0, 30).map(c => (
-                        <option key={c.id} value={c.id}>{new Date(c.starts_at).toLocaleDateString("pl-PL", { day: "numeric", month: "short" })} — {c.name}</option>
+                        <option key={c.id} value={c.id}>{new Date(c.starts_at).toLocaleDateString(locale, { day: "numeric", month: "short" })} — {c.name}</option>
                       ))}
                     </optgroup>
                   </select>
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Kanały</label>
+                  <label className="form-label">{t("Kanały", "Channels")}</label>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", paddingTop: "0.3rem" }}>
-                    {[["app", "📱 Powiadomienie w aplikacji"], ["push", "🔔 Push (przeglądarka)"], ["sms", "📱 SMS (tylko z numerem)"]].map(([key, label]) => (
+                    {[["app", `📱 ${t("Powiadomienie w aplikacji","In-app notification")}`], ["push", `🔔 Push`], ["sms", `📱 SMS`]].map(([key, label]) => (
                       <label key={key} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.85rem" }}>
                         <input type="checkbox" checked={bulkMsgChannels[key]} onChange={e => setBulkMsgChannels(p => ({ ...p, [key]: e.target.checked }))} style={{ accentColor: "var(--sage)" }} />
                         {label}
@@ -1853,25 +1860,25 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 </div>
               </div>
               <div className="form-group" style={{ margin: "0 0 0.75rem" }}>
-                <label className="form-label">Treść wiadomości</label>
-                <textarea className="form-input" rows={3} placeholder="Wpisz treść wiadomości…" value={bulkMsgText} onChange={e => setBulkMsgText(e.target.value)} style={{ resize: "vertical" }} />
+                <label className="form-label">{t("Treść wiadomości", "Message")}</label>
+                <textarea className="form-input" rows={3} placeholder={t("Wpisz treść wiadomości…","Write your message…")} value={bulkMsgText} onChange={e => setBulkMsgText(e.target.value)} style={{ resize: "vertical" }} />
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button className="btn btn-primary" onClick={sendBulkMessage} disabled={!bulkMsgText.trim() || sendingBulk || (!bulkMsgChannels.app && !bulkMsgChannels.push && !bulkMsgChannels.sms)}>
-                  {sendingBulk ? "Wysyłanie…" : "Wyślij"}
+                  {sendingBulk ? t("Wysyłanie…","Sending…") : t("Wyślij","Send")}
                 </button>
               </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-              <h3 style={{ font: "inherit", fontWeight: 600 }}>Historia powiadomień</h3>
+              <h3 style={{ font: "inherit", fontWeight: 600 }}>{t("Historia powiadomień", "Notification history")}</h3>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {[
-                  { key: "all", label: "Wszystkie" },
-                  { key: "unread", label: `Nieprzeczytane${notifications.filter(n => !n.read).length > 0 ? ` (${notifications.filter(n => !n.read).length})` : ""}` },
-                  { key: "class_cancelled", label: "Odwołania" },
-                  { key: "booking", label: "Wiadomości" },
-                  { key: "tokens_added", label: "Wejścia" },
+                  { key: "all", label: t("Wszystkie","All") },
+                  { key: "unread", label: `${t("Nieprzeczytane","Unread")}${notifications.filter(n => !n.read).length > 0 ? ` (${notifications.filter(n => !n.read).length})` : ""}` },
+                  { key: "class_cancelled", label: t("Odwołania","Cancellations") },
+                  { key: "booking", label: t("Wiadomości","Messages") },
+                  { key: "tokens_added", label: t("Wejścia","Credits") },
                 ].map(f => (
                   <button key={f.key} onClick={() => setNotifFilter(f.key)}
                     className={`btn btn-sm ${notifFilter === f.key ? "btn-primary" : "btn-secondary"}`}>
@@ -1889,8 +1896,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 true
               );
               return filtered.length === 0
-                ? <div className="empty-state"><div className="empty-icon">🔔</div><p>Brak powiadomień{notifFilter !== "all" ? " w tej kategorii" : ""}.</p></div>
-                : <div className="table-wrapper"><table><thead><tr><th>Typ</th><th>Wiadomość</th><th>Kiedy</th></tr></thead><tbody>
+                ? <div className="empty-state"><div className="empty-icon">🔔</div><p>{t("Brak powiadomień","No notifications")}{notifFilter !== "all" ? t(" w tej kategorii"," in this category") : ""}.</p></div>
+                : <div className="table-wrapper"><table><thead><tr><th>{t("Typ","Type")}</th><th>{t("Wiadomość","Message")}</th><th>{t("Kiedy","When")}</th></tr></thead><tbody>
                     {filtered.map(n => (
                       <tr key={n.id} style={{ background: n.read ? "transparent" : "rgba(138,158,133,0.06)" }}>
                         <td style={{ fontSize: "1.2rem" }}>{notifIcon(n.type)}</td>
@@ -1906,13 +1913,13 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* STATYSTYKI */}
         {tab === "stats" && (
           <>
-            <div className="page-header"><h2>Statystyki</h2></div>
+            <div className="page-header"><h2>{t("Statystyki", "Statistics")}</h2></div>
             <div className="stats-row">
-              <div className="stat-card"><div className="stat-value">{allBookings.length}</div><div className="stat-label">Rezerwacji łącznie</div></div>
-              <div className="stat-card"><div className="stat-value">{classes.length}</div><div className="stat-label">Zajęć łącznie</div></div>
-              <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">Klientów</div></div>
+              <div className="stat-card"><div className="stat-value">{allBookings.length}</div><div className="stat-label">{t("Rezerwacji łącznie","Total bookings")}</div></div>
+              <div className="stat-card"><div className="stat-value">{classes.length}</div><div className="stat-label">{t("Zajęć łącznie","Total classes")}</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.uniqueClients}</div><div className="stat-label">{t("Klientów","Clients")}</div></div>
             </div>
-            <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Frekwencja wg dnia tygodnia</h3></div>
+            <div className="section-header" style={{ marginBottom: "1rem" }}><h3>{t("Frekwencja wg dnia tygodnia","Attendance by weekday")}</h3></div>
             <div className="card" style={{ marginBottom: "2rem", padding: "1.5rem 1.5rem 1rem" }}>
               <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", height: 160 }}>
                 {dayStats.map(d => (
@@ -1924,14 +1931,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 ))}
               </div>
             </div>
-            <div className="section-header" style={{ marginBottom: "1rem" }}><h3>Najpopularniejsze godziny</h3></div>
+            <div className="section-header" style={{ marginBottom: "1rem" }}><h3>{t("Najpopularniejsze godziny","Most popular hours")}</h3></div>
             <div className="card">
-              {topHours.length === 0 ? <p style={{ color: "var(--mid)" }}>Brak danych</p>
+              {topHours.length === 0 ? <p style={{ color: "var(--mid)" }}>{t("Brak danych","No data")}</p>
                 : topHours.map(([hour, count], i) => (
                   <div key={hour} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.6rem 0", borderBottom: i < topHours.length - 1 ? "1px solid var(--border)" : "none" }}>
                     <span>{["🥇","🥈","🥉"][i]}</span>
                     <span style={{ fontWeight: 500 }}>{hour}:00 – {parseInt(hour)+1}:00</span>
-                    <span style={{ marginLeft: "auto", color: "var(--mid)", fontSize: "0.875rem" }}>{count} rezerwacji</span>
+                    <span style={{ marginLeft: "auto", color: "var(--mid)", fontSize: "0.875rem" }}>{count} {t("rezerwacji","bookings")}</span>
                   </div>
                 ))}
             </div>
@@ -1941,10 +1948,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* HISTORIA */}
         {tab === "history" && (
           <>
-            <div className="page-header"><h2>Historia zajęć</h2></div>
-            {pastClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">📋</div><p>Brak minionych zajęć</p></div>
+            <div className="page-header"><h2>{t("Historia zajęć", "Class history")}</h2></div>
+            {pastClasses.length === 0 ? <div className="empty-state"><div className="empty-icon">📋</div><p>{t("Brak minionych zajęć","No past classes")}</p></div>
               : <div className="table-wrapper"><table>
-                <thead><tr><th>Nazwa</th><th>Data</th><th>Cena</th><th>Uczestnicy</th><th></th></tr></thead>
+                <thead><tr><th>{t("Nazwa","Name")}</th><th>{t("Data","Date")}</th><th>{t("Cena","Price")}</th><th>{t("Uczestnicy","Participants")}</th><th></th></tr></thead>
                 <tbody>{pastClasses.map(cls => {
                   const bookingsForClass = allBookings.filter(b => b.class_id === cls.id);
                   return (
@@ -1952,8 +1959,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                       <td><strong>{cls.name}</strong></td>
                       <td>{formatDate(cls.starts_at)}</td>
                       <td>{cls.price_pln ? `${cls.price_pln} zł` : "—"}</td>
-                      <td>{bookingsForClass.length > 0 ? bookingsForClass.map(b => <span key={b.id} className="participant-chip">{b.profiles?.first_name} {b.profiles?.last_name}</span>) : <span style={{ color: "var(--light)", fontSize: "0.8rem" }}>brak</span>}</td>
-                      <td><button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>Edytuj</button></td>
+                      <td>{bookingsForClass.length > 0 ? bookingsForClass.map(b => <span key={b.id} className="participant-chip">{b.profiles?.first_name} {b.profiles?.last_name}</span>) : <span style={{ color: "var(--light)", fontSize: "0.8rem" }}>{t("brak","none")}</span>}</td>
+                      <td><button className="btn btn-secondary btn-sm" onClick={() => openEdit(cls)}>{t("Edytuj","Edit")}</button></td>
                     </tr>
                   );
                 })}</tbody></table></div>}
@@ -1964,22 +1971,22 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {tab === "clients" && (
           <>
             <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div><h2>Klienci</h2></div>
-              <button className="btn btn-primary btn-sm" onClick={() => { setNewClientContext("clients"); setShowNewClientModal(true); }}>+ Nowy klient</button>
+              <div><h2>{t("Klienci","Clients")}</h2></div>
+              <button className="btn btn-primary btn-sm" onClick={() => { setNewClientContext("clients"); setShowNewClientModal(true); }}>+ {t("Nowy klient","New client")}</button>
             </div>
 
             {/* Wyszukiwarka */}
             <div style={{ marginBottom: "1.25rem" }}>
               <input
                 className="form-input"
-                placeholder="🔍 Szukaj po imieniu lub nazwisku..."
+                placeholder={t("🔍 Szukaj po imieniu lub nazwisku...","🔍 Search by name...")}
                 value={clientSearch}
                 onChange={e => setClientSearch(e.target.value)}
                 style={{ maxWidth: 360 }}
               />
             </div>
 
-            {allProfiles.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><p>Brak klientów</p></div>
+            {allProfiles.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><p>{t("Brak klientów","No clients")}</p></div>
               : (() => {
                 const filtered = allProfiles.filter(c =>
                   `${c.first_name} ${c.last_name}`.toLowerCase().includes(clientSearch.toLowerCase()) ||
@@ -1998,14 +2005,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                 <div style={{ fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
                                 <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{c.email}</div>
                                 <div style={{ fontSize: "0.8rem", color: "var(--mid)", marginTop: 2 }}>
-                                  Rezerwacji: {allBookings.filter(b => b.user_id === c.id).length}
+                                  {t("Rezerwacji:","Bookings:")} {allBookings.filter(b => b.user_id === c.id).length}
                                 </div>
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                               <TokenBadge userId={c.id} month={currentMonth} year={currentYear} />
-                              <button className="btn btn-secondary btn-sm" onClick={() => openEditClient(c)}>✏️ Edytuj</button>
-                              <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 Wejścia</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => openEditClient(c)}>✏️ {t("Edytuj","Edit")}</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 {t("Wejścia","Credits")}</button>
                             </div>
                           </div>
 
@@ -2019,10 +2026,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             const entriesUsed = tokenHistory.filter(h => h.user_id === c.id && h.operation === "use" && new Date(h.created_at).getFullYear() === currentYear).length;
                             return (
                               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
-                                <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>📅 {pastBookings.length} odbytych</span>
+                                <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>📅 {pastBookings.length} {t("odbytych","attended")}</span>
                                 {favorite && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>⭐ {favorite}</span>}
-                                {entriesUsed > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>🎫 {entriesUsed} wejść w {currentYear}</span>}
-                                {cBookings.filter(b => b.payment_method === "cash").length > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>💵 {cBookings.filter(b => b.payment_method === "cash").length} gotówką</span>}
+                                {entriesUsed > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>🎫 {entriesUsed} {t("wejść w","credits in")} {currentYear}</span>}
+                                {cBookings.filter(b => b.payment_method === "cash").length > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>💵 {cBookings.filter(b => b.payment_method === "cash").length} {t("gotówką","cash")}</span>}
                               </div>
                             );
                           })()}
@@ -2041,8 +2048,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                   autoFocus
                                 />
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                  <button className="btn btn-primary btn-sm" onClick={() => saveNotes(c.id)}>Zapisz</button>
-                                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingNotes(null)}>Anuluj</button>
+                                  <button className="btn btn-primary btn-sm" onClick={() => saveNotes(c.id)}>{t("Zapisz","Save")}</button>
+                                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingNotes(null)}>{t("Anuluj","Cancel")}</button>
                                 </div>
                               </div>
                             ) : (
@@ -2050,11 +2057,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                 <div style={{ flex: 1 }}>
                                   {c.admin_notes
                                     ? <p style={{ fontSize: "0.85rem", color: "var(--charcoal)", fontStyle: "italic" }}>📝 {c.admin_notes}</p>
-                                    : <p style={{ fontSize: "0.8rem", color: "var(--light)" }}>Brak notatek</p>}
+                                    : <p style={{ fontSize: "0.8rem", color: "var(--light)" }}>{t("Brak notatek","No notes")}</p>}
                                 </div>
                                 <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}
                                   onClick={() => { setEditingNotes(c.id); setNotesText(c.admin_notes || ""); }}>
-                                  {c.admin_notes ? "Edytuj notatkę" : "Dodaj notatkę"}
+                                  {c.admin_notes ? t("Edytuj notatkę","Edit note") : t("Dodaj notatkę","Add note")}
                                 </button>
                               </div>
                             )}
@@ -2069,20 +2076,20 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
         {tab === "admin_account" && (
           <>
-            <div className="page-header"><h2>Konto</h2></div>
+            <div className="page-header"><h2>{t("Konto","Account")}</h2></div>
             <div className="card" style={{ maxWidth: 420 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
                 <div className="user-avatar" style={{ width: 52, height: 52, fontSize: "1.2rem" }}>{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>{profile?.first_name} {profile?.last_name}</div>
-                  <div style={{ fontSize: "0.85rem", color: "var(--mid)" }}>Administrator</div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{t("Administrator","Administrator")}</div>
                   <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{profile?.email}</div>
                 </div>
               </div>
               <button onClick={() => setDarkMode(!darkMode)} className="btn btn-secondary btn-full" style={{ marginBottom: "0.75rem" }}>
-                {darkMode ? "☀️ Tryb jasny" : "🌙 Tryb ciemny"}
+                {darkMode ? `☀️ ${t("Tryb jasny","Light mode")}` : `🌙 ${t("Tryb ciemny","Dark mode")}`}
               </button>
-              <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
+              <button className="btn btn-danger btn-full" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się","Log out")}</button>
             </div>
           </>
         )}
@@ -2090,30 +2097,30 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* PRACOWNICY */}
         {tab === "staff" && multiStaff && (
           <>
-            <div className="page-header"><h2>Pracownicy</h2></div>
+            <div className="page-header"><h2>{t("Pracownicy","Staff")}</h2></div>
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem" }}>{editingStaff ? "Edytuj pracownika" : "Dodaj pracownika"}</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem" }}>{editingStaff ? t("Edytuj pracownika","Edit staff member") : t("Dodaj pracownika","Add staff member")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "0.75rem", alignItems: "flex-end" }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Imię i nazwisko</label>
-                  <input className="form-input" placeholder="np. Anna Kowalska" value={staffForm.name} onChange={e => setStaffForm({ ...staffForm, name: e.target.value })} />
+                  <label className="form-label">{t("Imię i nazwisko","Full name")}</label>
+                  <input className="form-input" placeholder={t("np. Anna Kowalska","e.g. Anna Smith")} value={staffForm.name} onChange={e => setStaffForm({ ...staffForm, name: e.target.value })} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Kolor</label>
+                  <label className="form-label">{t("Kolor","Color")}</label>
                   <input type="color" value={staffForm.color} onChange={e => setStaffForm({ ...staffForm, color: e.target.value })}
                     style={{ width: 46, height: 40, border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", padding: 2 }} />
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="btn btn-primary" onClick={handleSaveStaff} disabled={!staffForm.name.trim()}>{editingStaff ? "Zapisz" : "Dodaj"}</button>
-                  {editingStaff && <button className="btn btn-secondary" onClick={() => { setEditingStaff(null); setStaffForm({ name: "", color: "#8A9E85" }); }}>Anuluj</button>}
+                  <button className="btn btn-primary" onClick={handleSaveStaff} disabled={!staffForm.name.trim()}>{editingStaff ? t("Zapisz","Save") : t("Dodaj","Add")}</button>
+                  {editingStaff && <button className="btn btn-secondary" onClick={() => { setEditingStaff(null); setStaffForm({ name: "", color: "#8A9E85" }); }}>{t("Anuluj","Cancel")}</button>}
                 </div>
               </div>
             </div>
             {staff.length === 0
-              ? <div className="empty-state"><div className="empty-icon">🧑‍💼</div><p>Brak pracowników. Dodaj pierwszego powyżej.</p></div>
+              ? <div className="empty-state"><div className="empty-icon">🧑‍💼</div><p>{t("Brak pracowników. Dodaj pierwszego powyżej.","No staff members. Add the first one above.")}</p></div>
               : <div className="table-wrapper">
                 <table>
-                  <thead><tr><th>Pracownik</th><th>Status</th><th>Akcje</th></tr></thead>
+                  <thead><tr><th>{t("Pracownik","Staff member")}</th><th>{t("Status","Status")}</th><th>{t("Akcje","Actions")}</th></tr></thead>
                   <tbody>
                     {staff.map(s => (
                       <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
@@ -2123,12 +2130,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             <strong>{s.name}</strong>
                           </span>
                         </td>
-                        <td><span style={{ fontSize: "0.8rem", color: s.active ? "var(--sage-dark)" : "var(--light)" }}>{s.active ? "Aktywny" : "Nieaktywny"}</span></td>
+                        <td><span style={{ fontSize: "0.8rem", color: s.active ? "var(--sage-dark)" : "var(--light)" }}>{s.active ? t("Aktywny","Active") : t("Nieaktywny","Inactive")}</span></td>
                         <td>
                           <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => { setEditingStaff(s); setStaffForm({ name: s.name, color: s.color }); }}>Edytuj</button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleToggleStaff(s)}>{s.active ? "Dezaktywuj" : "Aktywuj"}</button>
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStaff(s.id)}>Usuń</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => { setEditingStaff(s); setStaffForm({ name: s.name, color: s.color }); }}>{t("Edytuj","Edit")}</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleToggleStaff(s)}>{s.active ? t("Dezaktywuj","Deactivate") : t("Aktywuj","Activate")}</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStaff(s.id)}>{t("Usuń","Delete")}</button>
                           </div>
                         </td>
                       </tr>
@@ -2142,34 +2149,34 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* USŁUGI */}
         {tab === "services" && hasServices && (
           <>
-            <div className="page-header"><h2>Usługi i cennik</h2></div>
+            <div className="page-header"><h2>{t("Usługi i cennik","Services & pricing")}</h2></div>
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem" }}>{editingService ? "Edytuj usługę" : "Dodaj usługę"}</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem" }}>{editingService ? t("Edytuj usługę","Edit service") : t("Dodaj usługę","Add service")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "0.75rem", alignItems: "flex-end" }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Nazwa usługi</label>
-                  <input className="form-input" placeholder="np. Strzyżenie damskie" value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })} />
+                  <label className="form-label">{t("Nazwa usługi","Service name")}</label>
+                  <input className="form-input" placeholder={t("np. Strzyżenie damskie","e.g. Women's haircut")} value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Czas (min)</label>
+                  <label className="form-label">{t("Czas (min)","Duration (min)")}</label>
                   <input className="form-input" type="number" min="15" max="480" step="15" value={serviceForm.duration_min} onChange={e => setServiceForm({ ...serviceForm, duration_min: e.target.value })} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Cena (zł)</label>
-                  <input className="form-input" type="number" min="0" placeholder="np. 120" value={serviceForm.price_pln} onChange={e => setServiceForm({ ...serviceForm, price_pln: e.target.value })} />
+                  <label className="form-label">{t("Cena (zł)","Price (PLN)")}</label>
+                  <input className="form-input" type="number" min="0" placeholder={t("np. 120","e.g. 120")} value={serviceForm.price_pln} onChange={e => setServiceForm({ ...serviceForm, price_pln: e.target.value })} />
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="btn btn-primary" onClick={handleSaveService} disabled={!serviceForm.name.trim()}>{editingService ? "Zapisz" : "Dodaj"}</button>
-                  {editingService && <button className="btn btn-secondary" onClick={() => { setEditingService(null); setServiceForm({ name: "", duration_min: 60, price_pln: "" }); }}>Anuluj</button>}
+                  <button className="btn btn-primary" onClick={handleSaveService} disabled={!serviceForm.name.trim()}>{editingService ? t("Zapisz","Save") : t("Dodaj","Add")}</button>
+                  {editingService && <button className="btn btn-secondary" onClick={() => { setEditingService(null); setServiceForm({ name: "", duration_min: 60, price_pln: "" }); }}>{t("Anuluj","Cancel")}</button>}
                 </div>
               </div>
             </div>
 
             {services.length === 0
-              ? <div className="empty-state"><div className="empty-icon">🛠</div><p>Brak usług. Dodaj pierwszą powyżej.</p></div>
+              ? <div className="empty-state"><div className="empty-icon">🛠</div><p>{t("Brak usług. Dodaj pierwszą powyżej.","No services. Add the first one above.")}</p></div>
               : <div className="table-wrapper">
                   <table>
-                    <thead><tr><th>Usługa</th><th>Czas</th><th>Cena</th><th>Status</th><th>Akcje</th></tr></thead>
+                    <thead><tr><th>{t("Usługa","Service")}</th><th>{t("Czas","Duration")}</th><th>{t("Cena","Price")}</th><th>{t("Status","Status")}</th><th>{t("Akcje","Actions")}</th></tr></thead>
                     <tbody>
                       {services.map(s => (
                         <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
@@ -2178,14 +2185,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                           <td>{s.price_pln > 0 ? `${s.price_pln} zł` : "—"}</td>
                           <td>
                             <span style={{ fontSize: "0.78rem", padding: "0.15rem 0.5rem", borderRadius: 4, background: s.active ? "#EBF5EA" : "#F0F0F0", color: s.active ? "var(--sage-dark)" : "var(--mid)" }}>
-                              {s.active ? "Aktywna" : "Nieaktywna"}
+                              {s.active ? t("Aktywna","Active") : t("Nieaktywna","Inactive")}
                             </span>
                           </td>
                           <td>
                             <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingService(s); setServiceForm({ name: s.name, duration_min: s.duration_min, price_pln: s.price_pln || "" }); }}>Edytuj</button>
-                              <button className="btn btn-secondary btn-sm" onClick={() => handleToggleService(s)}>{s.active ? "Dezaktywuj" : "Aktywuj"}</button>
-                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteService(s.id)}>Usuń</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingService(s); setServiceForm({ name: s.name, duration_min: s.duration_min, price_pln: s.price_pln || "" }); }}>{t("Edytuj","Edit")}</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleToggleService(s)}>{s.active ? t("Dezaktywuj","Deactivate") : t("Aktywuj","Activate")}</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteService(s.id)}>{t("Usuń","Delete")}</button>
                             </div>
                           </td>
                         </tr>
@@ -2200,32 +2207,40 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* USTAWIENIA STUDIA */}
         {tab === "studio_settings" && studioSettings && (
           <>
-            <div className="page-header"><h2>Moje studio</h2></div>
+            <div className="page-header"><h2>{t("Moje studio","My studio")}</h2></div>
 
             {/* Podstawowe */}
             <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Podstawowe</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Podstawowe","General")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Nazwa studia</label>
-                  <input className="form-input" value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder="np. Studio Roberta" />
+                  <label className="form-label">{t("Nazwa studia","Studio name")}</label>
+                  <input className="form-input" value={studioSettings.name} onChange={e => setStudioSettings(s => ({ ...s, name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Nazwa w nawigacji <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>(skrócona)</span></label>
-                  <input className="form-input" value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder="np. Studio Roberta" />
+                  <label className="form-label">{t("Nazwa w nawigacji","Nav name")} <span style={{ color: "var(--mid)", fontSize: "0.75rem" }}>({t("skrócona","short")})</span></label>
+                  <input className="form-input" value={studioSettings.nav_name} onChange={e => setStudioSettings(s => ({ ...s, nav_name: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                 </div>
               </div>
             </div>
 
             {/* Branża */}
             <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Branża i funkcje</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Branża i funkcje","Industry & features")}</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {/* Zajęcia vs Usługi */}
                 <div style={{ marginBottom: "0.25rem" }}>
-                  <div style={{ fontWeight: 500, marginBottom: "0.4rem" }}>Typ działalności</div>
+                  <div style={{ fontWeight: 500, marginBottom: "0.4rem" }}>{t("Typ działalności","Business type")}</div>
                   <div style={{ display: "flex", gap: "1rem" }}>
-                    {[["classes", "Zajęcia", "Pilates, joga, siłownia — grupowe i indywidualne"], ["services", "Usługi", "Fryzjer, gabinet, warsztat — wizyty z cennikiem"]].map(([val, label, desc]) => (
+                    {[[
+                      "classes",
+                      t("Zajęcia","Classes"),
+                      t("Pilates, joga, siłownia — grupowe i indywidualne","Pilates, yoga, gym — group and individual")
+                    ], [
+                      "services",
+                      t("Usługi","Services"),
+                      t("Fryzjer, gabinet, warsztat — wizyty z cennikiem","Hairdresser, clinic, workshop — appointments with pricing")
+                    ]].map(([val, label, desc]) => (
                       <label key={val} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", flex: 1, background: studioSettings.service_mode === val ? "var(--cream)" : "transparent", border: `1px solid ${studioSettings.service_mode === val ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.6rem 0.75rem" }}>
                         <input type="radio" name="service_mode" value={val} checked={studioSettings.service_mode === val} onChange={() => setStudioSettings(s => ({ ...s, service_mode: val }))} style={{ marginTop: "0.2rem", accentColor: "var(--sage)" }} />
                         <div>
@@ -2240,18 +2255,18 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
                   <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.tokens_enabled} onChange={e => setStudioSettings(s => ({ ...s, tokens_enabled: e.target.checked }))} />
                   <div>
-                    <div style={{ fontWeight: 500 }}>Karnety wejść</div>
-                    <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.</div>
+                    <div style={{ fontWeight: 500 }}>{t("Karnety wejść","Entry passes")}</div>
+                    <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Włącz dla pilates, jogi, siłowni. Wyłącz dla fryzjerów, warsztatów, gabinetów.","Enable for pilates, yoga, gym. Disable for hairdressers, workshops, clinics.")}</div>
                   </div>
                 </label>
                 {studioSettings.service_mode === "services" && (
                   <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem" }}>
-                    <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>Opcje trybu usług</div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>{t("Opcje trybu usług","Service mode options")}</div>
                     <label style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", cursor: "pointer" }}>
                       <input type="checkbox" style={{ marginTop: "0.2rem" }} checked={studioSettings.multi_staff} onChange={e => setStudioSettings(s => ({ ...s, multi_staff: e.target.checked }))} />
                       <div>
-                        <div style={{ fontWeight: 500 }}>Wielu pracowników</div>
-                        <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>Oddzielne kolumny w kalendarzu i zakładka Pracownicy do zarządzania. Wyłącz dla jednoosobowej działalności.</div>
+                        <div style={{ fontWeight: 500 }}>{t("Wielu pracowników","Multiple staff")}</div>
+                        <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{t("Oddzielne kolumny w kalendarzu i zakładka Pracownicy do zarządzania. Wyłącz dla jednoosobowej działalności.","Separate columns in calendar and a Staff tab to manage. Disable for solo businesses.")}</div>
                       </div>
                     </label>
                   </div>
@@ -2261,12 +2276,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
             {/* Wygląd */}
             <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Wygląd</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Wygląd","Appearance")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
                 {[
-                  { key: "color_sage", label: "Kolor główny", desc: "przyciski, akcenty" },
-                  { key: "color_clay", label: "Kolor drugorzędny", desc: "tagi, oznaczenia" },
-                  { key: "color_cream", label: "Tło", desc: "główne tło aplikacji" },
+                  { key: "color_sage", label: t("Kolor główny","Primary color"), desc: t("przyciski, akcenty","buttons, accents") },
+                  { key: "color_clay", label: t("Kolor drugorzędny","Secondary color"), desc: t("tagi, oznaczenia","tags, labels") },
+                  { key: "color_cream", label: t("Tło","Background"), desc: t("główne tło aplikacji","main app background") },
                 ].map(({ key, label, desc }) => (
                   <div key={key} className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">{label} <span style={{ color: "var(--mid)", fontSize: "0.72rem" }}>({desc})</span></label>
@@ -2280,12 +2295,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 ))}
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Logo</label>
+                <label className="form-label">{t("Logo","Logo")}</label>
                 {(studioSettings.logo_url || studioLogoFile) && (
                   <div style={{ marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     {studioSettings.logo_url && !studioLogoFile && <img src={studioSettings.logo_url} alt="logo" style={{ height: 44, objectFit: "contain" }} />}
-                    {studioLogoFile && <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>Nowy plik: {studioLogoFile.name}</span>}
-                    {studioSettings.logo_url && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>Usuń logo</button>}
+                    {studioLogoFile && <span style={{ fontSize: "0.85rem", color: "var(--mid)" }}>{t("Nowy plik:","New file:")} {studioLogoFile.name}</span>}
+                    {studioSettings.logo_url && <button className="btn btn-secondary btn-sm" onClick={() => { setStudioSettings(s => ({ ...s, logo_url: "" })); setStudioLogoFile(null); }}>{t("Usuń logo","Remove logo")}</button>}
                   </div>
                 )}
                 <input type="file" accept="image/*" onChange={e => setStudioLogoFile(e.target.files[0])} style={{ fontSize: "0.85rem" }} />
@@ -2294,14 +2309,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
             {/* Opisy */}
             <div className="card" style={{ marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Opisy strony głównej</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Opisy strony głównej","Homepage copy")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 {[
-                  { key: "hero_eyebrow", label: "Nadtytuł", placeholder: "np. Twoje miejsce na ziemi" },
-                  { key: "hero_title", label: "Główny nagłówek", placeholder: "np. Pilates w centrum Warszawy" },
-                  { key: "hero_sub", label: "Podtytuł hero", placeholder: "np. Zajęcia dla każdego poziomu..." },
-                  { key: "cta_title", label: "Tytuł sekcji CTA", placeholder: "np. Zacznij już dziś" },
-                  { key: "cta_sub", label: "Opis CTA", placeholder: "np. Pierwsze zajęcia gratis..." },
+                  { key: "hero_eyebrow", label: t("Nadtytuł","Eyebrow"), placeholder: t("np. Twoje miejsce na ziemi","e.g. Your place on earth") },
+                  { key: "hero_title", label: t("Główny nagłówek","Main heading"), placeholder: t("np. Pilates w centrum Warszawy","e.g. Pilates in the city centre") },
+                  { key: "hero_sub", label: t("Podtytuł hero","Hero subheading"), placeholder: t("np. Zajęcia dla każdego poziomu...","e.g. Classes for every level...") },
+                  { key: "cta_title", label: t("Tytuł sekcji CTA","CTA section title"), placeholder: t("np. Zacznij już dziś","e.g. Get started today") },
+                  { key: "cta_sub", label: t("Opis CTA","CTA description"), placeholder: t("np. Pierwsze zajęcia gratis...","e.g. First class free...") },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key} className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">{label}</label>
@@ -2313,26 +2328,26 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
             {/* Kontakt i SEO */}
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Kontakt i powiadomienia</h3>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem", color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("Kontakt i powiadomienia","Contact & notifications")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Email nadawcy</label>
-                  <input className="form-input" type="email" value={studioSettings.email_from} onChange={e => setStudioSettings(s => ({ ...s, email_from: e.target.value }))} placeholder="noreply@twojadomena.pl" />
+                  <label className="form-label">{t("Email nadawcy","Sender email")}</label>
+                  <input className="form-input" type="email" value={studioSettings.email_from} onChange={e => setStudioSettings(s => ({ ...s, email_from: e.target.value }))} placeholder="noreply@yourdomain.com" />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">URL aplikacji</label>
-                  <input className="form-input" value={studioSettings.app_url} onChange={e => setStudioSettings(s => ({ ...s, app_url: e.target.value }))} placeholder="https://twojadomena.pl" />
+                  <label className="form-label">{t("URL aplikacji","App URL")}</label>
+                  <input className="form-input" value={studioSettings.app_url} onChange={e => setStudioSettings(s => ({ ...s, app_url: e.target.value }))} placeholder="https://yourdomain.com" />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Podpis SMS</label>
-                  <input className="form-input" value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder="np. Studio Roberta" />
+                  <label className="form-label">{t("Podpis SMS","SMS signature")}</label>
+                  <input className="form-input" value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                 </div>
               </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button className="btn btn-primary" onClick={handleSaveStudioSettings} disabled={studioSettingsSaving}>
-                {studioSettingsSaving ? "Zapisywanie..." : "Zapisz ustawienia"}
+                {studioSettingsSaving ? t("Zapisywanie...","Saving...") : t("Zapisz ustawienia","Save settings")}
               </button>
             </div>
           </>
@@ -2342,14 +2357,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
       {/* Mobile nav */}
       <nav className="mobile-nav">
-        <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>Kalendarz</span></div>
+        <div className={`mobile-nav-item ${tab === "classes" || tab === "admin_calendar" ? "active" : ""}`} onClick={() => switchTab("admin_calendar")}><span className="mobile-nav-icon">📅</span><span>{t("Kalendarz","Calendar")}</span></div>
         <div className={`mobile-nav-item ${tab === "settle" ? "active" : ""}`} onClick={() => switchTab("settle")}>
           <span className="mobile-nav-icon" style={{ position: "relative" }}>💰{toSettle.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--clay)", color: "white", borderRadius: "50%", width: 14, height: 14, fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{toSettle.length}</span>}</span>
-          <span>Rozlicz</span>
+          <span>{t("Rozlicz","Settle")}</span>
         </div>
-        <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="mobile-nav-icon">📈</span><span>Raporty</span></div>
-        <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="mobile-nav-icon">👥</span><span>Klienci</span></div>
-        <div className={`mobile-nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="mobile-nav-icon">👤</span><span>Konto</span></div>
+        <div className={`mobile-nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")}><span className="mobile-nav-icon">📈</span><span>{t("Raporty","Reports")}</span></div>
+        <div className={`mobile-nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="mobile-nav-icon">👥</span><span>{t("Klienci","Clients")}</span></div>
+        <div className={`mobile-nav-item ${tab === "admin_account" ? "active" : ""}`} onClick={() => switchTab("admin_account")}><span className="mobile-nav-icon">👤</span><span>{t("Konto","Account")}</span></div>
       </nav>
 
       {/* MODAL - Edycja klienta */}
@@ -2357,7 +2372,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingClient(null)}>
           <div className="modal">
             <div className="modal-header">
-              <h3>Edytuj klienta</h3>
+              <h3>{t("Edytuj klienta","Edit client")}</h3>
               <button className="modal-close" onClick={() => setEditingClient(null)}>×</button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem", padding: "0.75rem", background: "var(--cream)", borderRadius: 8 }}>
@@ -2365,21 +2380,21 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <div style={{ fontSize: "0.82rem", color: "var(--mid)" }}>{editingClient.email}</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group"><label className="form-label">Imię</label><input className="form-input" value={clientForm.first_name} onChange={e => setClientForm({ ...clientForm, first_name: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Nazwisko</label><input className="form-input" value={clientForm.last_name} onChange={e => setClientForm({ ...clientForm, last_name: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Imię","First name")}</label><input className="form-input" value={clientForm.first_name} onChange={e => setClientForm({ ...clientForm, first_name: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Nazwisko","Last name")}</label><input className="form-input" value={clientForm.last_name} onChange={e => setClientForm({ ...clientForm, last_name: e.target.value })} /></div>
             </div>
-            <div className="form-group"><label className="form-label">Telefon</label><input className="form-input" type="tel" placeholder="+48 500 000 000" value={clientForm.phone} onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} /></div>
-            <div className="form-group"><label className="form-label">Data urodzin</label><input className="form-input" type="date" value={clientForm.birth_date} onChange={e => setClientForm({ ...clientForm, birth_date: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Telefon","Phone")}</label><input className="form-input" type="tel" placeholder="+48 500 000 000" value={clientForm.phone} onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Data urodzin","Birthday")}</label><input className="form-input" type="date" value={clientForm.birth_date} onChange={e => setClientForm({ ...clientForm, birth_date: e.target.value })} /></div>
             <div className="form-group">
-              <label className="form-label">Rola</label>
+              <label className="form-label">{t("Rola","Role")}</label>
               <select className="form-input" value={clientForm.role} onChange={e => setClientForm({ ...clientForm, role: e.target.value })}>
-                <option value="client">Klient</option>
-                <option value="admin">Administrator</option>
+                <option value="client">{t("Klient","Client")}</option>
+                <option value="admin">{t("Administrator","Administrator")}</option>
               </select>
             </div>
             <div className="modal-actions" style={{ justifyContent: "flex-end" }}>
-              <button className="btn btn-secondary" onClick={() => setEditingClient(null)}>Anuluj</button>
-              <button className="btn btn-primary" onClick={saveEditClient} disabled={!clientForm.first_name || !clientForm.last_name}>Zapisz</button>
+              <button className="btn btn-secondary" onClick={() => setEditingClient(null)}>{t("Anuluj","Cancel")}</button>
+              <button className="btn btn-primary" onClick={saveEditClient} disabled={!clientForm.first_name || !clientForm.last_name}>{t("Zapisz","Save")}</button>
             </div>
           </div>
         </div>
@@ -2389,10 +2404,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
-            <div className="modal-header"><h3>{editClass ? "Edytuj zajęcia" : "Nowe zajęcia"}</h3><button className="modal-close" onClick={() => setShowModal(false)}>×</button></div>
+            <div className="modal-header"><h3>{editClass ? t("Edytuj zajęcia","Edit class") : t("Nowe zajęcia","New class")}</h3><button className="modal-close" onClick={() => setShowModal(false)}>×</button></div>
             {!editClass && templates.length > 0 && (
               <div style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "1rem" }}>
-                <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>Wczytaj szablon</label>
+                <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>{t("Wczytaj szablon","Load template")}</label>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   {templates.map(t => (
                     <button key={t.id} className="btn btn-secondary btn-sm" onClick={() => applyTemplate(t)}>📋 {t.name}</button>
@@ -2402,39 +2417,39 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             )}
             {hasServices && services.filter(s => s.active).length > 0 && !editClass && (
               <div className="form-group" style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "0.5rem" }}>
-                <label className="form-label">Wybierz usługę (opcjonalnie)</label>
+                <label className="form-label">{t("Wybierz usługę (opcjonalnie)","Select service (optional)")}</label>
                 <select className="form-input" defaultValue="" onChange={e => {
                   const svc = services.find(s => s.id === e.target.value);
                   if (svc) setForm(f => ({ ...f, name: svc.name, duration_min: svc.duration_min, price_pln: svc.price_pln || "", max_spots: 1 }));
                 }}>
-                  <option value="">— Wpisz ręcznie —</option>
+                  <option value="">{t("— Wpisz ręcznie —","— Enter manually —")}</option>
                   {services.filter(s => s.active).map(s => (
-                    <option key={s.id} value={s.id}>{s.name} · {s.duration_min} min · {s.price_pln > 0 ? `${s.price_pln} zł` : "bezpłatna"}</option>
+                    <option key={s.id} value={s.id}>{s.name} · {s.duration_min} min · {s.price_pln > 0 ? `${s.price_pln} zł` : t("bezpłatna","free")}</option>
                   ))}
                 </select>
               </div>
             )}
             {multiStaff && (
               <div className="form-group">
-                <label className="form-label">Pracownik</label>
+                <label className="form-label">{t("Pracownik","Staff member")}</label>
                 <select className="form-input" value={form.staff_id} onChange={e => setForm({ ...form, staff_id: e.target.value })}>
-                  <option value="">— Brak przypisania —</option>
+                  <option value="">{t("— Brak przypisania —","— Unassigned —")}</option>
                   {staff.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             )}
-            <div className="form-group"><label className="form-label">Nazwa{hasServices ? " wizyty/usługi" : " zajęć"}</label><input className="form-input" placeholder={hasServices ? "np. Strzyżenie damskie" : "np. Pilates Flow"} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-            <div className="form-group"><label className="form-label">Data i godzina</label><input className="form-input" type="datetime-local" value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Nazwa","Name")}{hasServices ? t(" wizyty/usługi"," / service") : t(" zajęć"," of class")}</label><input className="form-input" placeholder={hasServices ? t("np. Strzyżenie damskie","e.g. Women's haircut") : t("np. Pilates Flow","e.g. Pilates Flow")} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Data i godzina","Date and time")}</label><input className="form-input" type="datetime-local" value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group"><label className="form-label">Czas (min)</label><input className="form-input" type="number" min="15" max="180" step="15" value={form.duration_min} onChange={e => setForm({ ...form, duration_min: +e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Maks. miejsc</label><input className="form-input" type="number" min="1" max="50" value={form.max_spots} onChange={e => setForm({ ...form, max_spots: +e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Czas (min)","Duration (min)")}</label><input className="form-input" type="number" min="15" max="180" step="15" value={form.duration_min} onChange={e => setForm({ ...form, duration_min: +e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Maks. miejsc","Max spots")}</label><input className="form-input" type="number" min="1" max="50" value={form.max_spots} onChange={e => setForm({ ...form, max_spots: +e.target.value })} /></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group"><label className="form-label">Cena (zł)</label><input className="form-input" type="number" min="0" placeholder="np. 60" value={form.price_pln} onChange={e => setForm({ ...form, price_pln: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Koszt sali (zł)</label><input className="form-input" type="number" min="0" placeholder="np. 100" value={form.venue_cost_pln} onChange={e => setForm({ ...form, venue_cost_pln: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Cena (zł)","Price (PLN)")}</label><input className="form-input" type="number" min="0" placeholder={t("np. 60","e.g. 60")} value={form.price_pln} onChange={e => setForm({ ...form, price_pln: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Koszt sali (zł)","Venue cost (PLN)")}</label><input className="form-input" type="number" min="0" placeholder={t("np. 100","e.g. 100")} value={form.venue_cost_pln} onChange={e => setForm({ ...form, venue_cost_pln: e.target.value })} /></div>
             </div>
-            <div className="form-group"><label className="form-label">Lokalizacja</label><input className="form-input" placeholder="np. Sala A" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
-            <div className="form-group"><label className="form-label">Notatki dla klientek</label><input className="form-input" placeholder="np. Przynieś matę" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Lokalizacja","Location")}</label><input className="form-input" placeholder={t("np. Sala A","e.g. Room A")} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Notatki dla klientek","Notes for clients")}</label><input className="form-input" placeholder={t("np. Przynieś matę","e.g. Bring a mat")} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
 
             {/* Edycja serii — tylko przy edytowaniu zajęć z series_id */}
             {editClass && editClass.series_id && (
@@ -2443,8 +2458,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <input type="checkbox" checked={editSeriesAll} onChange={e => setEditSeriesAll(e.target.checked)}
                     style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
                   <div>
-                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 Edytuj wszystkie zajęcia z tej serii</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>Nazwa, czas, miejsca, cena i notatki zostaną zmienione we wszystkich — daty pozostaną bez zmian</div>
+                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 {t("Edytuj wszystkie zajęcia z tej serii","Edit all classes in this series")}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>{t("Nazwa, czas, miejsca, cena i notatki zostaną zmienione we wszystkich — daty pozostaną bez zmian","Name, duration, spots, price and notes will be changed for all — dates will remain unchanged")}</div>
                   </div>
                 </label>
               </div>
@@ -2457,17 +2472,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <input type="checkbox" checked={recurring.enabled} onChange={e => setRecurring({ ...recurring, enabled: e.target.checked })}
                     style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
                   <div>
-                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 Zajęcia cykliczne</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>Powtarzaj co tydzień o tej samej godzinie</div>
+                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 {t("Zajęcia cykliczne","Recurring classes")}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>{t("Powtarzaj co tydzień o tej samej godzinie","Repeat weekly at the same time")}</div>
                   </div>
                 </label>
                 {recurring.enabled && (
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "0.875rem", color: "var(--mid)" }}>Powtórz przez</span>
+                    <span style={{ fontSize: "0.875rem", color: "var(--mid)" }}>{t("Powtórz przez","Repeat for")}</span>
                     <input type="number" min="2" max="52" value={recurring.weeks}
                       onChange={e => setRecurring({ ...recurring, weeks: +e.target.value })}
                       style={{ width: 70, padding: "0.4rem 0.6rem", border: "1px solid var(--border)", borderRadius: 6, fontFamily: "DM Sans, sans-serif", fontSize: "0.875rem" }} />
-                    <span style={{ fontSize: "0.875rem", color: "var(--mid)" }}>tygodni</span>
+                    <span style={{ fontSize: "0.875rem", color: "var(--mid)" }}>{t("tygodni","weeks")}</span>
                     <span style={{ fontSize: "0.8rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.2rem 0.6rem", borderRadius: 20 }}>= {recurring.weeks} zajęć</span>
                   </div>
                 )}
@@ -2481,7 +2496,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               return (
                 <div style={{ borderTop: "1px solid var(--border)", marginTop: "1rem", paddingTop: "1rem" }}>
                   <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
-                    Uczestnicy ({classBookings.length}/{editClass.max_spots})
+                    {t("Uczestnicy","Participants")} ({classBookings.length}/{editClass.max_spots})
                   </div>
                   {classBookings.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", marginBottom: "0.75rem" }}>
@@ -2490,7 +2505,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                           <span style={{ fontSize: "0.85rem" }}>{b.profiles?.first_name} {b.profiles?.last_name}
                             <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", color: "var(--mid)" }}>{b.payment_method === "entries" ? "🎫" : "💵"}</span>
                           </span>
-                          <button className="btn btn-danger btn-sm" style={{ padding: "0.2rem 0.5rem", fontSize: "0.72rem" }} onClick={() => handleRemoveParticipant(b.id)}>Usuń</button>
+                          <button className="btn btn-danger btn-sm" style={{ padding: "0.2rem 0.5rem", fontSize: "0.72rem" }} onClick={() => handleRemoveParticipant(b.id)}>{t("Usuń","Remove")}</button>
                         </div>
                       ))}
                     </div>
@@ -2499,19 +2514,19 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                     {availableProfiles.length > 0 && (
                       <>
                         <select className="form-input" style={{ flex: 1, minWidth: 140 }} value={addParticipantId} onChange={e => setAddParticipantId(e.target.value)}>
-                          <option value="">Wybierz uczestnika…</option>
+                          <option value="">{t("Wybierz uczestnika…","Select participant…")}</option>
                           {availableProfiles.map(p => <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}
                         </select>
                         <select className="form-input" style={{ width: 110 }} value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
-                          <option value="cash">💵 Gotówka</option>
-                          {tokensEnabled && <option value="entries">🎫 Wejście</option>}
+                          <option value="cash">💵 {t("Gotówka","Cash")}</option>
+                          {tokensEnabled && <option value="entries">🎫 {t("Wejście","Credit")}</option>}
                         </select>
                         <button className="btn btn-primary btn-sm" onClick={handleAddParticipant} disabled={!addParticipantId || addingParticipant}>
-                          {addingParticipant ? "…" : "+ Dodaj"}
+                          {addingParticipant ? "…" : `+ ${t("Dodaj","Add")}`}
                         </button>
                       </>
                     )}
-                    <button className="btn btn-secondary btn-sm" onClick={() => { setNewClientContext("class"); setShowNewClientModal(true); }}>+ Nowy klient</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setNewClientContext("class"); setShowNewClientModal(true); }}>+ {t("Nowy klient","New client")}</button>
                   </div>
                 </div>
               );
@@ -2519,12 +2534,12 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
             <div className="modal-actions" style={{ justifyContent: "space-between" }}>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
-                {!editClass && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title="Zapisz jako szablon">📋 Szablon</button>}
-                {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); setShowCancelModal(editClass); }}>🚫 Odwołaj</button>}
-                {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); handleDelete(editClass.id); }}>🗑 Usuń</button>}
+                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>{t("Anuluj","Cancel")}</button>
+                {!editClass && <button className="btn btn-secondary" onClick={() => { setShowModal(false); setTemplateForm({ name: form.name, duration_min: form.duration_min, max_spots: form.max_spots, location: form.location, notes: form.notes, price_pln: form.price_pln, venue_cost_pln: form.venue_cost_pln }); setShowTemplateModal(true); }} title={t("Zapisz jako szablon","Save as template")}>📋 {t("Szablon","Template")}</button>}
+                {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); setShowCancelModal(editClass); }}>🚫 {t("Odwołaj","Cancel class")}</button>}
+                {editClass && <button className="btn btn-danger btn-sm" onClick={() => { setShowModal(false); handleDelete(editClass.id); }}>🗑 {t("Usuń","Delete")}</button>}
               </div>
-              <button className="btn btn-primary" onClick={handleSave} disabled={!form.name || !form.starts_at}>{editClass ? "Zapisz" : "Utwórz"}</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={!form.name || !form.starts_at}>{editClass ? t("Zapisz","Save") : t("Utwórz","Create")}</button>
             </div>
           </div>
         </div>
@@ -2534,23 +2549,23 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       {showCancelModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCancelModal(null)}>
           <div className="modal" style={{ maxWidth: 460 }}>
-            <div className="modal-header"><h3>🚫 Odwołaj zajęcia</h3><button className="modal-close" onClick={() => setShowCancelModal(null)}>×</button></div>
+            <div className="modal-header"><h3>🚫 {t("Odwołaj zajęcia","Cancel class")}</h3><button className="modal-close" onClick={() => setShowCancelModal(null)}>×</button></div>
             <div style={{ background: "#FDE8E8", border: "1px solid #F5C6C6", borderRadius: 8, padding: "1rem", marginBottom: "1.25rem" }}>
               <p style={{ fontSize: "0.875rem", color: "#C44B4B", lineHeight: 1.6 }}>
-                Odwołujesz zajęcia: <strong>{showCancelModal.name}</strong><br/>
-                {formatDate(showCancelModal.starts_at)} o {formatTime(showCancelModal.starts_at)}<br/>
-                Zapisanych: <strong>{allBookings.filter(b => b.class_id === showCancelModal.id).length} uczestników</strong><br/>
-                Wejścia zostaną automatycznie zwrócone.
+                {t("Odwołujesz zajęcia:","You are cancelling:")} <strong>{showCancelModal.name}</strong><br/>
+                {formatDate(showCancelModal.starts_at)} {t("o","at")} {formatTime(showCancelModal.starts_at)}<br/>
+                {t("Zapisanych:","Enrolled:")} <strong>{allBookings.filter(b => b.class_id === showCancelModal.id).length} {t("uczestników","participants")}</strong><br/>
+                {t("Wejścia zostaną automatycznie zwrócone.","Credits will be automatically refunded.")}
               </p>
             </div>
             <div className="form-group">
-              <label className="form-label">Powód odwołania</label>
-              <input className="form-input" placeholder="np. Choroba instruktora, awaria sali..." value={cancelReason} onChange={e => setCancelReason(e.target.value)} />
+              <label className="form-label">{t("Powód odwołania","Cancellation reason")}</label>
+              <input className="form-input" placeholder={t("np. Choroba instruktora, awaria sali...","e.g. Instructor illness, venue issue...")} value={cancelReason} onChange={e => setCancelReason(e.target.value)} />
             </div>
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => { setShowCancelModal(null); setCancelReason(""); }}>Anuluj</button>
+              <button className="btn btn-secondary" onClick={() => { setShowCancelModal(null); setCancelReason(""); }}>{t("Anuluj","Cancel")}</button>
               <button className="btn btn-danger" onClick={() => handleCancelClass(showCancelModal)} disabled={!cancelReason.trim()}>
-                Odwołaj i powiadom uczestników
+                {t("Odwołaj i powiadom uczestników","Cancel and notify participants")}
               </button>
             </div>
           </div>
@@ -2562,47 +2577,47 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowNewClientModal(false)}>
           <div className="modal" style={{ maxWidth: 460 }}>
             <div className="modal-header">
-              <h3>+ Nowy klient</h3>
+              <h3>+ {t("Nowy klient","New client")}</h3>
               <button className="modal-close" onClick={() => setShowNewClientModal(false)}>×</button>
             </div>
             {newClientContext === "class" && editClass && (
               <p style={{ fontSize: "0.85rem", color: "var(--mid)", marginBottom: "1rem" }}>
-                Konto zostanie utworzone i klient zostanie od razu zapisany na <strong>{editClass.name}</strong>.
+                {t("Konto zostanie utworzone i klient zostanie od razu zapisany na","Account will be created and client will be booked into")} <strong>{editClass.name}</strong>.
               </p>
             )}
             <div className="form-group">
-              <label className="form-label">Imię *</label>
-              <input className="form-input" value={newClientForm.first_name} onChange={e => setNewClientForm(f => ({ ...f, first_name: e.target.value }))} placeholder="np. Anna" />
+              <label className="form-label">{t("Imię","First name")} *</label>
+              <input className="form-input" value={newClientForm.first_name} onChange={e => setNewClientForm(f => ({ ...f, first_name: e.target.value }))} placeholder={t("np. Anna","e.g. Anna")} />
             </div>
             <div className="form-group">
-              <label className="form-label">Nazwisko *</label>
-              <input className="form-input" value={newClientForm.last_name} onChange={e => setNewClientForm(f => ({ ...f, last_name: e.target.value }))} placeholder="np. Kowalska" />
+              <label className="form-label">{t("Nazwisko","Last name")} *</label>
+              <input className="form-input" value={newClientForm.last_name} onChange={e => setNewClientForm(f => ({ ...f, last_name: e.target.value }))} placeholder={t("np. Kowalska","e.g. Smith")} />
             </div>
             <div className="form-group">
               <label className="form-label">Email *</label>
-              <input className="form-input" type="email" value={newClientForm.email} onChange={e => setNewClientForm(f => ({ ...f, email: e.target.value }))} placeholder="np. anna@example.com" />
+              <input className="form-input" type="email" value={newClientForm.email} onChange={e => setNewClientForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. anna@example.com" />
             </div>
             <div className="form-group">
-              <label className="form-label">Telefon</label>
-              <input className="form-input" value={newClientForm.phone} onChange={e => setNewClientForm(f => ({ ...f, phone: e.target.value }))} placeholder="np. 600 100 200" />
+              <label className="form-label">{t("Telefon","Phone")}</label>
+              <input className="form-input" value={newClientForm.phone} onChange={e => setNewClientForm(f => ({ ...f, phone: e.target.value }))} placeholder={t("np. 600 100 200","e.g. +44 7700 900000")} />
             </div>
             <div className="form-group">
-              <label className="form-label">Data urodzenia</label>
+              <label className="form-label">{t("Data urodzenia","Birth date")}</label>
               <input className="form-input" type="date" value={newClientForm.birth_date} onChange={e => setNewClientForm(f => ({ ...f, birth_date: e.target.value }))} />
             </div>
             {newClientContext === "class" && editClass && (
               <div className="form-group">
-                <label className="form-label">Metoda płatności</label>
+                <label className="form-label">{t("Metoda płatności","Payment method")}</label>
                 <select className="form-input" value={addParticipantMethod} onChange={e => setAddParticipantMethod(e.target.value)}>
-                  <option value="cash">💵 Gotówka</option>
-                  <option value="entries">🎫 Wejście</option>
+                  <option value="cash">💵 {t("Gotówka","Cash")}</option>
+                  <option value="entries">🎫 {t("Wejście","Credit")}</option>
                 </select>
               </div>
             )}
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setShowNewClientModal(false)}>Anuluj</button>
+              <button className="btn btn-secondary" onClick={() => setShowNewClientModal(false)}>{t("Anuluj","Cancel")}</button>
               <button className="btn btn-primary" onClick={handleCreateNewClient} disabled={newClientLoading}>
-                {newClientLoading ? "Tworzenie…" : "Utwórz konto"}
+                {newClientLoading ? t("Tworzenie…","Creating…") : t("Utwórz konto","Create account")}
               </button>
             </div>
           </div>
@@ -2613,40 +2628,40 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       {showMessageModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowMessageModal(null)}>
           <div className="modal" style={{ maxWidth: 480 }}>
-            <div className="modal-header"><h3>💬 Wiadomość do uczestników</h3><button className="modal-close" onClick={() => setShowMessageModal(null)}>×</button></div>
+            <div className="modal-header"><h3>💬 {t("Wiadomość do uczestników","Message to participants")}</h3><button className="modal-close" onClick={() => setShowMessageModal(null)}>×</button></div>
             <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>
-              Zajęcia: <strong>{showMessageModal.name}</strong><br/>
-              {formatDate(showMessageModal.starts_at)} o {formatTime(showMessageModal.starts_at)}<br/>
-              Odbiorców: <strong>{allBookings.filter(b => b.class_id === showMessageModal.id).length}</strong>
+              {t("Zajęcia:","Class:")} <strong>{showMessageModal.name}</strong><br/>
+              {formatDate(showMessageModal.starts_at)} {t("o","at")} {formatTime(showMessageModal.starts_at)}<br/>
+              {t("Odbiorców:","Recipients:")} <strong>{allBookings.filter(b => b.class_id === showMessageModal.id).length}</strong>
             </p>
             <div className="form-group">
-              <label className="form-label">Wiadomość</label>
-              <textarea className="form-input" rows={4} placeholder="np. Przypomnij o zabraniu maty, zmiana sali na B, zajęcia zaczynamy 10 min później..."
+              <label className="form-label">{t("Wiadomość","Message")}</label>
+              <textarea className="form-input" rows={4} placeholder={t("np. Przypomnij o zabraniu maty, zmiana sali na B, zajęcia zaczynamy 10 min później...","e.g. Reminder to bring a mat, room change to B, class starts 10 min later...")}
                 value={messageText} onChange={e => setMessageText(e.target.value)}
                 style={{ resize: "vertical", minHeight: 100 }} />
             </div>
             <div style={{ marginBottom: "1.25rem" }}>
-              <label className="form-label" style={{ marginBottom: "0.6rem", display: "block" }}>Kanały wysyłki</label>
+              <label className="form-label" style={{ marginBottom: "0.6rem", display: "block" }}>{t("Kanały wysyłki","Delivery channels")}</label>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {[
-                  { key: "app", label: "📱 Powiadomienie w aplikacji", always: true },
+                  { key: "app", label: `📱 ${t("Powiadomienie w aplikacji","In-app notification")}`, always: true },
                   { key: "email", label: "✉️ Email" },
-                  { key: "sms", label: "💬 SMS (tylko osoby z numerem)" },
+                  { key: "sms", label: `💬 SMS (${t("tylko osoby z numerem","only users with phone number")})` },
                 ].map(ch => (
                   <label key={ch.key} style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.875rem", cursor: ch.always ? "default" : "pointer" }}>
                     <input type="checkbox" checked={msgDelivery[ch.key]}
                       disabled={ch.always}
                       onChange={e => setMsgDelivery(prev => ({ ...prev, [ch.key]: e.target.checked }))}
                       style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
-                    {ch.label}{ch.always && <span style={{ fontSize: "0.75rem", color: "var(--light)", marginLeft: 4 }}>(zawsze)</span>}
+                    {ch.label}{ch.always && <span style={{ fontSize: "0.75rem", color: "var(--light)", marginLeft: 4 }}>({t("zawsze","always")})</span>}
                   </label>
                 ))}
               </div>
             </div>
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => { setShowMessageModal(null); setMessageText(""); setMsgDelivery({ app: true, email: false, sms: false }); }}>Anuluj</button>
+              <button className="btn btn-secondary" onClick={() => { setShowMessageModal(null); setMessageText(""); setMsgDelivery({ app: true, email: false, sms: false }); }}>{t("Anuluj","Cancel")}</button>
               <button className="btn btn-primary" onClick={() => handleSendMessage(showMessageModal)} disabled={!messageText.trim()}>
-                Wyślij do wszystkich
+                {t("Wyślij do wszystkich","Send to all")}
               </button>
             </div>
           </div>
@@ -2657,10 +2672,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       {showTokenModal && selectedUser && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowTokenModal(false)}>
           <div className="modal" style={{ maxWidth: 560 }}>
-            <div className="modal-header"><h3>🎫 Wejścia — {selectedUser.first_name} {selectedUser.last_name}</h3><button className="modal-close" onClick={() => setShowTokenModal(false)}>×</button></div>
+            <div className="modal-header"><h3>🎫 {t("Wejścia","Credits")} — {selectedUser.first_name} {selectedUser.last_name}</h3><button className="modal-close" onClick={() => setShowTokenModal(false)}>×</button></div>
             <div style={{ marginBottom: "1.5rem" }}>
-              <p className="form-label" style={{ marginBottom: "0.75rem" }}>Saldo</p>
-              {userTokens.length === 0 ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>Brak wejść</p>
+              <p className="form-label" style={{ marginBottom: "0.75rem" }}>{t("Saldo","Balance")}</p>
+              {userTokens.length === 0 ? <p style={{ color: "var(--mid)", fontSize: "0.875rem" }}>{t("Brak wejść","No credits")}</p>
                 : <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                   {userTokens.map(t => (
                     <div key={t.id} style={{ background: t.amount > 0 ? "#EBF5EA" : "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", textAlign: "center" }}>
@@ -2670,17 +2685,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   ))}
                 </div>}
             </div>
-            <p className="form-label" style={{ marginBottom: "0.75rem" }}>Dodaj wejścia</p>
+            <p className="form-label" style={{ marginBottom: "0.75rem" }}>{t("Dodaj wejścia","Add credits")}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Liczba</label><input className="form-input" type="number" min="1" max="30" value={tokenForm.amount} onChange={e => setTokenForm({ ...tokenForm, amount: +e.target.value })} /></div>
-              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Miesiąc</label><select className="form-input" value={tokenForm.month} onChange={e => setTokenForm({ ...tokenForm, month: +e.target.value })}>{[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{monthName(m)}</option>)}</select></div>
-              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Rok</label><input className="form-input" type="number" min="2024" max="2030" value={tokenForm.year} onChange={e => setTokenForm({ ...tokenForm, year: +e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t("Liczba","Amount")}</label><input className="form-input" type="number" min="1" max="30" value={tokenForm.amount} onChange={e => setTokenForm({ ...tokenForm, amount: +e.target.value })} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t("Miesiąc","Month")}</label><select className="form-input" value={tokenForm.month} onChange={e => setTokenForm({ ...tokenForm, month: +e.target.value })}>{[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{monthName(m)}</option>)}</select></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t("Rok","Year")}</label><input className="form-input" type="number" min="2024" max="2030" value={tokenForm.year} onChange={e => setTokenForm({ ...tokenForm, year: +e.target.value })} /></div>
             </div>
-            <div className="form-group"><label className="form-label">Notatka</label><input className="form-input" placeholder="np. Gotówka, karnet 10 wejść" value={tokenForm.note} onChange={e => setTokenForm({ ...tokenForm, note: e.target.value })} /></div>
-            <button className="btn btn-primary btn-full" onClick={handleAddTokens}>+ Dodaj {tokenForm.amount} {tokenForm.amount === 1 ? "wejście" : tokenForm.amount < 5 ? "wejścia" : "wejść"} na {monthName(tokenForm.month)}</button>
+            <div className="form-group"><label className="form-label">{t("Notatka","Note")}</label><input className="form-input" placeholder={t("np. Gotówka, karnet 10 wejść","e.g. Cash, 10-entry pass")} value={tokenForm.note} onChange={e => setTokenForm({ ...tokenForm, note: e.target.value })} /></div>
+            <button className="btn btn-primary btn-full" onClick={handleAddTokens}>+ {t("Dodaj","Add")} {tokenForm.amount} {lang === "en" ? (tokenForm.amount === 1 ? "credit" : "credits") : (tokenForm.amount === 1 ? "wejście" : tokenForm.amount < 5 ? "wejścia" : "wejść")} {t("na","for")} {monthName(tokenForm.month)}</button>
             {userTokenHistory.length > 0 && (
               <>
-                <p className="form-label" style={{ margin: "1.5rem 0 0.75rem" }}>Historia</p>
+                <p className="form-label" style={{ margin: "1.5rem 0 0.75rem" }}>{t("Historia","History")}</p>
                 <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8 }}>
                   {userTokenHistory.map(h => (
                     <div key={h.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.6rem 1rem", borderBottom: "1px solid var(--border)", fontSize: "0.8rem" }}>
@@ -2699,28 +2714,28 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       {showTemplateModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowTemplateModal(false)}>
           <div className="modal" style={{ maxWidth: 460 }}>
-            <div className="modal-header"><h3>📋 Zapisz szablon zajęć</h3><button className="modal-close" onClick={() => setShowTemplateModal(false)}>×</button></div>
-            <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>Szablon pozwoli szybko wypełnić formularz przy tworzeniu nowych zajęć.</p>
-            <div className="form-group"><label className="form-label">Nazwa szablonu</label><input className="form-input" placeholder="np. Pilates Flow" value={templateForm.name} onChange={e => setTemplateForm({ ...templateForm, name: e.target.value })} /></div>
+            <div className="modal-header"><h3>📋 {t("Zapisz szablon zajęć","Save class template")}</h3><button className="modal-close" onClick={() => setShowTemplateModal(false)}>×</button></div>
+            <p style={{ fontSize: "0.875rem", color: "var(--mid)", marginBottom: "1.25rem" }}>{t("Szablon pozwoli szybko wypełnić formularz przy tworzeniu nowych zajęć.","The template will let you quickly fill in the form when creating new classes.")}</p>
+            <div className="form-group"><label className="form-label">{t("Nazwa szablonu","Template name")}</label><input className="form-input" placeholder={t("np. Pilates Flow","e.g. Pilates Flow")} value={templateForm.name} onChange={e => setTemplateForm({ ...templateForm, name: e.target.value })} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group"><label className="form-label">Czas (min)</label><input className="form-input" type="number" value={templateForm.duration_min} onChange={e => setTemplateForm({ ...templateForm, duration_min: +e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Maks. miejsc</label><input className="form-input" type="number" value={templateForm.max_spots} onChange={e => setTemplateForm({ ...templateForm, max_spots: +e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Czas (min)","Duration (min)")}</label><input className="form-input" type="number" value={templateForm.duration_min} onChange={e => setTemplateForm({ ...templateForm, duration_min: +e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Maks. miejsc","Max spots")}</label><input className="form-input" type="number" value={templateForm.max_spots} onChange={e => setTemplateForm({ ...templateForm, max_spots: +e.target.value })} /></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-              <div className="form-group"><label className="form-label">Cena (zł)</label><input className="form-input" type="number" placeholder="np. 60" value={templateForm.price_pln} onChange={e => setTemplateForm({ ...templateForm, price_pln: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Koszt sali (zł)</label><input className="form-input" type="number" placeholder="np. 100" value={templateForm.venue_cost_pln} onChange={e => setTemplateForm({ ...templateForm, venue_cost_pln: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Cena (zł)","Price (PLN)")}</label><input className="form-input" type="number" placeholder={t("np. 60","e.g. 60")} value={templateForm.price_pln} onChange={e => setTemplateForm({ ...templateForm, price_pln: e.target.value })} /></div>
+              <div className="form-group"><label className="form-label">{t("Koszt sali (zł)","Venue cost (PLN)")}</label><input className="form-input" type="number" placeholder={t("np. 100","e.g. 100")} value={templateForm.venue_cost_pln} onChange={e => setTemplateForm({ ...templateForm, venue_cost_pln: e.target.value })} /></div>
             </div>
-            <div className="form-group"><label className="form-label">Lokalizacja</label><input className="form-input" placeholder="np. Sala A" value={templateForm.location} onChange={e => setTemplateForm({ ...templateForm, location: e.target.value })} /></div>
-            <div className="form-group"><label className="form-label">Notatki</label><input className="form-input" placeholder="np. Przynieś matę" value={templateForm.notes} onChange={e => setTemplateForm({ ...templateForm, notes: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Lokalizacja","Location")}</label><input className="form-input" placeholder={t("np. Sala A","e.g. Room A")} value={templateForm.location} onChange={e => setTemplateForm({ ...templateForm, location: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t("Notatki","Notes")}</label><input className="form-input" placeholder={t("np. Przynieś matę","e.g. Bring a mat")} value={templateForm.notes} onChange={e => setTemplateForm({ ...templateForm, notes: e.target.value })} /></div>
 
             {templates.length > 0 && (
               <>
-                <p className="form-label" style={{ margin: "1rem 0 0.5rem" }}>Istniejące szablony</p>
+                <p className="form-label" style={{ margin: "1rem 0 0.5rem" }}>{t("Istniejące szablony","Existing templates")}</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: 150, overflowY: "auto" }}>
-                  {templates.map(t => (
-                    <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "var(--cream)", borderRadius: 6 }}>
-                      <span style={{ fontSize: "0.875rem" }}>{t.name} · {t.duration_min} min · {t.price_pln ? t.price_pln + " zł" : "—"}</span>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTemplate(t.id)}>Usuń</button>
+                  {templates.map(tmpl => (
+                    <div key={tmpl.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "var(--cream)", borderRadius: 6 }}>
+                      <span style={{ fontSize: "0.875rem" }}>{tmpl.name} · {tmpl.duration_min} min · {tmpl.price_pln ? tmpl.price_pln + " zł" : "—"}</span>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTemplate(tmpl.id)}>{t("Usuń","Delete")}</button>
                     </div>
                   ))}
                 </div>
@@ -2728,8 +2743,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             )}
 
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setShowTemplateModal(false)}>Anuluj</button>
-              <button className="btn btn-primary" onClick={handleSaveTemplate} disabled={!templateForm.name}>Zapisz szablon</button>
+              <button className="btn btn-secondary" onClick={() => setShowTemplateModal(false)}>{t("Anuluj","Cancel")}</button>
+              <button className="btn btn-primary" onClick={handleSaveTemplate} disabled={!templateForm.name}>{t("Zapisz szablon","Save template")}</button>
             </div>
           </div>
         </div>
@@ -2739,18 +2754,18 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       {showAddUserModal && selectedClass && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddUserModal(false)}>
           <div className="modal">
-            <div className="modal-header"><h3>Dodaj uczestnika</h3><button className="modal-close" onClick={() => setShowAddUserModal(false)}>×</button></div>
-            <p style={{ color: "var(--mid)", fontSize: "0.875rem", marginBottom: "1rem" }}>Zapisz klientkę na: <strong>{selectedClass.name}</strong></p>
-            {notEnrolled.length === 0 ? <p style={{ color: "var(--mid)" }}>Wszystkie są zapisane.</p>
+            <div className="modal-header"><h3>{t("Dodaj uczestnika","Add participant")}</h3><button className="modal-close" onClick={() => setShowAddUserModal(false)}>×</button></div>
+            <p style={{ color: "var(--mid)", fontSize: "0.875rem", marginBottom: "1rem" }}>{t("Zapisz klientkę na:","Book client into:")} <strong>{selectedClass.name}</strong></p>
+            {notEnrolled.length === 0 ? <p style={{ color: "var(--mid)" }}>{t("Wszystkie są zapisane.","All clients are booked.")}</p>
               : <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 300, overflowY: "auto" }}>
                 {notEnrolled.map(u => (
                   <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem", border: "1px solid var(--border)", borderRadius: 8 }}>
                     <div><div style={{ fontWeight: 500 }}>{u.first_name} {u.last_name}</div><div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{u.email}</div></div>
-                    <button className="btn btn-primary btn-sm" onClick={() => handleAddUserToClass(u.id, selectedClass.id)}>Zapisz</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => handleAddUserToClass(u.id, selectedClass.id)}>{t("Zapisz","Book")}</button>
                   </div>
                 ))}
               </div>}
-            <div className="modal-actions"><button className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>Zamknij</button></div>
+            <div className="modal-actions"><button className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>{t("Zamknij","Close")}</button></div>
           </div>
         </div>
       )}
