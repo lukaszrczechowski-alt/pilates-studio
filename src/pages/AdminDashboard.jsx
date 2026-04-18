@@ -77,6 +77,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [staff, setStaff] = useState([]);
   const [staffForm, setStaffForm] = useState({ name: "", color: "#8A9E85" });
   const [editingStaff, setEditingStaff] = useState(null);
+  const [services, setServices] = useState([]);
+  const [serviceForm, setServiceForm] = useState({ name: "", duration_min: 60, price_pln: "" });
+  const [editingService, setEditingService] = useState(null);
+  const [staffCalDay, setStaffCalDay] = useState(new Date());
   const [studioSettings, setStudioSettings] = useState(null);
   const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
   const [studioLogoFile, setStudioLogoFile] = useState(null);
@@ -149,6 +153,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     if (multiStaff) {
       const { data: staffData } = await supabase.from("staff").select("*").eq("studio_id", studioId).order("name");
       setStaff(staffData || []);
+      const { data: servicesData } = await supabase.from("services").select("*").eq("studio_id", studioId).order("name");
+      setServices(servicesData || []);
     }
     setLoading(false);
   }
@@ -176,6 +182,43 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   async function handleToggleStaff(s) {
     await supabase.from("staff").update({ active: !s.active }).eq("id", s.id);
     setStaff(prev => prev.map(x => x.id === s.id ? { ...x, active: !s.active } : x));
+  }
+
+  async function handleSaveService() {
+    if (!serviceForm.name.trim()) return;
+    const payload = { name: serviceForm.name, duration_min: +serviceForm.duration_min, price_pln: +serviceForm.price_pln || 0, studio_id: studioId };
+    if (editingService) {
+      await supabase.from("services").update(payload).eq("id", editingService.id);
+      setEditingService(null);
+    } else {
+      await supabase.from("services").insert(payload);
+    }
+    setServiceForm({ name: "", duration_min: 60, price_pln: "" });
+    const { data } = await supabase.from("services").select("*").eq("studio_id", studioId).order("name");
+    setServices(data || []);
+    showMsg("Zapisano usługę. ✓");
+  }
+
+  async function handleDeleteService(id) {
+    await supabase.from("services").delete().eq("id", id);
+    setServices(prev => prev.filter(s => s.id !== id));
+    showMsg("Usunięto usługę.");
+  }
+
+  async function handleToggleService(s) {
+    await supabase.from("services").update({ active: !s.active }).eq("id", s.id);
+    setServices(prev => prev.map(x => x.id === s.id ? { ...x, active: !s.active } : x));
+  }
+
+  function openCreateAtSlot(hour, staffId) {
+    const d = new Date(staffCalDay);
+    d.setHours(hour, 0, 0, 0);
+    const pad = n => String(n).padStart(2, "0");
+    const localStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(hour)}:00`;
+    setEditClass(null);
+    setForm({ name: "", starts_at: localStr, duration_min: 60, max_spots: 1, location: "", notes: "", price_pln: "", venue_cost_pln: "", staff_id: staffId === "none" ? "" : (staffId || "") });
+    setRecurring({ enabled: false, weeks: 4 });
+    setShowModal(true);
   }
 
   async function handleSaveStudioSettings() {
@@ -905,6 +948,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")}><span className="nav-icon">📋</span> Historia</div>
           <div className={`nav-item ${tab === "clients" ? "active" : ""}`} onClick={() => switchTab("clients")}><span className="nav-icon">👥</span> Klienci</div>
           {multiStaff && <div className={`nav-item ${tab === "staff" ? "active" : ""}`} onClick={() => switchTab("staff")}><span className="nav-icon">🧑‍💼</span> Pracownicy</div>}
+          {multiStaff && <div className={`nav-item ${tab === "services" ? "active" : ""}`} onClick={() => switchTab("services")}><span className="nav-icon">🛠</span> Usługi</div>}
           {selectedClass && <div className={`nav-item ${tab === "participants" ? "active" : ""}`} onClick={() => switchTab("participants")}><span className="nav-icon">✦</span> Uczestnicy</div>}
           <div className={`nav-item ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")}><span className="nav-icon">⚙️</span> Moje studio</div>
         </nav>
@@ -997,16 +1041,100 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         {/* KALENDARZ ADMINA — MIESIĘCZNY */}
         {tab === "admin_calendar" && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
-              <div className="page-header" style={{ margin: 0 }}><h2>Kalendarz zajęć</h2><p>Miesięczny przegląd</p></div>
-              <button className="btn btn-primary btn-sm" onClick={openCreate}>+ Nowe zajęcia</button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div className="page-header" style={{ margin: 0 }}>
+                <h2>Kalendarz{multiStaff ? " — widok dzienny" : " zajęć"}</h2>
+                <p>{multiStaff ? "Kliknij pusty slot aby dodać wizytę" : "Miesięczny przegląd"}</p>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={openCreate}>+ {multiStaff ? "Nowa wizyta" : "Nowe zajęcia"}</button>
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← Poprzedni</button>
-              <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
-              <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>Następny →</button>
-            </div>
-            {(() => {
+
+            {multiStaff ? (() => {
+              // ── WIDOK DZIENNY Z KOLUMNAMI PRACOWNIKÓW ──
+              const hours = Array.from({ length: 13 }, (_, i) => i + 8); // 8–20
+              const activeStaff = staff.filter(s => s.active);
+              const staffCols = [...activeStaff, { id: "none", name: "Bez przypisania", color: "#ADADAD" }];
+              const dayStr = staffCalDay.toDateString();
+              const dayClasses = classes.filter(c => new Date(c.starts_at).toDateString() === dayStr && !c.cancelled);
+              const prevDay = () => { const d = new Date(staffCalDay); d.setDate(d.getDate() - 1); setStaffCalDay(d); };
+              const nextDay = () => { const d = new Date(staffCalDay); d.setDate(d.getDate() + 1); setStaffCalDay(d); };
+              const isToday = staffCalDay.toDateString() === new Date().toDateString();
+
+              const getSlotClasses = (staffId, hour) => dayClasses.filter(c => {
+                const h = new Date(c.starts_at).getHours();
+                return h === hour && (staffId === "none" ? !c.staff_id : c.staff_id === staffId);
+              });
+
+              const cellBase = { borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", minHeight: 64, padding: "0.25rem", verticalAlign: "top" };
+
+              return (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", gap: "1rem" }}>
+                    <button className="btn btn-secondary btn-sm" onClick={prevDay}>← Poprzedni</button>
+                    <span style={{ fontWeight: 600, fontSize: "1rem", textAlign: "center" }}>
+                      {staffCalDay.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                      {isToday && <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", background: "var(--sage)", color: "white", padding: "0.1rem 0.4rem", borderRadius: 4 }}>Dziś</span>}
+                    </span>
+                    <button className="btn btn-secondary btn-sm" onClick={nextDay}>Następny →</button>
+                  </div>
+
+                  <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 10, background: "var(--warm-white)" }}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", minWidth: `${60 + staffCols.length * 160}px` }}>
+                      <thead>
+                        <tr style={{ background: "var(--cream)" }}>
+                          <th style={{ width: 60, padding: "0.6rem 0.5rem", fontSize: "0.72rem", color: "var(--mid)", fontWeight: 500, borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)" }}>Godz.</th>
+                          {staffCols.map(s => (
+                            <th key={s.id} style={{ padding: "0.6rem 0.75rem", borderRight: "1px solid var(--border)", borderBottom: "2px solid var(--border)", textAlign: "left" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
+                                <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>{s.name}</span>
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hours.map(hour => (
+                          <tr key={hour} style={{ background: hour % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                            <td style={{ ...cellBase, textAlign: "center", fontSize: "0.75rem", color: "var(--mid)", fontWeight: 500, background: "var(--cream)", width: 60 }}>
+                              {`${String(hour).padStart(2,"0")}:00`}
+                            </td>
+                            {staffCols.map(s => {
+                              const slotCls = getSlotClasses(s.id, hour);
+                              return (
+                                <td key={s.id} style={{ ...cellBase, cursor: slotCls.length === 0 ? "pointer" : "default" }}
+                                  onClick={() => slotCls.length === 0 && openCreateAtSlot(hour, s.id)}
+                                  onMouseEnter={e => { if (slotCls.length === 0) e.currentTarget.style.background = "rgba(138,158,133,0.07)"; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                                  {slotCls.map(cls => {
+                                    const sc = s.id === "none" ? null : activeStaff.find(x => x.id === s.id);
+                                    const color = sc?.color || "#ADADAD";
+                                    const booked = cls.bookings?.length || 0;
+                                    const isFull = booked >= cls.max_spots;
+                                    return (
+                                      <div key={cls.id} onClick={e => { e.stopPropagation(); openEdit(cls); }}
+                                        style={{ background: `${color}18`, border: `1px solid ${color}55`, borderLeft: `3px solid ${color}`, borderRadius: 5, padding: "0.3rem 0.5rem", cursor: "pointer", marginBottom: "0.2rem" }}
+                                        onMouseEnter={e => e.currentTarget.style.opacity = "0.75"}
+                                        onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                                        <div style={{ fontWeight: 600, fontSize: "0.78rem" }}>{cls.name}</div>
+                                        <div style={{ fontSize: "0.7rem", color: "var(--mid)" }}>{formatTime(cls.starts_at)} · {cls.duration_min} min</div>
+                                        <div style={{ fontSize: "0.7rem", color: isFull ? "var(--clay)" : "var(--sage-dark)", fontWeight: 500 }}>{booked}/{cls.max_spots} {isFull ? "● pełne" : ""}</div>
+                                      </div>
+                                    );
+                                  })}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.5rem" }}>Kliknij pusty slot aby szybko dodać wizytę w wybranej godzinie i u wybranego pracownika.</p>
+                </>
+              );
+            })() : (() => {
+              // ── WIDOK MIESIĘCZNY (standardowy) ──
               const year = adminCalendarWeek.getFullYear();
               const month = adminCalendarWeek.getMonth();
               const firstDay = new Date(year, month, 1);
@@ -1024,6 +1152,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               const mClasses = classes.filter(c => { const d = new Date(c.starts_at); return d.getMonth() === month && d.getFullYear() === year && !c.cancelled; });
               return (
                 <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() - 1); d.setDate(1); setAdminCalendarWeek(d); }}>← Poprzedni</button>
+                    <span style={{ fontWeight: 500, fontSize: "1.1rem" }}>{adminCalendarWeek.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })}</span>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { const d = new Date(adminCalendarWeek); d.setMonth(d.getMonth() + 1); d.setDate(1); setAdminCalendarWeek(d); }}>Następny →</button>
+                  </div>
                   <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
                     {[["Zajęć", mClasses.length],["Rezerwacji", mBookings.length],["Przychód", `${mRevenue} zł`]].map(([label, val], i) => (
                       <div key={i} style={{ background: "var(--warm-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem 1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -1052,10 +1185,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                               const bdr = isFull?"#E8C5B5":pct>=70?"#8A9E85":"var(--border)";
                               const tc = isFull?"var(--clay)":pct>=70?"var(--sage-dark)":"var(--charcoal)";
                               return (
-                                <div key={cls.id} onClick={() => openEdit(cls)}
-                                  style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
-                                  onMouseEnter={e => e.currentTarget.style.opacity="0.75"}
-                                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                                <div key={cls.id} onClick={() => openEdit(cls)} style={{ background: bg, border: `1px solid ${bdr}`, borderRadius: 4, padding: "0.2rem 0.35rem", marginBottom: "0.2rem", cursor: "pointer" }}
+                                  onMouseEnter={e => e.currentTarget.style.opacity="0.75"} onMouseLeave={e => e.currentTarget.style.opacity="1"}>
                                   <div style={{ fontSize: "0.68rem", fontWeight: 500, color: tc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatTime(cls.starts_at)} · {cls.name}</div>
                                   <div style={{ fontSize: "0.62rem", color: "var(--light)" }}>{count}/{cls.max_spots}</div>
                                 </div>
@@ -1967,6 +2098,64 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
           </>
         )}
 
+        {/* USŁUGI */}
+        {tab === "services" && multiStaff && (
+          <>
+            <div className="page-header"><h2>Usługi i cennik</h2></div>
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "1rem", fontSize: "1rem" }}>{editingService ? "Edytuj usługę" : "Dodaj usługę"}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "0.75rem", alignItems: "flex-end" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Nazwa usługi</label>
+                  <input className="form-input" placeholder="np. Strzyżenie damskie" value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Czas (min)</label>
+                  <input className="form-input" type="number" min="15" max="480" step="15" value={serviceForm.duration_min} onChange={e => setServiceForm({ ...serviceForm, duration_min: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Cena (zł)</label>
+                  <input className="form-input" type="number" min="0" placeholder="np. 120" value={serviceForm.price_pln} onChange={e => setServiceForm({ ...serviceForm, price_pln: e.target.value })} />
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="btn btn-primary" onClick={handleSaveService} disabled={!serviceForm.name.trim()}>{editingService ? "Zapisz" : "Dodaj"}</button>
+                  {editingService && <button className="btn btn-secondary" onClick={() => { setEditingService(null); setServiceForm({ name: "", duration_min: 60, price_pln: "" }); }}>Anuluj</button>}
+                </div>
+              </div>
+            </div>
+
+            {services.length === 0
+              ? <div className="empty-state"><div className="empty-icon">🛠</div><p>Brak usług. Dodaj pierwszą powyżej.</p></div>
+              : <div className="table-wrapper">
+                  <table>
+                    <thead><tr><th>Usługa</th><th>Czas</th><th>Cena</th><th>Status</th><th>Akcje</th></tr></thead>
+                    <tbody>
+                      {services.map(s => (
+                        <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
+                          <td style={{ fontWeight: 500 }}>{s.name}</td>
+                          <td>{s.duration_min} min</td>
+                          <td>{s.price_pln > 0 ? `${s.price_pln} zł` : "—"}</td>
+                          <td>
+                            <span style={{ fontSize: "0.78rem", padding: "0.15rem 0.5rem", borderRadius: 4, background: s.active ? "#EBF5EA" : "#F0F0F0", color: s.active ? "var(--sage-dark)" : "var(--mid)" }}>
+                              {s.active ? "Aktywna" : "Nieaktywna"}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                              <button className="btn btn-secondary btn-sm" onClick={() => { setEditingService(s); setServiceForm({ name: s.name, duration_min: s.duration_min, price_pln: s.price_pln || "" }); }}>Edytuj</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleToggleService(s)}>{s.active ? "Dezaktywuj" : "Aktywuj"}</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteService(s.id)}>Usuń</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+            }
+          </>
+        )}
+
         {/* USTAWIENIA STUDIA */}
         {tab === "studio_settings" && studioSettings && (
           <>
@@ -2149,6 +2338,20 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 </div>
               </div>
             )}
+            {multiStaff && services.filter(s => s.active).length > 0 && !editClass && (
+              <div className="form-group" style={{ background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem", marginBottom: "0.5rem" }}>
+                <label className="form-label">Wybierz usługę (opcjonalnie)</label>
+                <select className="form-input" defaultValue="" onChange={e => {
+                  const svc = services.find(s => s.id === e.target.value);
+                  if (svc) setForm(f => ({ ...f, name: svc.name, duration_min: svc.duration_min, price_pln: svc.price_pln || "", max_spots: 1 }));
+                }}>
+                  <option value="">— Wpisz ręcznie —</option>
+                  {services.filter(s => s.active).map(s => (
+                    <option key={s.id} value={s.id}>{s.name} · {s.duration_min} min · {s.price_pln > 0 ? `${s.price_pln} zł` : "bezpłatna"}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {multiStaff && (
               <div className="form-group">
                 <label className="form-label">Pracownik</label>
@@ -2158,7 +2361,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 </select>
               </div>
             )}
-            <div className="form-group"><label className="form-label">Nazwa zajęć</label><input className="form-input" placeholder="np. Pilates Flow" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Nazwa{multiStaff ? " usługi/wizyty" : " zajęć"}</label><input className="form-input" placeholder={multiStaff ? "np. Strzyżenie damskie" : "np. Pilates Flow"} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">Data i godzina</label><input className="form-input" type="datetime-local" value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <div className="form-group"><label className="form-label">Czas (min)</label><input className="form-input" type="number" min="15" max="180" step="15" value={form.duration_min} onChange={e => setForm({ ...form, duration_min: +e.target.value })} /></div>
