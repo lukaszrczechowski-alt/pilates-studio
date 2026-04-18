@@ -679,7 +679,9 @@ export default function ClientDashboard({ session, profile, studioId, onProfileU
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-logo" onClick={() => setTab("upcoming")} style={{ cursor: "pointer" }}>
-          <h1>{studioName}</h1>
+          {studio?.branding?.logo_url
+            ? <img src={studio.branding.logo_url} alt={studioName} style={{ maxHeight: 48, maxWidth: "100%", objectFit: "contain" }} />
+            : <h1>{studioName}</h1>}
         </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "upcoming" ? "active" : ""}`} onClick={() => setTab("upcoming")}><span className="nav-icon">🗓</span> Zajęcia</div>

@@ -791,7 +791,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
       <aside className="sidebar">
         <div className="sidebar-logo" onClick={() => switchTab("classes")} style={{ cursor: "pointer" }}>
-          <h1>{studioName}</h1>
+          {studio?.branding?.logo_url
+            ? <img src={studio.branding.logo_url} alt={studioName} style={{ maxHeight: 48, maxWidth: "100%", objectFit: "contain" }} />
+            : <h1>{studioName}</h1>}
         </div>
         <nav className="sidebar-nav">
           <div className={`nav-item ${tab === "classes" ? "active" : ""}`} onClick={() => switchTab("classes")}><span className="nav-icon">🗓</span> Zajęcia</div>
