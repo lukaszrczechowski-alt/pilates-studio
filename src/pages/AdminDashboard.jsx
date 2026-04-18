@@ -94,6 +94,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [studioSettingsSaving, setStudioSettingsSaving] = useState(false);
   const [studioLogoFile, setStudioLogoFile] = useState(null);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [paymentCfg, setPaymentCfg] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({ p24: { merchant_id: "", pos_id: "", api_key: "", crc_key: "", sandbox: true }, stripe: { publishable_key: "", secret_key: "" } });
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
 
   useEffect(() => { if (studioId) fetchAll(); }, [studioId]);
@@ -232,6 +235,38 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setForm({ name: "", starts_at: localStr, duration_min: 60, max_spots: 1, location: "", notes: "", price_pln: "", venue_cost_pln: "", staff_id: staffId === "none" ? "" : (staffId || "") });
     setRecurring({ enabled: false, weeks: 4 });
     setShowModal(true);
+  }
+
+  async function loadPaymentConfig() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/payment-config", { headers: { Authorization: `Bearer ${session.access_token}` } });
+      if (!res.ok) return;
+      const cfg = await res.json();
+      setPaymentCfg(cfg);
+      setPaymentForm({
+        p24: { merchant_id: cfg.p24.merchant_id, pos_id: cfg.p24.pos_id, api_key: cfg.p24.api_key, crc_key: cfg.p24.crc_key, sandbox: cfg.p24.sandbox },
+        stripe: { publishable_key: cfg.stripe.publishable_key, secret_key: cfg.stripe.secret_key },
+      });
+    } catch {}
+  }
+
+  async function handleSavePaymentConfig(provider) {
+    setPaymentSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/payment-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ provider, config: paymentForm[provider] }),
+      });
+      if (!res.ok) throw new Error();
+      await loadPaymentConfig();
+      showMsg(t("Konfiguracja płatności zapisana. ✓", "Payment configuration saved. ✓"));
+    } catch {
+      showMsg(t("Błąd zapisu konfiguracji.", "Error saving configuration."), "error");
+    }
+    setPaymentSaving(false);
   }
 
   async function handleSaveStudioSettings() {
@@ -897,6 +932,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   function switchTab(t) {
     if (t !== "participants") setSelectedClass(null);
     setTab(t);
+    if (t === "studio_settings" && !paymentCfg && !isDemo) loadPaymentConfig();
   }
 
   const upcomingClasses = classes.filter(c => new Date(c.starts_at) >= new Date() && !c.cancelled);
@@ -2400,8 +2436,88 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               )}
             </div>
 
+            {studioSettings.payments_online && !ro && paymentCfg && (
+              <div className="card" style={{ marginTop: "1rem" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1rem" }}>
+                  {t("Konfiguracja kluczy API","API Key Configuration")}
+                  {studioSettings.payment_provider === "p24" && paymentCfg.p24?.configured && (
+                    <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", background: "var(--sage)", color: "white", borderRadius: 4, padding: "0.1rem 0.4rem" }}>{t("Skonfigurowane","Configured")}</span>
+                  )}
+                  {studioSettings.payment_provider === "stripe" && paymentCfg.stripe?.configured && (
+                    <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", background: "var(--sage)", color: "white", borderRadius: 4, padding: "0.1rem 0.4rem" }}>{t("Skonfigurowane","Configured")}</span>
+                  )}
+                </h3>
+
+                {studioSettings.payment_provider === "p24" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Merchant ID</label>
+                        <input className="form-input" value={paymentForm.p24?.merchant_id || ""}
+                          onChange={e => setPaymentForm(f => ({ ...f, p24: { ...f.p24, merchant_id: e.target.value } }))}
+                          placeholder="np. 123456" />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">POS ID <span style={{ color: "var(--mid)", fontWeight: 400, fontSize: "0.78rem" }}>({t("opcjonalnie, domyślnie = Merchant ID","optional, defaults to Merchant ID")})</span></label>
+                        <input className="form-input" value={paymentForm.p24?.pos_id || ""}
+                          onChange={e => setPaymentForm(f => ({ ...f, p24: { ...f.p24, pos_id: e.target.value } }))}
+                          placeholder={t("tak jak Merchant ID","same as Merchant ID")} />
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">API Key (raportów)</label>
+                        <input className="form-input" value={paymentForm.p24?.api_key || ""}
+                          onChange={e => setPaymentForm(f => ({ ...f, p24: { ...f.p24, api_key: e.target.value } }))}
+                          placeholder={t("Wklej klucz API","Paste API key")} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">CRC Key</label>
+                        <input className="form-input" value={paymentForm.p24?.crc_key || ""}
+                          onChange={e => setPaymentForm(f => ({ ...f, p24: { ...f.p24, crc_key: e.target.value } }))}
+                          placeholder={t("Wklej klucz CRC","Paste CRC key")} />
+                      </div>
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.88rem" }}>
+                      <input type="checkbox" checked={paymentForm.p24?.sandbox !== false}
+                        onChange={e => setPaymentForm(f => ({ ...f, p24: { ...f.p24, sandbox: e.target.checked } }))}
+                        style={{ accentColor: "var(--sage)" }} />
+                      {t("Tryb testowy (sandbox)","Test mode (sandbox)")}
+                    </label>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button className="btn btn-primary btn-sm" onClick={() => handleSavePaymentConfig("p24")} disabled={paymentSaving}>
+                        {paymentSaving ? t("Zapisywanie...","Saving...") : t("Zapisz klucze P24","Save P24 keys")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {studioSettings.payment_provider === "stripe" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Publishable Key</label>
+                      <input className="form-input" value={paymentForm.stripe?.publishable_key || ""}
+                        onChange={e => setPaymentForm(f => ({ ...f, stripe: { ...f.stripe, publishable_key: e.target.value } }))}
+                        placeholder="pk_live_..." />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Secret Key</label>
+                      <input className="form-input" value={paymentForm.stripe?.secret_key || ""}
+                        onChange={e => setPaymentForm(f => ({ ...f, stripe: { ...f.stripe, secret_key: e.target.value } }))}
+                        placeholder="sk_live_..." />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button className="btn btn-primary btn-sm" onClick={() => handleSavePaymentConfig("stripe")} disabled={paymentSaving}>
+                        {paymentSaving ? t("Zapisywanie...","Saving...") : t("Zapisz klucze Stripe","Save Stripe keys")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {!ro && (
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
                 <button className="btn btn-primary" onClick={handleSaveStudioSettings} disabled={studioSettingsSaving}>
                   {studioSettingsSaving ? t("Zapisywanie...","Saving...") : t("Zapisz ustawienia","Save settings")}
                 </button>
