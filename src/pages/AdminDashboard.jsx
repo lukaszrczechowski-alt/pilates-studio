@@ -82,6 +82,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [messageText, setMessageText] = useState("");
   const [msgDelivery, setMsgDelivery] = useState({ app: true, email: false, sms: false });
   const [notifFilter, setNotifFilter] = useState("all");
+  const [notifSearch, setNotifSearch] = useState("");
   const [message, setMessage] = useState(null);
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
@@ -1088,6 +1089,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   function switchTab(t) {
     if (t !== "participants") setSelectedClass(null);
     setTab(t);
+    if (["reports","stats","history"].includes(t)) setStatsOpen(true);
     if (t === "studio_settings" && !paymentCfg && !isDemo) loadPaymentConfig();
   }
 
@@ -1185,9 +1187,9 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             <span style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
               <NavIcon name="chart" /> {t("Statystyki", "Statistics")}
             </span>
-            <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: (statsOpen || ["reports","stats","history"].includes(tab)) ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+            <span style={{ fontSize: "0.7rem", transition: "transform 0.15s", display: "inline-block", transform: statsOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
           </div>}
-          {reportsEnabled && (statsOpen || ["reports","stats","history"].includes(tab)) && <>
+          {reportsEnabled && statsOpen && <>
             <div className={`nav-item ${tab === "reports" ? "active" : ""}`} onClick={() => switchTab("reports")} style={{ paddingLeft: "2.75rem" }}><NavIcon name="reports" /> {t("Raporty", "Reports")}</div>
             <div className={`nav-item ${tab === "stats" ? "active" : ""}`} onClick={() => switchTab("stats")} style={{ paddingLeft: "2.75rem" }}><NavIcon name="chart" /> {t("Dane", "Data")}</div>
             <div className={`nav-item ${tab === "history" ? "active" : ""}`} onClick={() => switchTab("history")} style={{ paddingLeft: "2.75rem" }}><NavIcon name="history" /> {t("Historia", "History")}</div>
@@ -1206,7 +1208,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <NavIcon name="globe" /> {lang === "pl" ? "EN" : "PL"}
             </button>
           </div>
-          <button className={`sidebar-footer-btn ${tab === "studio_settings" ? "active" : ""}`} style={{ width: "100%", justifyContent: "flex-start", marginBottom: "0.4rem" }} onClick={() => switchTab("studio_settings")}>
+          <button className={`sidebar-footer-btn ${tab === "studio_settings" ? "active" : ""}`} style={{ width: "100%", marginBottom: "0.4rem" }} onClick={() => switchTab("studio_settings")}>
             <NavIcon name="gear" /> {t("Ustawienia", "Settings")}
           </button>
           <button className="btn-logout" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
@@ -2100,7 +2102,11 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Kanały", "Channels")}</label>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", paddingTop: "0.3rem" }}>
-                    {[["app", `📱 ${t("Powiadomienie w aplikacji","In-app notification")}`], ["push", `🔔 Push`], ["sms", `📱 SMS`]].map(([key, label]) => (
+                    {[
+                      ["app", <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg> {t("In-app","In-app")}</>],
+                      ["push", <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Push</>],
+                      ["sms", <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> SMS</>],
+                    ].map(([key, label]) => (
                       <label key={key} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.85rem" }}>
                         <input type="checkbox" checked={bulkMsgChannels[key]} onChange={e => setBulkMsgChannels(p => ({ ...p, [key]: e.target.checked }))} style={{ accentColor: "var(--sage)" }} />
                         {label}
@@ -2113,14 +2119,15 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <label className="form-label">{t("Treść wiadomości", "Message")}</label>
                 <textarea className="form-input" rows={3} placeholder={t("Wpisz treść wiadomości…","Write your message…")} value={bulkMsgText} onChange={e => setBulkMsgText(e.target.value)} style={{ resize: "vertical" }} />
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button className="btn btn-primary" onClick={sendBulkMessage} disabled={!bulkMsgText.trim() || sendingBulk || (!bulkMsgChannels.app && !bulkMsgChannels.push && !bulkMsgChannels.sms)}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", alignItems: "center" }}>
+                {isDemo && <span style={{ fontSize: "0.8rem", color: "var(--mid)" }}>🔒 {t("Wysyłanie zablokowane w trybie demo","Sending disabled in demo mode")}</span>}
+                <button className="btn btn-primary" onClick={sendBulkMessage} disabled={isDemo || !bulkMsgText.trim() || sendingBulk || (!bulkMsgChannels.app && !bulkMsgChannels.push && !bulkMsgChannels.sms)}>
                   {sendingBulk ? t("Wysyłanie…","Sending…") : t("Wyślij","Send")}
                 </button>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.75rem" }}>
               <h3 style={{ font: "inherit", fontWeight: 600 }}>{t("Historia powiadomień", "Notification history")}</h3>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {[
@@ -2137,25 +2144,41 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 ))}
               </div>
             </div>
+            <div style={{ marginBottom: "0.75rem" }}>
+              <input className="form-input" placeholder={t("🔍 Szukaj w powiadomieniach…","🔍 Search notifications…")} value={notifSearch} onChange={e => setNotifSearch(e.target.value)} style={{ fontSize: "0.85rem" }} />
+            </div>
             {(() => {
-              const filtered = notifications.filter(n =>
-                notifFilter === "unread" ? !n.read :
-                notifFilter === "class_cancelled" ? n.type === "class_cancelled" :
-                notifFilter === "tokens_added" ? n.type === "tokens_added" :
-                notifFilter === "booking" ? n.type === "booking" :
-                true
-              );
+              const filtered = notifications.filter(n => {
+                const matchFilter = notifFilter === "unread" ? !n.read :
+                  notifFilter === "class_cancelled" ? n.type === "class_cancelled" :
+                  notifFilter === "tokens_added" ? n.type === "tokens_added" :
+                  notifFilter === "booking" ? n.type === "booking" : true;
+                const matchSearch = !notifSearch.trim() || n.message?.toLowerCase().includes(notifSearch.toLowerCase());
+                return matchFilter && matchSearch;
+              });
               return filtered.length === 0
                 ? <div className="empty-state"><div className="empty-icon">🔔</div><p>{t("Brak powiadomień","No notifications")}{notifFilter !== "all" ? t(" w tej kategorii"," in this category") : ""}.</p></div>
-                : <div className="table-wrapper"><table><thead><tr><th>{t("Typ","Type")}</th><th>{t("Wiadomość","Message")}</th><th>{t("Kiedy","When")}</th></tr></thead><tbody>
-                    {filtered.map(n => (
-                      <tr key={n.id} style={{ background: n.read ? "transparent" : "rgba(138,158,133,0.06)" }}>
-                        <td style={{ fontSize: "1.2rem" }}>{notifIcon(n.type)}</td>
-                        <td style={{ fontWeight: n.read ? 400 : 500 }}>{n.message}</td>
-                        <td style={{ color: "var(--mid)", whiteSpace: "nowrap" }}>{formatRelative(n.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody></table></div>;
+                : <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ overflowY: "auto", maxHeight: 420 }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", background: "var(--warm-white)" }}>
+                        <thead style={{ background: "var(--cream)", position: "sticky", top: 0 }}>
+                          <tr><th style={{ padding: "0.75rem 1rem", textAlign: "left", fontSize: "0.72rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid var(--border)" }}>{t("Typ","Type")}</th><th style={{ padding: "0.75rem 1rem", textAlign: "left", fontSize: "0.72rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid var(--border)" }}>{t("Wiadomość","Message")}</th><th style={{ padding: "0.75rem 1rem", textAlign: "left", fontSize: "0.72rem", fontWeight: 500, color: "var(--mid)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid var(--border)" }}>{t("Kiedy","When")}</th></tr>
+                        </thead>
+                        <tbody>
+                          {filtered.slice(0, 10).map(n => (
+                            <tr key={n.id} style={{ background: n.read ? "transparent" : "rgba(138,158,133,0.06)" }}>
+                              <td style={{ padding: "0.8rem 1rem", fontSize: "1.1rem", borderBottom: "1px solid var(--border)" }}>{notifIcon(n.type)}</td>
+                              <td style={{ padding: "0.8rem 1rem", fontWeight: n.read ? 400 : 500, borderBottom: "1px solid var(--border)", fontSize: "0.85rem" }}>{n.message}</td>
+                              <td style={{ padding: "0.8rem 1rem", color: "var(--mid)", whiteSpace: "nowrap", borderBottom: "1px solid var(--border)", fontSize: "0.82rem" }}>{formatRelative(n.created_at)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {filtered.length > 10 && <div style={{ padding: "0.5rem 1rem", fontSize: "0.78rem", color: "var(--mid)", background: "var(--cream)", textAlign: "center", borderTop: "1px solid var(--border)" }}>
+                      {t(`Pokazano 10 z ${filtered.length}. Użyj wyszukiwarki aby zawęzić.`, `Showing 10 of ${filtered.length}. Use search to narrow down.`)}
+                    </div>}
+                  </div>;
             })()}
           </>
         )}
@@ -2331,8 +2354,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                                   </button>
                                 </div>
                                 {expandedClientId === c.id && (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    {pastVisits.map(b => (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: 300, overflowY: "auto", paddingRight: "0.25rem" }}>
+                                    {pastVisits.slice(0, 5).map(b => (
                                       <div key={b.id} style={{ background: "var(--cream)", borderRadius: 8, padding: "0.6rem 0.75rem" }}>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
                                           <div>
