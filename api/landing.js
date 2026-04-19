@@ -6,27 +6,35 @@ const supabase = createClient(
 );
 
 async function getStudio(domain) {
-  let { data: studio } = await supabase
-    .from("studios")
-    .select("id, name, slug, domain, features, branding")
-    .eq("domain", domain)
-    .maybeSingle();
+  // Próbuj obu wariantów: z www i bez
+  const bare = domain.replace(/^www\./, "");
+  const candidates = [domain, bare, `www.${bare}`].filter((v, i, a) => a.indexOf(v) === i);
 
-  if (!studio) {
-    const sub = domain.replace(".studiova.app", "");
-    if (sub !== domain) {
-      ({ data: studio } = await supabase
-        .from("studios")
-        .select("id, name, slug, domain, features, branding")
-        .eq("slug", sub)
-        .maybeSingle());
-    }
+  for (const d of candidates) {
+    const { data } = await supabase
+      .from("studios")
+      .select("id, name, slug, domain, features, branding")
+      .eq("domain", d)
+      .maybeSingle();
+    if (data) return data;
   }
-  return studio;
+
+  // Subdomena *.studiova.app
+  const sub = bare.replace(".studiova.app", "");
+  if (sub !== bare) {
+    const { data } = await supabase
+      .from("studios")
+      .select("id, name, slug, domain, features, branding")
+      .eq("slug", sub)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  return null;
 }
 
 export default async function handler(req, res) {
-  const domain = (req.headers.host || "").replace(/:\d+$/, "");
+  const domain = (req.headers["x-forwarded-host"] || req.headers.host || "").replace(/:\d+$/, "").split(",")[0].trim();
   const studio = await getStudio(domain);
 
   const name     = studio?.name || "Studio";
