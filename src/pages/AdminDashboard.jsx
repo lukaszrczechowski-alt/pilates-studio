@@ -28,6 +28,20 @@ function NavIcon({ name }) {
     tag:          <svg {...s}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
     gift:         <svg {...s}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>,
     repeat:       <svg {...s}><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
+    message:      <svg {...s}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+    broadcast:    <svg {...s}><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>,
+    edit:         <svg {...s}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+    ticket:       <svg {...s}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>,
+    email:        <svg {...s}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+    check:        <svg {...s}><polyline points="20 6 9 17 4 12"/></svg>,
+    xmark:        <svg {...s}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    note:         <svg {...s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+    birthday:     <svg {...s}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    promoted:     <svg {...s}><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>,
+    cash:         <svg {...s}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+    template:     <svg {...s}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>,
+    star:         <svg {...s}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+    chevron:      <svg {...s}><polyline points="6 9 12 15 18 9"/></svg>,
   };
   return <span className="nav-icon">{icons[name] || null}</span>;
 }
@@ -83,6 +97,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
   const [msgDelivery, setMsgDelivery] = useState({ app: true, email: false, sms: false });
   const [notifFilter, setNotifFilter] = useState("all");
   const [notifSearch, setNotifSearch] = useState("");
+  const [expandedClientCard, setExpandedClientCard] = useState(null);
   const [message, setMessage] = useState(null);
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
@@ -1109,7 +1124,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const notifIcon = (type) => ({ booking: "✅", cancel: "❌", waitlist_promoted: "⬆️", tokens_added: "🎫", class_cancelled: "🚫", birthday: "🎂" }[type] || "🔔");
+  const notifIcon = (type) => {
+    const icons = { booking: "message", cancel: "xmark", waitlist_promoted: "promoted", tokens_added: "ticket", class_cancelled: "xmark", birthday: "birthday" };
+    return <NavIcon name={icons[type] || "bell"} />;
+  };
   const notEnrolled = selectedClass ? allProfiles.filter(p => !participants.some(part => part.user_id === p.id)) : [];
 
   // Raport
@@ -1239,7 +1257,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                         const count = cls.bookings?.length || 0;
                         return (
                           <tr key={cls.id}>
-                            <td><strong>{cls.name}</strong>{cls.series_id && <span style={{ fontSize: "0.7rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.15rem 0.5rem", borderRadius: 20, marginLeft: "0.5rem" }}>🔁 {cls.series_index}</span>}</td>
+                            <td><strong>{cls.name}</strong>{cls.series_id && <span style={{ fontSize: "0.7rem", background: "#EBF5EA", color: "var(--sage-dark)", padding: "0.15rem 0.5rem", borderRadius: 20, marginLeft: "0.5rem", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><NavIcon name="repeat" /> {cls.series_index}</span>}</td>
                             {multiStaff && <td>{cls.staff ? <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: cls.staff.color, display: "inline-block" }} />{cls.staff.name}</span> : <span style={{ color: "var(--light)" }}>—</span>}</td>}
                             <td>{formatDate(cls.starts_at)}</td>
                             <td>{formatTime(cls.starts_at)}</td>
@@ -1249,7 +1267,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             <td>
                               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                                 <button className="btn btn-secondary btn-sm" onClick={() => openParticipants(cls)}>{t("Lista", "List")} ({count})</button>
-                                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(cls)} title={t("Wyślij wiadomość", "Send message")}>💬</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setShowMessageModal(cls)} title={t("Wyślij wiadomość", "Send message")}><NavIcon name="message" /></button>
                               </div>
                             </td>
                             <td>
@@ -2086,7 +2104,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
 
             {/* Masowe powiadomienia */}
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "var(--charcoal)" }}>📢 {t("Wyślij wiadomość", "Send message")}</h3>
+              <h3 style={{ fontSize: "1rem", marginBottom: "1rem", color: "var(--charcoal)", display: "flex", alignItems: "center", gap: "0.5rem" }}><NavIcon name="broadcast" /> {t("Wyślij wiadomość", "Send message")}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "0.75rem" }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t("Odbiorcy", "Recipients")}</label>
@@ -2269,25 +2287,31 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   ? <div className="empty-state"><div className="empty-icon">🔍</div><p>Brak wyników dla "{clientSearch}"</p></div>
                   : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                      {filtered.map((c, i) => (
-                        <div key={i} className="card" style={{ padding: "1rem 1.25rem" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+                      {filtered.map((c, i) => {
+                        const isExpanded = expandedClientCard === c.id;
+                        return (
+                        <div key={i} className="card" style={{ padding: "0.85rem 1.25rem" }}>
+                          {/* Zawsze widoczny nagłówek — kliknięcie rozwija */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", cursor: "pointer" }} onClick={() => setExpandedClientCard(isExpanded ? null : c.id)}>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                              <div className="user-avatar">{c.first_name?.[0]}{c.last_name?.[0]}</div>
+                              <div className="user-avatar" style={{ flexShrink: 0 }}>{c.first_name?.[0]}{c.last_name?.[0]}</div>
                               <div>
                                 <div style={{ fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
-                                <div style={{ fontSize: "0.8rem", color: "var(--mid)" }}>{c.email}</div>
-                                <div style={{ fontSize: "0.8rem", color: "var(--mid)", marginTop: 2 }}>
-                                  {t("Rezerwacji:","Bookings:")} {allBookings.filter(b => b.user_id === c.id).length}
-                                </div>
+                                <div style={{ fontSize: "0.78rem", color: "var(--mid)" }}>{c.email}</div>
                               </div>
                             </div>
-                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                              <TokenBadge userId={c.id} month={currentMonth} year={currentYear} />
-                              <button className="btn btn-secondary btn-sm" onClick={() => openEditClient(c)}>✏️ {t("Edytuj","Edit")}</button>
-                              <button className="btn btn-secondary btn-sm" onClick={() => openUserTokens(c)}>🎫 {t("Wejścia","Credits")}</button>
-                            </div>
+                            <span style={{ color: "var(--mid)", transition: "transform 0.15s", display: "inline-block", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}>
+                              <NavIcon name="chevron" />
+                            </span>
                           </div>
+
+                          {/* Rozwinięte szczegóły */}
+                          {isExpanded && (<>
+                          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--border)" }}>
+                              <TokenBadge userId={c.id} month={currentMonth} year={currentYear} />
+                              <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); openEditClient(c); }}><NavIcon name="edit" /> {t("Edytuj","Edit")}</button>
+                              <button className="btn btn-secondary btn-sm" onClick={e => { e.stopPropagation(); openUserTokens(c); }}><NavIcon name="ticket" /> {t("Wejścia","Credits")}</button>
+                            </div>
 
                           {/* Statystyki klienta */}
                           {(() => {
@@ -2299,10 +2323,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             const entriesUsed = tokenHistory.filter(h => h.user_id === c.id && h.operation === "use" && new Date(h.created_at).getFullYear() === currentYear).length;
                             return (
                               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
-                                <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>📅 {pastBookings.length} {t("odbytych","attended")}</span>
-                                {favorite && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>⭐ {favorite}</span>}
-                                {entriesUsed > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>🎫 {entriesUsed} {t("wejść w","credits in")} {currentYear}</span>}
-                                {cBookings.filter(b => b.payment_method === "cash").length > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20 }}>💵 {cBookings.filter(b => b.payment_method === "cash").length} {t("gotówką","cash")}</span>}
+                                <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}><NavIcon name="history" /> {pastBookings.length} {t("odbytych","attended")}</span>
+                                {favorite && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}><NavIcon name="star" /> {favorite}</span>}
+                                {entriesUsed > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}><NavIcon name="ticket" /> {entriesUsed} {t("wejść w","credits in")} {currentYear}</span>}
+                                {cBookings.filter(b => b.payment_method === "cash").length > 0 && <span style={{ fontSize: "0.72rem", background: "var(--cream)", color: "var(--mid)", padding: "0.2rem 0.55rem", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: "0.3rem" }}><NavIcon name="cash" /> {cBookings.filter(b => b.payment_method === "cash").length} {t("gotówką","cash")}</span>}
                               </div>
                             );
                           })()}
@@ -2386,8 +2410,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                               </div>
                             );
                           })()}
+                          </>)}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
               })()}
@@ -3056,7 +3082,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>{t("Wczytaj szablon","Load template")}</label>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   {templates.map(t => (
-                    <button key={t.id} className="btn btn-secondary btn-sm" onClick={() => applyTemplate(t)}>📋 {t.name}</button>
+                    <button key={t.id} className="btn btn-secondary btn-sm" onClick={() => applyTemplate(t)}><NavIcon name="template" /> {t.name}</button>
                   ))}
                 </div>
               </div>
@@ -3118,7 +3144,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <input type="checkbox" checked={recurring.enabled} onChange={e => setRecurring({ ...recurring, enabled: e.target.checked })}
                     style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
                   <div>
-                    <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>🔁 {t("Zajęcia cykliczne","Recurring classes")}</div>
+                    <div style={{ fontWeight: 500, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.4rem" }}><NavIcon name="repeat" /> {t("Zajęcia cykliczne","Recurring classes")}</div>
                     <div style={{ fontSize: "0.75rem", color: "var(--mid)" }}>{t("Powtarzaj co tydzień o tej samej godzinie","Repeat weekly at the same time")}</div>
                   </div>
                 </label>
@@ -3290,16 +3316,16 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
               <label className="form-label" style={{ marginBottom: "0.6rem", display: "block" }}>{t("Kanały wysyłki","Delivery channels")}</label>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {[
-                  { key: "app", label: `📱 ${t("Powiadomienie w aplikacji","In-app notification")}`, always: true },
-                  { key: "email", label: "✉️ Email" },
-                  { key: "sms", label: `💬 SMS (${t("tylko osoby z numerem","only users with phone number")})` },
+                  { key: "app", icon: "bell", label: t("In-app","In-app"), always: true },
+                  { key: "email", icon: "email", label: "Email" },
+                  { key: "sms", icon: "message", label: `SMS (${t("tylko osoby z numerem","only users with phone number")})` },
                 ].map(ch => (
                   <label key={ch.key} style={{ display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.875rem", cursor: ch.always ? "default" : "pointer" }}>
                     <input type="checkbox" checked={msgDelivery[ch.key]}
                       disabled={ch.always}
                       onChange={e => setMsgDelivery(prev => ({ ...prev, [ch.key]: e.target.checked }))}
                       style={{ width: 16, height: 16, accentColor: "var(--sage)" }} />
-                    {ch.label}{ch.always && <span style={{ fontSize: "0.75rem", color: "var(--light)", marginLeft: 4 }}>({t("zawsze","always")})</span>}
+                    <NavIcon name={ch.icon} /> {ch.label}{ch.always && <span style={{ fontSize: "0.75rem", color: "var(--light)", marginLeft: 4 }}>({t("zawsze","always")})</span>}
                   </label>
                 ))}
               </div>
