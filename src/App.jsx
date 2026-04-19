@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { StudioProvider, useStudio } from "./StudioContext";
+import { LanguageProvider } from "./LanguageContext";
 import AuthPage from "./pages/AuthPage";
 import LandingPage from "./pages/LandingPage";
 import ClientDashboard from "./pages/ClientDashboard";
@@ -15,19 +16,28 @@ function AppInner() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState(null);
+  const [wrongStudio, setWrongStudio] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
     return saved !== null ? saved === "true" : false;
   });
 
-  const isPublicRoute = window.location.pathname === "/zapisy";
-  const isSuperAdminRoute = window.location.pathname === "/superadmin";
+  const path = window.location.pathname;
+  const isPublicRoute = path === "/zapisy";
+  const isSuperAdminRoute = path === "/superadmin";
+  const isLoginRoute = path === "/login";
+  const isRegisterRoute = path === "/register";
 
   useEffect(() => {
     if (darkMode) document.documentElement.setAttribute("data-theme", "dark");
     else document.documentElement.removeAttribute("data-theme");
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    if (isLoginRoute) setAuthMode("login");
+    if (isRegisterRoute) setAuthMode("register");
+  }, []);
 
   useEffect(() => {
     if (isPublicRoute) { setLoading(false); return; }
@@ -42,11 +52,23 @@ function AppInner() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else { setProfile(null); setLoading(false); }
+      if (session) {
+        fetchProfile(session.user.id);
+        // Wyczyść /login lub /register z URL po zalogowaniu
+        if (["/login", "/register"].includes(window.location.pathname)) {
+          window.history.replaceState({}, "", "/app");
+        }
+      } else { setProfile(null); setLoading(false); }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (profile?.studio_id && studio?.id && profile.studio_id !== studio.id) {
+      setWrongStudio(true);
+      supabase.auth.signOut();
+    }
+  }, [profile, studio]);
 
   async function fetchProfile(userId) {
     const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
@@ -74,7 +96,7 @@ function AppInner() {
 
   if (!session) {
     if (isSuperAdminRoute) return <AuthPage initialMode="login" onBack={() => { window.location.pathname = "/"; }} studioId={studio?.id} />;
-    if (authMode) return <AuthPage initialMode={authMode} onBack={() => setAuthMode(null)} studioId={studio?.id} />;
+    if (authMode) return <AuthPage initialMode={authMode} onBack={() => { setAuthMode(null); window.history.replaceState({}, "", "/"); window.location.replace("/"); }} studioId={studio?.id} />;
     return <LandingPage onLogin={() => setAuthMode("login")} onRegister={() => setAuthMode("register")} />;
   }
 
@@ -90,14 +112,8 @@ function AppInner() {
     return <SuperAdminDashboard session={session} onLogout={() => supabase.auth.signOut()} />;
   }
 
-  // Blokuj dostęp jeśli user należy do innego studia
-  if (profile?.studio_id && studio?.id && profile.studio_id !== studio.id) {
-    return (
-      <div className="loading-screen" style={{ flexDirection: "column", gap: "1rem" }}>
-        <div style={{ fontSize: "1.1rem", color: "var(--mid)" }}>To konto nie należy do tego studia.</div>
-        <button className="btn btn-secondary btn-sm" onClick={() => supabase.auth.signOut()}>Wyloguj się</button>
-      </div>
-    );
+  if (wrongStudio) {
+    return <AuthPage initialMode="login" onBack={() => { setAuthMode(null); setWrongStudio(false); }} studioId={studio?.id} initialError="Nieprawidłowy email lub hasło." />;
   }
 
   if (["admin", "superadmin"].includes(profile?.role)) return (
@@ -111,7 +127,9 @@ function AppInner() {
 export default function App() {
   return (
     <StudioProvider>
-      <AppInner />
+      <LanguageProvider>
+        <AppInner />
+      </LanguageProvider>
     </StudioProvider>
   );
 }
