@@ -387,7 +387,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     const empty = { p24: { merchant_id: "", pos_id: "", api_key: "", crc_key: "", sandbox: true, configured: false }, stripe: { publishable_key: "", secret_key: "", configured: false } };
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/payment-config", { headers: { Authorization: `Bearer ${session.access_token}` } });
+      const res = await fetch("/api/superadmin?action=payment-config", { headers: { Authorization: `Bearer ${session.access_token}` } });
       if (!res.ok) { setPaymentCfg(empty); setPaymentForm({ p24: { ...empty.p24 }, stripe: { ...empty.stripe } }); return; }
       const cfg = await res.json();
       setPaymentCfg(cfg);
@@ -402,7 +402,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setPaymentSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/payment-config", {
+      const res = await fetch("/api/superadmin?action=payment-config", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ provider, config: paymentForm[provider] }),
