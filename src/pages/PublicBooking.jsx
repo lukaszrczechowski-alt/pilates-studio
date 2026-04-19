@@ -482,6 +482,33 @@ export default function PublicBooking({ studioId }) {
           </div>
         </div>
       )}
+
+      {/* FLOATING CONTACT BUTTONS */}
+      {(b.whatsapp_number || b.messenger_url) && (
+        <div style={{ position: "fixed", bottom: "1.5rem", right: "1.5rem", display: "flex", flexDirection: "column", gap: "0.65rem", zIndex: 900 }}>
+          {b.whatsapp_number && (
+            <a href={`https://wa.me/${b.whatsapp_number.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+              style={{ width: 52, height: 52, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.18)", transition: "transform 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="white">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.856L.057 23.882l6.188-1.437A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.878 9.878 0 01-5.031-1.378l-.361-.214-3.741.981.998-3.648-.235-.374A9.869 9.869 0 012.106 12C2.106 6.58 6.58 2.106 12 2.106S21.894 6.58 21.894 12 17.42 21.894 12 21.894z"/>
+              </svg>
+            </a>
+          )}
+          {b.messenger_url && (
+            <a href={`https://m.me/${b.messenger_url.replace(/^m\.me\//, "")}`} target="_blank" rel="noopener noreferrer" title="Messenger"
+              style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, #0099FF 0%, #A033FF 60%, #FF5C87 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.18)", transition: "transform 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="white">
+                <path d="M12 0C5.373 0 0 5.16 0 11.52c0 3.584 1.792 6.787 4.608 8.875V24l4.224-2.323c1.12.31 2.314.476 3.552.476 6.627 0 12-5.163 12-11.52C24 5.16 18.627 0 12 0zm1.193 15.517l-3.057-3.254-5.963 3.254 6.554-6.963 3.13 3.254 5.89-3.254-6.554 6.963z"/>
+              </svg>
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

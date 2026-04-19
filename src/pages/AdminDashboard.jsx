@@ -188,6 +188,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       email_from: b.email_from || "",
       app_url: b.app_url || "",
       sms_signature: b.sms_signature || "",
+      whatsapp_number: b.whatsapp_number || "",
+      messenger_url: b.messenger_url || "",
       logo_url: b.logo_url || "",
       color_sage: b.colors?.sage || "#8A9E85",
       color_clay: b.colors?.clay || "#C4917A",
@@ -451,6 +453,8 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             email_from: studioSettings.email_from,
             app_url: studioSettings.app_url,
             sms_signature: studioSettings.sms_signature,
+            whatsapp_number: studioSettings.whatsapp_number,
+            messenger_url: studioSettings.messenger_url,
             logo_url: logoUrl,
             colors: {
               sage: studioSettings.color_sage,
@@ -2948,6 +2952,29 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <label className="form-label">{t("Podpis SMS","SMS signature")}</label>
                   <input className="form-input" disabled={ro} value={studioSettings.sms_signature} onChange={e => setStudioSettings(s => ({ ...s, sms_signature: e.target.value }))} placeholder={t("np. Studio Roberta","e.g. Robert's Studio")} />
                   <div style={{ fontSize: "0.78rem", color: "var(--mid)", marginTop: "0.35rem" }}>{t("Pojawia się na końcu każdej wiadomości SMS wysyłanej do klientów.","Appears at the end of every SMS message sent to clients.")}</div>
+                </div>
+              </div>}
+            </div>
+
+            {/* Kontakt społecznościowy */}
+            <div className="card" style={{ marginBottom: "0.5rem" }}>
+              <div className="settings-section-header" onClick={() => toggleSection("social")}>
+                <h3>{t("WhatsApp / Messenger","WhatsApp / Messenger")}</h3>
+                <span className="settings-section-chevron" style={{ transform: settingsOpen.social ? "rotate(180deg)" : "none" }}>▾</span>
+              </div>
+              {settingsOpen.social && <div className="settings-section-body">
+                <p style={{ fontSize: "0.82rem", color: "var(--mid)", marginBottom: "1rem" }}>{t("Jeśli uzupełnisz poniższe pola, na stronie Zapisy pojawi się pływający przycisk kontaktu.","If filled, a floating contact button will appear on the Bookings page.")}</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">WhatsApp</label>
+                    <input className="form-input" disabled={ro} value={studioSettings.whatsapp_number} onChange={e => setStudioSettings(s => ({ ...s, whatsapp_number: e.target.value }))} placeholder="48500000000" />
+                    <div style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.25rem" }}>{t("Numer bez + i spacji","Number without + or spaces")}</div>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Messenger</label>
+                    <input className="form-input" disabled={ro} value={studioSettings.messenger_url} onChange={e => setStudioSettings(s => ({ ...s, messenger_url: e.target.value }))} placeholder="m.me/twojastudio" />
+                    <div style={{ fontSize: "0.75rem", color: "var(--mid)", marginTop: "0.25rem" }}>{t("Nazwa strony na Facebooku","Your Facebook page name")}</div>
+                  </div>
                 </div>
               </div>}
             </div>
