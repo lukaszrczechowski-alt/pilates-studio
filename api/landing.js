@@ -146,7 +146,7 @@ export default async function handler(req, res) {
     `) + `
 <div class="wrap">
   <nav>
-    <div class="logo">${logoHtml}</div>
+    <a href="/" class="logo" style="text-decoration:none;">${logoHtml}</a>
     <div class="nav-actions">
       <a href="/zapisy" class="btn btn-secondary btn-sm hide-m">Harmonogram</a>
       <a href="?lang=en" class="btn btn-secondary btn-sm">EN</a>
@@ -193,11 +193,11 @@ ${sessionScript}</body></html>`;
     `) + `
 <div class="left">
   <div class="left-deco">${letter}</div>
-  <div class="left-content">
+  <a href="/" class="left-content" style="text-decoration:none;display:block;">
     ${logoHtmlWhite}
     <div class="left-divider"></div>
     <p class="left-eyebrow">${heroEyebrow}</p>
-  </div>
+  </a>
 </div>
 <div class="right">
   <div class="right-nav">

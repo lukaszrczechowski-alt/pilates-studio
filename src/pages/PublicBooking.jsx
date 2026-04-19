@@ -161,7 +161,7 @@ export default function PublicBooking({ studioId }) {
       `}</style>
 
       {/* HEADER */}
-      <div style={{ background: sage, padding: "1.5rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+      <div style={{ background: sage, height: 64, padding: "0 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "0.75rem", textDecoration: "none" }}>
           {b.logo_url
             ? <img src={b.logo_url} alt={name} style={{ height: 44, maxWidth: 160, objectFit: "contain" }} />

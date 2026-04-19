@@ -21,11 +21,14 @@ function LandingMinimal({ onLogin, onRegister }) {
 
       {/* NAV */}
       <nav className="landing-nav" style={{ flexShrink: 0 }}>
-        <div className="landing-nav-logo">
+        <a href="/" style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}>
           {b.logo_url
             ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
-            : <><span className="landing-nav-letter">{letter}</span><span className="landing-nav-name">{b.nav_name || name}</span></>}
-        </div>
+            : <>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.2rem", color: "white", flexShrink: 0 }}>{letter}</div>
+                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.1rem", color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
+              </>}
+        </a>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
           <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
@@ -94,11 +97,14 @@ function LandingClassic({ onLogin, onRegister }) {
   return (
     <div className="landing">
       <nav className="landing-nav">
-        <div className="landing-nav-logo">
+        <a href="/" style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}>
           {b.logo_url
-            ? <img src={b.logo_url} alt={name} style={{ height: 40, maxWidth: 160, objectFit: "contain" }} />
-            : <><span className="landing-nav-letter">{letter}</span><span className="landing-nav-name">{b.nav_name || name}</span></>}
-        </div>
+            ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
+            : <>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.2rem", color: "white", flexShrink: 0 }}>{letter}</div>
+                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.1rem", color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
+              </>}
+        </a>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
           <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
@@ -226,7 +232,7 @@ function LandingBold({ onLogin, onRegister }) {
         <div style={{ position: "absolute", fontSize: "clamp(10rem,28vw,22rem)", fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, color: "rgba(255,255,255,0.12)", lineHeight: 1, userSelect: "none", bottom: "-2rem", right: "-1rem" }}>
           {letter}
         </div>
-        <div style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "2rem" }}>
+        <a href="/" style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "2rem", textDecoration: "none", display: "block" }}>
           {b.logo_url
             ? <img src={b.logo_url} alt={name} style={{ height: 56, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
             : <>
