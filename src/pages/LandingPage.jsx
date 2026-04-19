@@ -243,7 +243,7 @@ function LandingBold({ onLogin, onRegister }) {
           <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.2em" }}>
             {b.hero_eyebrow || t("Twoje studio", "Your studio")}
           </p>
-        </div>
+        </a>
       </div>
 
       {/* PRAWA — treść */}
