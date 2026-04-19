@@ -15,7 +15,6 @@ const ALL_FEATURES = [
   { key: "custom_domain",   label: "Własna domena",                  group: "Zaawansowane" },
   { key: "reports_enabled", label: "Raporty finansowe",              group: "Zaawansowane" },
   { key: "landing_custom",  label: "Customowa strona główna",        group: "Branding" },
-  { key: "is_demo",         label: "Tryb demo (blokuje SMS/push)",   group: "System" },
 ];
 
 const GROUPS = [...new Set(ALL_FEATURES.map(f => f.group))];

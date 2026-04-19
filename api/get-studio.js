@@ -41,8 +41,9 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (plan?.features) {
-      // Plan jako baza, studio.features jako override (per-studio wyjątki)
-      studio = { ...studio, features: { ...plan.features, ...studio.features } };
+      // is_demo nigdy nie pochodzi z planu — tylko per-studio
+      const { is_demo: _d, ...planFeatures } = plan.features;
+      studio = { ...studio, features: { ...planFeatures, ...studio.features } };
     }
   }
 
