@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   const navSub = b.nav_name && b.nav_name !== name ? `<div class="logo-sub">${escHtml(b.nav_name)}</div>` : "";
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" alt="${escHtml(name)}" style="height:40px;max-width:160px;object-fit:contain;">`
-    : `<div class="logo-letter">${letter}</div><div><div class="logo-name">${navName}</div>${navSub}</div>`;
+    : `<div class="logo-letter">${letter}</div><div><div class="logo-name">${escHtml(name)}</div>${navSub}</div>`;
 
   const logoHtmlWhite = logoUrl
     ? `<img src="${logoUrl}" alt="${escHtml(name)}" style="height:44px;max-width:180px;object-fit:contain;filter:brightness(0) invert(1);">`
