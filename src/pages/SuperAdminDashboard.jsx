@@ -374,6 +374,23 @@ ALTER TABLE studios ADD COLUMN IF NOT EXISTS plan_id uuid REFERENCES plans(id);`
                         </th>
                       ))}
                     </tr>
+                    {/* Max clients */}
+                    <tr style={{ borderBottom: "1px solid #E8E0D8", background: "#FDFAF6" }}>
+                      <td style={{ ...matrixTd, color: "#6B6B6B", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Limit klientów</td>
+                      {plans.map(p => (
+                        <td key={p.id} style={{ ...matrixTd, textAlign: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3rem" }}>
+                            <input
+                              type="number" min={0} placeholder="∞"
+                              value={planEdits[p.id]?.features?.max_clients ?? ""}
+                              onChange={e => setPlanEdits(prev => ({ ...prev, [p.id]: { ...prev[p.id], features: { ...(prev[p.id]?.features || {}), max_clients: e.target.value === "" ? undefined : Number(e.target.value) } } }))}
+                              style={{ width: 60, border: "1px solid #E8E0D8", borderRadius: 4, padding: "0.2rem 0.4rem", textAlign: "right", fontSize: "0.85rem" }}
+                            />
+                            <span style={{ fontSize: "0.75rem", color: "#ADADAD" }}>os.</span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
                     {/* Prices + actions */}
                     <tr style={{ borderBottom: "2px solid #E8E0D8", background: "#FDFAF6" }}>
                       <td style={{ ...matrixTd, color: "#6B6B6B", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Cena / mc</td>

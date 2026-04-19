@@ -6,6 +6,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+async function getMaxClients(studioId) {
+  const { data: studio } = await supabase.from("studios").select("plan_id, features").eq("id", studioId).maybeSingle();
+  const studioMax = studio?.features?.max_clients;
+  if (studioMax) return Number(studioMax);
+  if (studio?.plan_id) {
+    const { data: plan } = await supabase.from("plans").select("features").eq("id", studio.plan_id).maybeSingle();
+    const planMax = plan?.features?.max_clients;
+    if (planMax) return Number(planMax);
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -32,7 +44,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Brak wolnych miejsc." });
   }
 
-  // 2. Znajdź lub utwórz użytkownika
+  // 2. Sprawdź limit klientów studia
+  const maxClients = await getMaxClients(studioId);
+  if (maxClients !== null) {
+    const { count } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("studio_id", studioId).eq("role", "client");
+    if (count >= maxClients) return res.status(400).json({ error: "Studio osiągnęło limit klientów." });
+  }
+
+  // 3. Znajdź lub utwórz użytkownika
   let userId;
 
   const { data: existingProfile } = await supabase

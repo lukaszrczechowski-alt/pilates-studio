@@ -59,13 +59,21 @@ async function handleCreate(req, res) {
 
   if (bookingError) return res.status(500).json({ error: bookingError.message });
 
-  const merchantId = Number(process.env.P24_MERCHANT_ID);
-  const posId = Number(process.env.P24_POS_ID || process.env.P24_MERCHANT_ID);
-  const crcKey = process.env.P24_CRC_KEY;
-  const apiKey = process.env.P24_API_KEY;
-  const sandbox = process.env.P24_SANDBOX === "true";
+  // Pobierz konfigurację P24 ze studia (fallback na env vars)
+  const { data: studioRow } = await supabase.from("studios").select("payment_config, branding").eq("id", cls.studio_id).single();
+  const p24cfg = studioRow?.payment_config?.p24;
+  const merchantId = Number(p24cfg?.merchant_id || process.env.P24_MERCHANT_ID);
+  const posId = Number(p24cfg?.pos_id || p24cfg?.merchant_id || process.env.P24_POS_ID || process.env.P24_MERCHANT_ID);
+  const crcKey = p24cfg?.crc_key || process.env.P24_CRC_KEY;
+  const apiKey = p24cfg?.api_key || process.env.P24_API_KEY;
+  const sandbox = p24cfg ? p24cfg.sandbox !== false : process.env.P24_SANDBOX === "true";
   const baseUrl = sandbox ? "https://sandbox.przelewy24.pl" : "https://secure.przelewy24.pl";
-  const appUrl = process.env.VITE_APP_URL;
+  const appUrl = studioRow?.branding?.app_url || process.env.VITE_APP_URL;
+
+  if (!merchantId || !crcKey || !apiKey) {
+    await supabase.from("bookings").delete().eq("id", booking.id);
+    return res.status(500).json({ error: "Płatności online nie są skonfigurowane dla tego studia" });
+  }
 
   const sign = crypto.createHash("sha384")
     .update(JSON.stringify({ sessionId, merchantId, amount, currency: "PLN", crc: crcKey }))
@@ -104,9 +112,19 @@ async function handleCreate(req, res) {
 
 async function handleNotify(req, res) {
   const { merchantId, posId, sessionId, amount, currency, orderId, sign } = req.body;
-  const crcKey = process.env.P24_CRC_KEY;
-  const apiKey = process.env.P24_API_KEY;
-  const sandbox = process.env.P24_SANDBOX === "true";
+
+  // Pobierz konfigurację studia przez session_id z bookingu
+  const { data: booking } = await supabase.from("bookings").select("studio_id").eq("payment_session_id", sessionId).maybeSingle();
+  let crcKey = process.env.P24_CRC_KEY;
+  let apiKey = process.env.P24_API_KEY;
+  let sandbox = process.env.P24_SANDBOX === "true";
+  if (booking?.studio_id) {
+    const { data: studioRow } = await supabase.from("studios").select("payment_config").eq("id", booking.studio_id).single();
+    const p24cfg = studioRow?.payment_config?.p24;
+    if (p24cfg?.crc_key) crcKey = p24cfg.crc_key;
+    if (p24cfg?.api_key) apiKey = p24cfg.api_key;
+    if (p24cfg?.sandbox !== undefined) sandbox = p24cfg.sandbox !== false;
+  }
   const baseUrl = sandbox ? "https://sandbox.przelewy24.pl" : "https://secure.przelewy24.pl";
 
   const expectedSign = crypto.createHash("sha384")

@@ -16,8 +16,11 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { name, contact, message, studioId } = req.body || {};
+  const { name, contact, message, studioId, _hp, _t } = req.body || {};
   if (!name || !message) return res.status(400).json({ error: "Brak wymaganych pól" });
+  // Honeypot: bot wypełnił ukryte pole lub wysłał za szybko (< 3s)
+  if (_hp) return res.status(200).json({ ok: true });
+  if (_t && Date.now() - Number(_t) < 3000) return res.status(200).json({ ok: true });
 
   const msgText = `📩 Wiadomość z /zapisy\n\nOd: ${name}${contact ? `\nKontakt: ${contact}` : ""}\n\nTreść:\n${message}`;
 

@@ -66,6 +66,8 @@ export default function PublicBooking({ studioId }) {
   const [contactMsg, setContactMsg] = useState("");
   const [contactSending, setContactSending] = useState(false);
   const [contactSent, setContactSent] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
+  const [formLoadTime] = useState(() => Date.now());
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [guestForm, setGuestForm] = useState({ firstName: "", lastName: "", email: "", phone: "" });
   const [guestSending, setGuestSending] = useState(false);
@@ -99,37 +101,41 @@ export default function PublicBooking({ studioId }) {
     return new Date(iso).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
   }
 
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
+  const NUM_WEEKS = 3;
+  const periodEnd = new Date(weekStart);
+  periodEnd.setDate(periodEnd.getDate() + 7 * NUM_WEEKS);
 
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  const weeks = Array.from({ length: NUM_WEEKS }, (_, wi) =>
+    Array.from({ length: 7 }, (_, di) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + wi * 7 + di);
+      return d;
+    })
+  );
 
-  const weekClasses = classes.filter(c => {
+  const periodClasses = classes.filter(c => {
     const d = new Date(c.starts_at);
-    return d >= weekStart && d < weekEnd;
+    return d >= weekStart && d < periodEnd;
   });
 
   const hasAnyFuture = classes.length > 0;
-  const hasThisWeek = weekClasses.length > 0;
+  const hasThisWeek = periodClasses.length > 0;
 
   function prevWeek() {
     const d = new Date(weekStart);
-    d.setDate(d.getDate() - 7);
-    if (d >= getMonday(new Date())) setWeekStart(d);
+    d.setDate(d.getDate() - 7 * NUM_WEEKS);
+    const monday = getMonday(new Date());
+    setWeekStart(d < monday ? monday : d);
   }
   function nextWeek() {
     const d = new Date(weekStart);
-    d.setDate(d.getDate() + 7);
+    d.setDate(d.getDate() + 7 * NUM_WEEKS);
     setWeekStart(d);
   }
 
   const isPrevDisabled = weekStart <= getMonday(new Date());
-  const weekEndDay = new Date(weekEnd.getTime() - 1);
-  const weekLabel = `${weekStart.getDate()} ${MONTH_NAMES[weekStart.getMonth()]} – ${weekEndDay.getDate()} ${MONTH_NAMES[weekEndDay.getMonth()]} ${weekEnd.getFullYear()}`;
+  const periodEndDay = new Date(periodEnd.getTime() - 1);
+  const weekLabel = `${weekStart.getDate()} ${MONTH_NAMES[weekStart.getMonth()]} – ${periodEndDay.getDate()} ${MONTH_NAMES[periodEndDay.getMonth()]} ${periodEnd.getFullYear()}`;
 
   async function submitGuestBook(e) {
     e.preventDefault();
@@ -165,7 +171,7 @@ export default function PublicBooking({ studioId }) {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg, studioId }),
+        body: JSON.stringify({ name: contactName, contact: contactInfo, message: contactMsg, studioId, _hp: honeypot, _t: formLoadTime }),
       });
       const json = await res.json();
       if (!res.ok) { alert((json.error || res.status)); setContactSending(false); return; }
@@ -258,79 +264,68 @@ export default function PublicBooking({ studioId }) {
           </div>
         ) : (
           <div style={{ background: "white", border: "1px solid #E8E0D8", borderRadius: 12, overflow: "hidden" }}>
-            {/* Nagłówki dni */}
-            <div className="pb-week-grid" style={{ display: "flex", borderBottom: "2px solid #E8E0D8" }}>
-              {weekDays.map((day, i) => {
-                const isToday = day.toDateString() === new Date().toDateString();
-                const dayClasses = weekClasses.filter(c => new Date(c.starts_at).toDateString() === day.toDateString());
-                const cnt = dayClasses.length;
-                const countLabel = lang === "en"
-                  ? `${cnt} ${isServices ? (cnt === 1 ? "appt" : "appts") : (cnt === 1 ? "class" : "classes")}`
-                  : `${cnt} ${isServices ? (cnt === 1 ? "wizyta" : "wizyty") : (cnt === 1 ? "zajęcia" : "zajęć")}`;
-                return (
-                  <div key={i} className="pb-day-col" style={{ borderRight: i < 6 ? "1px solid #E8E0D8" : "none", padding: "0.65rem 0.5rem", textAlign: "center", background: isToday ? `${sage}12` : "transparent", minWidth: 0 }}>
-                    <div style={{ fontSize: "0.7rem", color: "#ADADAD", textTransform: "uppercase", letterSpacing: "0.06em" }}>{DAY_NAMES[i]}</div>
-                    <div style={{ fontSize: "1.1rem", fontWeight: isToday ? 700 : 400, color: isToday ? sage : "#2C2C2C", width: 28, height: 28, borderRadius: "50%", background: isToday ? `${sage}22` : "transparent", display: "flex", alignItems: "center", justifyContent: "center", margin: "0.15rem auto 0" }}>
-                      {day.getDate()}
-                    </div>
-                    {cnt > 0 && (
-                      <div style={{ marginTop: "0.2rem", fontSize: "0.65rem", color: sage, fontWeight: 600 }}>{countLabel}</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Karty zajęć */}
-            <div className="pb-week-grid" style={{ display: "flex", minHeight: 120 }}>
-              {weekDays.map((day, i) => {
-                const dayClasses = weekClasses.filter(c => new Date(c.starts_at).toDateString() === day.toDateString());
-                const isToday = day.toDateString() === new Date().toDateString();
-                return (
-                  <div key={i} className="pb-day-col" style={{ borderRight: i < 6 ? "1px solid #E8E0D8" : "none", padding: "0.5rem", background: isToday ? `${sage}06` : "transparent", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                    {dayClasses.length === 0 ? (
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: "0.65rem", color: "#E0D8D0" }}>—</span>
-                      </div>
-                    ) : dayClasses.map(cls => {
-                      const count = cls.bookings?.length || 0;
-                      const isFull = count >= cls.max_spots;
-                      const singleSpot = cls.max_spots === 1;
-                      const spotsLeft = cls.max_spots - count;
-                      const spotsLabel = isFull
-                        ? t("Brak miejsc", "Full")
-                        : singleSpot
-                          ? t("Dostępne", "Available")
-                          : lang === "en" ? `${spotsLeft} left` : `${spotsLeft} wolnych`;
+            {weeks.map((weekDays, wi) => {
+              const weekClasses = periodClasses.filter(c =>
+                weekDays.some(d => new Date(c.starts_at).toDateString() === d.toDateString())
+              );
+              return (
+                <div key={wi} style={{ borderBottom: wi < NUM_WEEKS - 1 ? "2px solid #E8E0D8" : "none" }}>
+                  {/* Nagłówki dni */}
+                  <div className="pb-week-grid" style={{ display: "flex", borderBottom: "1px solid #E8E0D8" }}>
+                    {weekDays.map((day, i) => {
+                      const isToday = day.toDateString() === new Date().toDateString();
+                      const cnt = weekClasses.filter(c => new Date(c.starts_at).toDateString() === day.toDateString()).length;
                       return (
-                        <div key={cls.id} className="pb-card" onClick={() => setSelectedClass(cls)}
-                          style={{ background: isFull ? "#FDE8E8" : `${sage}12`, border: `1px solid ${isFull ? "#F5C6C6" : `${sage}40`}`, borderLeft: `3px solid ${isFull ? clay : sage}`, borderRadius: 6, padding: "0.45rem 0.5rem", cursor: "pointer" }}>
-                          <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2C2C2C", lineHeight: 1.2, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cls.name}</div>
-                          <div style={{ fontSize: "0.68rem", color: "#6B6B6B" }}>{formatTime(cls.starts_at)}</div>
-                          {cls.duration_min && <div style={{ fontSize: "0.65rem", color: "#ADADAD" }}>{cls.duration_min} min</div>}
-                          {cls.staff?.name && <div style={{ fontSize: "0.65rem", color: sage, fontWeight: 500, marginTop: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "0.2rem" }}><PbIcon name="user" size={11} color={sage} /> {cls.staff.name}</div>}
-                          {cls.price_pln > 0 && <div style={{ fontSize: "0.65rem", color: "#6B6B6B" }}>{cls.price_pln} zł</div>}
-                          {!singleSpot && (
-                            <div style={{ marginTop: "0.3rem", height: 3, background: "#E8E0D8", borderRadius: 2, overflow: "hidden" }}>
-                              <div style={{ width: `${Math.min((count / cls.max_spots) * 100, 100)}%`, height: "100%", background: isFull ? clay : sage, borderRadius: 2 }} />
-                            </div>
-                          )}
-                          <div style={{ fontSize: "0.62rem", color: isFull ? "#C44B4B" : "#ADADAD", marginTop: "0.15rem" }}>
-                            {spotsLabel}
+                        <div key={i} className="pb-day-col" style={{ borderRight: i < 6 ? "1px solid #E8E0D8" : "none", padding: "0.55rem 0.5rem", textAlign: "center", background: isToday ? `${sage}12` : wi % 2 === 1 ? "#FDFAF6" : "transparent", minWidth: 0 }}>
+                          <div style={{ fontSize: "0.65rem", color: "#ADADAD", textTransform: "uppercase", letterSpacing: "0.06em" }}>{DAY_NAMES[i]}</div>
+                          <div style={{ fontSize: "1rem", fontWeight: isToday ? 700 : 400, color: isToday ? sage : "#2C2C2C", width: 26, height: 26, borderRadius: "50%", background: isToday ? `${sage}22` : "transparent", display: "flex", alignItems: "center", justifyContent: "center", margin: "0.1rem auto 0" }}>
+                            {day.getDate()}
                           </div>
+                          {cnt > 0 && <div style={{ marginTop: "0.15rem", fontSize: "0.6rem", color: sage, fontWeight: 600 }}>{cnt}</div>}
                         </div>
                       );
                     })}
                   </div>
-                );
-              })}
-            </div>
+                  {/* Karty zajęć */}
+                  <div className="pb-week-grid" style={{ display: "flex", minHeight: 100, background: wi % 2 === 1 ? "#FDFAF6" : "white" }}>
+                    {weekDays.map((day, i) => {
+                      const dayClasses = weekClasses.filter(c => new Date(c.starts_at).toDateString() === day.toDateString());
+                      const isToday = day.toDateString() === new Date().toDateString();
+                      return (
+                        <div key={i} className="pb-day-col" style={{ borderRight: i < 6 ? "1px solid #E8E0D8" : "none", padding: "0.5rem", background: isToday ? `${sage}06` : "transparent", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                          {dayClasses.length === 0 ? (
+                            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: "0.65rem", color: "#E0D8D0" }}>—</span>
+                            </div>
+                          ) : dayClasses.map(cls => {
+                            const isFull = (cls.bookings?.length || 0) >= cls.max_spots;
+                            return (
+                              <div key={cls.id} className="pb-card" onClick={() => setSelectedClass(cls)}
+                                style={{ background: isFull ? "#FDE8E8" : `${sage}12`, border: `1px solid ${isFull ? "#F5C6C6" : `${sage}40`}`, borderLeft: `3px solid ${isFull ? clay : sage}`, borderRadius: 6, padding: "0.45rem 0.5rem", cursor: "pointer" }}>
+                                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2C2C2C", lineHeight: 1.2, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cls.name}</div>
+                                <div style={{ fontSize: "0.68rem", color: "#6B6B6B" }}>{formatTime(cls.starts_at)}</div>
+                                {cls.duration_min && <div style={{ fontSize: "0.65rem", color: "#ADADAD" }}>{cls.duration_min} min</div>}
+                                {cls.staff?.name && <div style={{ fontSize: "0.65rem", color: sage, fontWeight: 500, marginTop: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "0.2rem" }}><PbIcon name="user" size={11} color={sage} /> {cls.staff.name}</div>}
+                                {cls.price_pln > 0 && <div style={{ fontSize: "0.65rem", color: "#6B6B6B" }}>{cls.price_pln} zł</div>}
+                                <div style={{ fontSize: "0.62rem", color: isFull ? "#C44B4B" : sage, marginTop: "0.2rem", fontWeight: 500 }}>
+                                  {isFull ? t("Brak miejsc", "Full") : t("Wolne", "Available")}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
 
             {!hasThisWeek && (
-              <div style={{ textAlign: "center", padding: "2rem", color: "#ADADAD", borderTop: "1px solid #E8E0D8", fontSize: "0.9rem" }}>
+              <div style={{ textAlign: "center", padding: "2rem", color: "#ADADAD", fontSize: "0.9rem" }}>
                 {isServices
-                  ? t("Brak wizyt w tym tygodniu — sprawdź kolejny.", "No appointments this week — check the next one.")
-                  : t("Brak zajęć w tym tygodniu — sprawdź kolejny.", "No classes this week — check the next one.")}
+                  ? t("Brak wizyt w tym okresie.", "No appointments in this period.")
+                  : t("Brak zajęć w tym okresie.", "No classes in this period.")}
               </div>
             )}
           </div>
@@ -393,6 +388,8 @@ export default function PublicBooking({ studioId }) {
                 <label style={labelStyle}>{t("Wiadomość *", "Message *")}</label>
                 <textarea required rows={4} value={contactMsg} onChange={e => setContactMsg(e.target.value)} placeholder={t("Napisz czego potrzebujesz…", "Write what you need…")} style={{ ...inputStyle, resize: "vertical" }} />
               </div>
+              {/* honeypot — niewidoczne dla ludzi, boty to wypełnią */}
+              <input tabIndex={-1} aria-hidden="true" value={honeypot} onChange={e => setHoneypot(e.target.value)} style={{ position: "absolute", opacity: 0, height: 0, width: 0, pointerEvents: "none" }} autoComplete="off" />
               <button type="submit" disabled={contactSending} style={{ background: sage, color: "white", border: "none", padding: "0.85rem", borderRadius: 8, fontFamily: "DM Sans, sans-serif", fontWeight: 500, fontSize: "0.9rem", cursor: contactSending ? "not-allowed" : "pointer", opacity: contactSending ? 0.7 : 1 }}>
                 {contactSending ? t("Wysyłanie…", "Sending…") : t("Wyślij wiadomość →", "Send message →")}
               </button>
@@ -429,7 +426,7 @@ export default function PublicBooking({ studioId }) {
                 { icon: "clock", label: t("Godzina", "Time"), val: `${formatTime(selectedClass.starts_at)} · ${selectedClass.duration_min} min` },
                 selectedClass.location && { icon: "mapPin", label: t("Lokalizacja", "Location"), val: selectedClass.location, maps: true },
                 selectedClass.price_pln && { icon: "money", label: t("Cena", "Price"), val: `${selectedClass.price_pln} zł` },
-                selectedClass.max_spots > 1 && { icon: "users", label: t("Miejsca", "Spots"), val: lang === "en" ? `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} of ${selectedClass.max_spots} available` : `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} wolnych z ${selectedClass.max_spots}` },
+                selectedClass.max_spots > 1 && { icon: "users", label: t("Miejsca", "Spots"), val: (selectedClass.bookings?.length || 0) >= selectedClass.max_spots ? t("Brak wolnych miejsc", "Full") : t("Wolne miejsca", "Available") },
               ].filter(Boolean).map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
                   <span style={{ marginTop: "0.15rem", flexShrink: 0 }}><PbIcon name={item.icon} size={16} color={sage} /></span>

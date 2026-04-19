@@ -3072,7 +3072,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             </div>
 
             {/* Zmień hasło */}
-            <div className="card" style={{ marginBottom: "0.5rem" }}>
+            {!isDemo && <div className="card" style={{ marginBottom: "0.5rem" }}>
               <div className="settings-section-header" onClick={() => toggleSection("password")}>
                 <h3>{t("Zmiana hasła","Change password")}</h3>
                 <span className="settings-section-chevron" style={{ transform: settingsOpen.password ? "rotate(180deg)" : "none" }}>▾</span>
@@ -3091,7 +3091,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                   <button type="submit" className="btn btn-primary" disabled={pwdLoading}>{pwdLoading ? t("Zapisuję…","Saving…") : t("Zmień hasło","Change password")}</button>
                 </form>
               </div>}
-            </div>
+            </div>}
 
             {!ro && (
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem" }}>
