@@ -2298,7 +2298,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                               <div className="user-avatar" style={{ flexShrink: 0 }}>{c.first_name?.[0]}{c.last_name?.[0]}</div>
                               <div>
-                                <div style={{ fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
+                                <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                  {c.first_name} {c.last_name}
+                                  {c.account_type === "guest" && <span style={{ fontSize: "0.62rem", background: "#E8E0D8", color: "#6B6B6B", borderRadius: 4, padding: "0.1rem 0.35rem", fontWeight: 600, letterSpacing: "0.05em" }}>GOŚĆ</span>}
+                                </div>
                                 <div style={{ fontSize: "0.78rem", color: "var(--mid)" }}>{c.email}</div>
                               </div>
                             </div>

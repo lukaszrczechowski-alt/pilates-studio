@@ -67,8 +67,17 @@ export default function PublicBooking({ studioId }) {
   const [contactSending, setContactSending] = useState(false);
   const [contactSent, setContactSent] = useState(false);
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  const [guestForm, setGuestForm] = useState({ firstName: "", lastName: "", email: "", phone: "" });
+  const [guestSending, setGuestSending] = useState(false);
+  const [guestBooked, setGuestBooked] = useState(false);
+  const [guestError, setGuestError] = useState("");
 
   useEffect(() => { fetchClasses(); }, []);
+  useEffect(() => {
+    setGuestBooked(false);
+    setGuestError("");
+    setGuestForm({ firstName: "", lastName: "", email: "", phone: "" });
+  }, [selectedClass]);
 
   async function fetchClasses() {
     const now = new Date().toISOString();
@@ -121,6 +130,32 @@ export default function PublicBooking({ studioId }) {
   const isPrevDisabled = weekStart <= getMonday(new Date());
   const weekEndDay = new Date(weekEnd.getTime() - 1);
   const weekLabel = `${weekStart.getDate()} ${MONTH_NAMES[weekStart.getMonth()]} – ${weekEndDay.getDate()} ${MONTH_NAMES[weekEndDay.getMonth()]} ${weekEnd.getFullYear()}`;
+
+  async function submitGuestBook(e) {
+    e.preventDefault();
+    setGuestError("");
+    setGuestSending(true);
+    try {
+      const res = await fetch("/api/guest-book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: selectedClass.id,
+          studioId,
+          firstName: guestForm.firstName,
+          lastName: guestForm.lastName,
+          email: guestForm.email,
+          phone: guestForm.phone,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setGuestError(json.error || "Błąd rezerwacji."); setGuestSending(false); return; }
+      setGuestBooked(true);
+    } catch (err) {
+      setGuestError("Błąd połączenia. Spróbuj ponownie.");
+    }
+    setGuestSending(false);
+  }
 
   async function sendContact(e) {
     e.preventDefault();
@@ -420,10 +455,38 @@ export default function PublicBooking({ studioId }) {
               <div style={{ background: "#FDE8E8", border: "1px solid #F5C6C6", borderRadius: 8, padding: "0.875rem", textAlign: "center", color: "#C44B4B", fontSize: "0.875rem", fontWeight: 500 }}>
                 {t("Brak wolnych miejsc", "No spots available")}
               </div>
+            ) : guestBooked ? (
+              <div style={{ textAlign: "center", padding: "1rem 0" }}>
+                <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center" }}>
+                  <PbIcon name="checkCircle" size={40} color="#5C7A56" />
+                </div>
+                <div style={{ fontWeight: 600, color: "#5C7A56", marginBottom: "0.35rem" }}>{t("Rezerwacja potwierdzona!", "Booking confirmed!")}</div>
+                <div style={{ fontSize: "0.85rem", color: "#6B6B6B" }}>{t("Sprawdź email — wysłaliśmy link do zarządzania rezerwacją.", "Check your email — we sent a management link.")}</div>
+              </div>
             ) : (
-              <a href="/login" style={{ display: "block", background: sage, color: "white", padding: "0.875rem", borderRadius: 8, textDecoration: "none", textAlign: "center", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
-                {isServices ? t("Zaloguj się i zarezerwuj →", "Log in and book →") : t("Zaloguj się i zapisz →", "Log in and sign up →")}
-              </a>
+              <form onSubmit={submitGuestBook} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.2rem" }}>
+                  {t("Zarezerwuj bez konta", "Book without account")}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                  <input required placeholder={t("Imię *", "First name *")} value={guestForm.firstName}
+                    onChange={e => setGuestForm(f => ({ ...f, firstName: e.target.value }))} style={inputStyle} />
+                  <input placeholder={t("Nazwisko", "Last name")} value={guestForm.lastName}
+                    onChange={e => setGuestForm(f => ({ ...f, lastName: e.target.value }))} style={inputStyle} />
+                </div>
+                <input required type="email" placeholder={t("Email *", "Email *")} value={guestForm.email}
+                  onChange={e => setGuestForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} />
+                <input required type="tel" placeholder={t("Telefon *", "Phone *")} value={guestForm.phone}
+                  onChange={e => setGuestForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle} />
+                {guestError && <div style={{ fontSize: "0.82rem", color: "#C44B4B" }}>{guestError}</div>}
+                <button type="submit" disabled={guestSending}
+                  style={{ background: sage, color: "white", border: "none", padding: "0.75rem", borderRadius: 8, fontFamily: "DM Sans, sans-serif", fontWeight: 500, cursor: guestSending ? "not-allowed" : "pointer", opacity: guestSending ? 0.7 : 1 }}>
+                  {guestSending ? t("Rezerwowanie…", "Booking…") : t("Zarezerwuj →", "Book →")}
+                </button>
+                <div style={{ textAlign: "center", fontSize: "0.78rem", color: "#ADADAD" }}>
+                  {t("Masz konto?", "Have an account?")} <a href="/login" style={{ color: sage }}>{t("Zaloguj się", "Log in")}</a>
+                </div>
+              </form>
             )}
           </div>
         </div>
