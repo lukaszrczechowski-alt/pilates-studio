@@ -6,16 +6,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+async function isAdmin(token) {
+  if (!token) return false;
+  const { data: { user } } = await supabase.auth.getUser(token);
+  if (!user) return false;
+  const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  return ["admin", "superadmin"].includes(p?.role);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const vapidPublic = process.env.VAPID_PUBLIC_KEY;
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
-  const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@studiobypaulina.pl";
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!await isAdmin(token)) return res.status(403).json({ error: "Forbidden" });
 
-  if (!vapidPublic || !vapidPrivate) {
-    return res.status(500).json({ error: "VAPID keys not configured" });
-  }
+  const vapidPublic  = process.env.VAPID_PUBLIC_KEY;
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@studiova.app";
+  if (!vapidPublic || !vapidPrivate) return res.status(500).json({ error: "VAPID keys not configured" });
 
   webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
 
@@ -24,7 +32,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing or invalid userIds / title" });
   }
 
-  // Pobierz subskrypcje użytkowników
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, push_subscription")
@@ -40,8 +47,6 @@ export default async function handler(req, res) {
       await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
       sent++;
     } catch (e) {
-      console.error("Push send error:", e.message);
-      // Jeśli subskrypcja nieważna (410 Gone) — usuń ją
       if (e.statusCode === 410) {
         await supabase.from("profiles").update({ push_subscription: null }).eq("id", profile.id);
       }

@@ -568,13 +568,14 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
         refunded: booking.payment_method === "entries",
       });
       if (smsEnabled) await sendSms(booking.profiles?.phone,
-        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - ${smsSig}`
+        `Zajecia "${cls.name}" (${smsDate(cls.starts_at)}) zostaly odwolane.${booking.payment_method === "entries" ? " Wejscie zwrocono." : ""} - ${smsSig}`,
+        session.access_token
       );
     }
     if (pushEnabled && userIds.length > 0 && !isDemo) {
       fetch("/api/push-send", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           userIds,
           title: "Zajęcia odwołane",
@@ -622,7 +623,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     if (smsEnabled && msgDelivery.sms) {
       const withPhone = bookingsForClass.filter(b => b.profiles?.phone);
       for (const b of withPhone) {
-        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - ${smsSig}`);
+        await sendSms(b.profiles.phone, `${cls.name}: ${messageText} - ${smsSig}`, session.access_token);
       }
       if (withPhone.length < bookingsForClass.length) {
         const noPhone = bookingsForClass.length - withPhone.length;
@@ -636,7 +637,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       if (pushEnabled && uids.length > 0 && !isDemo) {
         fetch("/api/push-send", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ userIds: uids, title: cls.name, body: messageText, url: "/" }),
         }).catch(() => {});
       }
@@ -978,7 +979,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
     setNewClientLoading(true);
     const res = await fetch("/api/create-user", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ first_name, last_name, email, phone, birth_date, studioId }),
     });
     const data = await res.json();
@@ -1044,10 +1045,10 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       await supabase.from("notifications").insert(targetUsers.map(u => ({ user_id: u.id, type: "booking", message: bulkMsgText, studio_id: studioId })));
     }
     if (pushEnabled && bulkMsgChannels.push && targetUsers.length > 0 && !isDemo) {
-      fetch("/api/push-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userIds: targetUsers.map(u => u.id), title: "Pilates Studio", body: bulkMsgText, url: "/" }) }).catch(() => {});
+      fetch("/api/push-send", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ userIds: targetUsers.map(u => u.id), title: "Pilates Studio", body: bulkMsgText, url: "/" }) }).catch(() => {});
     }
     if (smsEnabled && bulkMsgChannels.sms) {
-      for (const u of targetUsers.filter(u => u.phone)) await sendSms(u.phone, bulkMsgText);
+      for (const u of targetUsers.filter(u => u.phone)) await sendSms(u.phone, bulkMsgText, session.access_token);
     }
     setBulkMsgText("");
     setSendingBulk(false);
