@@ -362,9 +362,13 @@ h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
 
 /* Admin main content — lighter, consistent font */
 .main-content { font-size: 0.88rem; font-weight: 400; color: var(--charcoal); }
-.main-content .card h3 { color: #3a3a3a; font-weight: 500; }
+.main-content h3 { color: #3a3a3a; font-weight: 500; font-size: 1rem; }
+.main-content h4 { color: #3a3a3a; font-weight: 500; font-size: 0.9rem; }
 .main-content .form-label { color: #3a3a3a; font-weight: 500; font-size: 0.82rem; }
 .main-content p, .main-content .stat-label { color: #525252; }
+.main-content td { font-size: 0.875rem; color: #3a3a3a; }
+.main-content th { font-size: 0.72rem; color: #767676; }
+.main-content .btn, .main-content button { font-size: 0.82rem; }
 
 /* Sidebar footer buttons */
 .sidebar-footer-btn {
