@@ -16,6 +16,28 @@ const DAY_NAMES_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
 const MONTH_NAMES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+function PbIcon({ name, size = 16, color = "currentColor" }) {
+  const s = { width: size, height: size, display: "inline-block", flexShrink: 0 };
+  const p = { fill: "none", stroke: color, strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" };
+  const icons = {
+    calendar:  <svg viewBox="0 0 24 24" style={s}><rect x="3" y="4" width="18" height="18" rx="2" {...p}/><line x1="16" y1="2" x2="16" y2="6" {...p}/><line x1="8" y1="2" x2="8" y2="6" {...p}/><line x1="3" y1="10" x2="21" y2="10" {...p}/></svg>,
+    clock:     <svg viewBox="0 0 24 24" style={s}><circle cx="12" cy="12" r="9" {...p}/><polyline points="12 7 12 12 15.5 14" {...p}/></svg>,
+    mapPin:    <svg viewBox="0 0 24 24" style={s}><path d="M12 21s-7-6.545-7-11a7 7 0 0 1 14 0c0 4.455-7 11-7 11z" {...p}/><circle cx="12" cy="10" r="2.5" {...p}/></svg>,
+    money:     <svg viewBox="0 0 24 24" style={s}><rect x="2" y="6" width="20" height="13" rx="2" {...p}/><line x1="2" y1="10" x2="22" y2="10" {...p}/><line x1="6" y1="15" x2="9" y2="15" {...p}/></svg>,
+    users:     <svg viewBox="0 0 24 24" style={s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" {...p}/><circle cx="9" cy="7" r="4" {...p}/><path d="M23 21v-2a4 4 0 0 0-3-3.87" {...p}/><path d="M16 3.13a4 4 0 0 1 0 7.75" {...p}/></svg>,
+    user:      <svg viewBox="0 0 24 24" style={s}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" {...p}/><circle cx="12" cy="7" r="4" {...p}/></svg>,
+    note:      <svg viewBox="0 0 24 24" style={s}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" {...p}/><polyline points="14 3 14 9 20 9" {...p}/><line x1="8" y1="13" x2="16" y2="13" {...p}/><line x1="8" y1="17" x2="12" y2="17" {...p}/></svg>,
+    checkCircle:<svg viewBox="0 0 24 24" style={s}><circle cx="12" cy="12" r="9" {...p}/><polyline points="9 12 11 14 15 10" {...p}/></svg>,
+    leaf:      <svg viewBox="0 0 24 24" style={s}><path d="M2 22c5.333-5.333 8-10 8-14a8 8 0 0 1 12-6.928" {...p}/><path d="M2 22c2.667-8 8-12 14-13" {...p}/></svg>,
+    globe:     <svg viewBox="0 0 24 24" style={s}><circle cx="12" cy="12" r="9" {...p}/><path d="M2 12h20" {...p}/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z" {...p}/></svg>,
+    arrowLeft: <svg viewBox="0 0 24 24" style={s}><line x1="19" y1="12" x2="5" y2="12" {...p}/><polyline points="12 19 5 12 12 5" {...p}/></svg>,
+    arrowRight:<svg viewBox="0 0 24 24" style={s}><line x1="5" y1="12" x2="19" y2="12" {...p}/><polyline points="12 5 19 12 12 19" {...p}/></svg>,
+    xmark:     <svg viewBox="0 0 24 24" style={s}><line x1="18" y1="6" x2="6" y2="18" {...p}/><line x1="6" y1="6" x2="18" y2="18" {...p}/></svg>,
+    noSpots:   <svg viewBox="0 0 24 24" style={s}><circle cx="12" cy="12" r="9" {...p}/><line x1="15" y1="9" x2="9" y2="15" {...p}/><line x1="9" y1="9" x2="15" y2="15" {...p}/></svg>,
+  };
+  return icons[name] || null;
+}
+
 export default function PublicBooking({ studioId }) {
   const { studio } = useStudio();
   const t = useT();
@@ -154,8 +176,8 @@ export default function PublicBooking({ studioId }) {
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {isMultilingual && (
             <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
-              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 0.85rem", borderRadius: 8, fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500, cursor: "pointer" }}>
-              {lang === "pl" ? "🇬🇧 EN" : "🇵🇱 PL"}
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 0.85rem", borderRadius: 8, fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <PbIcon name="globe" size={14} color="white" /> {lang === "pl" ? "EN" : "PL"}
             </button>
           )}
           <a href="/" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
@@ -181,15 +203,15 @@ export default function PublicBooking({ studioId }) {
         {/* NAWIGACJA TYGODNIOWA */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
           <button onClick={prevWeek} disabled={isPrevDisabled}
-            style={{ padding: "0.45rem 1rem", border: "1px solid #E8E0D8", borderRadius: 8, background: "white", cursor: isPrevDisabled ? "not-allowed" : "pointer", color: isPrevDisabled ? "#ADADAD" : "#2C2C2C", fontSize: "0.85rem" }}>
-            ← {t("Poprzedni", "Previous")}
+            style={{ padding: "0.45rem 1rem", border: "1px solid #E8E0D8", borderRadius: 8, background: "white", cursor: isPrevDisabled ? "not-allowed" : "pointer", color: isPrevDisabled ? "#ADADAD" : "#2C2C2C", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            <PbIcon name="arrowLeft" size={14} color={isPrevDisabled ? "#ADADAD" : "#2C2C2C"} /> {t("Poprzedni", "Previous")}
           </button>
-          <span style={{ fontWeight: 500, fontSize: "0.95rem", color: "#2C2C2C", textAlign: "center" }}>
-            📅 {weekLabel}
+          <span style={{ fontWeight: 500, fontSize: "0.95rem", color: "#2C2C2C", textAlign: "center", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <PbIcon name="calendar" size={15} color={sage} /> {weekLabel}
           </span>
           <button onClick={nextWeek}
-            style={{ padding: "0.45rem 1rem", border: "1px solid #E8E0D8", borderRadius: 8, background: "white", cursor: "pointer", color: "#2C2C2C", fontSize: "0.85rem" }}>
-            {t("Następny", "Next")} →
+            style={{ padding: "0.45rem 1rem", border: "1px solid #E8E0D8", borderRadius: 8, background: "white", cursor: "pointer", color: "#2C2C2C", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            {t("Następny", "Next")} <PbIcon name="arrowRight" size={14} color="#2C2C2C" />
           </button>
         </div>
 
@@ -198,7 +220,7 @@ export default function PublicBooking({ studioId }) {
           <div style={{ textAlign: "center", padding: "3rem", color: "#ADADAD" }}>{t("Ładowanie...", "Loading...")}</div>
         ) : !hasAnyFuture ? (
           <div style={{ textAlign: "center", padding: "3rem", background: "white", borderRadius: 12, border: "1px solid #E8E0D8" }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem", opacity: 0.4 }}>🌿</div>
+            <div style={{ marginBottom: "0.75rem", opacity: 0.3, display: "flex", justifyContent: "center" }}><PbIcon name="leaf" size={36} color={sage} /></div>
             <p style={{ color: "#ADADAD" }}>{isServices ? t("Brak nadchodzących wizyt.", "No upcoming appointments.") : t("Brak nadchodzących zajęć.", "No upcoming classes.")}</p>
           </div>
         ) : (
@@ -253,7 +275,7 @@ export default function PublicBooking({ studioId }) {
                           <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2C2C2C", lineHeight: 1.2, marginBottom: "0.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cls.name}</div>
                           <div style={{ fontSize: "0.68rem", color: "#6B6B6B" }}>{formatTime(cls.starts_at)}</div>
                           {cls.duration_min && <div style={{ fontSize: "0.65rem", color: "#ADADAD" }}>{cls.duration_min} min</div>}
-                          {cls.staff?.name && <div style={{ fontSize: "0.65rem", color: sage, fontWeight: 500, marginTop: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>👤 {cls.staff.name}</div>}
+                          {cls.staff?.name && <div style={{ fontSize: "0.65rem", color: sage, fontWeight: 500, marginTop: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "0.2rem" }}><PbIcon name="user" size={11} color={sage} /> {cls.staff.name}</div>}
                           {cls.price_pln > 0 && <div style={{ fontSize: "0.65rem", color: "#6B6B6B" }}>{cls.price_pln} zł</div>}
                           {!singleSpot && (
                             <div style={{ marginTop: "0.3rem", height: 3, background: "#E8E0D8", borderRadius: 2, overflow: "hidden" }}>
@@ -318,7 +340,7 @@ export default function PublicBooking({ studioId }) {
           <p style={{ color: "#6B6B6B", fontSize: "0.85rem", marginBottom: "1.5rem" }}>{t("Masz pytanie? Chcesz dowiedzieć się więcej? Odezwiemy się!", "Have a question? Want to know more? We'll get back to you!")}</p>
           {contactSent ? (
             <div style={{ textAlign: "center", padding: "2rem" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>✅</div>
+              <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center" }}><PbIcon name="checkCircle" size={40} color="#5C7A56" /></div>
               <p style={{ color: "#5C7A56", fontWeight: 500, marginBottom: "0.35rem" }}>{t("Wiadomość wysłana!", "Message sent!")}</p>
               <p style={{ color: "#6B6B6B", fontSize: "0.85rem" }}>{t("Odezwiemy się wkrótce.", "We'll be in touch soon.")}</p>
             </div>
@@ -365,19 +387,19 @@ export default function PublicBooking({ studioId }) {
                   </div>
                 )}
               </div>
-              <button onClick={() => setSelectedClass(null)} style={{ background: "none", border: "none", fontSize: "1.4rem", color: "#ADADAD", cursor: "pointer", flexShrink: 0 }}>×</button>
+              <button onClick={() => setSelectedClass(null)} style={{ background: "none", border: "none", color: "#ADADAD", cursor: "pointer", flexShrink: 0, padding: "0.25rem", display: "flex" }}><PbIcon name="xmark" size={18} color="#ADADAD" /></button>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
               {[
-                { icon: "📅", label: t("Data", "Date"), val: formatDate(selectedClass.starts_at) },
-                { icon: "🕐", label: t("Godzina", "Time"), val: `${formatTime(selectedClass.starts_at)} · ${selectedClass.duration_min} min` },
-                selectedClass.location && { icon: "📍", label: t("Lokalizacja", "Location"), val: selectedClass.location, maps: true },
-                selectedClass.price_pln && { icon: "💰", label: t("Cena", "Price"), val: `${selectedClass.price_pln} zł` },
-                selectedClass.max_spots > 1 && { icon: "👥", label: t("Miejsca", "Spots"), val: lang === "en" ? `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} of ${selectedClass.max_spots} available` : `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} wolnych z ${selectedClass.max_spots}` },
+                { icon: "calendar", label: t("Data", "Date"), val: formatDate(selectedClass.starts_at) },
+                { icon: "clock", label: t("Godzina", "Time"), val: `${formatTime(selectedClass.starts_at)} · ${selectedClass.duration_min} min` },
+                selectedClass.location && { icon: "mapPin", label: t("Lokalizacja", "Location"), val: selectedClass.location, maps: true },
+                selectedClass.price_pln && { icon: "money", label: t("Cena", "Price"), val: `${selectedClass.price_pln} zł` },
+                selectedClass.max_spots > 1 && { icon: "users", label: t("Miejsca", "Spots"), val: lang === "en" ? `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} of ${selectedClass.max_spots} available` : `${selectedClass.max_spots - (selectedClass.bookings?.length || 0)} wolnych z ${selectedClass.max_spots}` },
               ].filter(Boolean).map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: "0.75rem" }}>
-                  <span>{item.icon}</span>
+                <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                  <span style={{ marginTop: "0.15rem", flexShrink: 0 }}><PbIcon name={item.icon} size={16} color={sage} /></span>
                   <div>
                     <div style={{ fontSize: "0.75rem", color: "#ADADAD", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}</div>
                     <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -390,8 +412,9 @@ export default function PublicBooking({ studioId }) {
             </div>
 
             {selectedClass.notes && (
-              <div style={{ background: cream, borderRadius: 8, padding: "1rem", marginBottom: "1.5rem", fontSize: "0.875rem", color: "#2C2C2C" }}>
-                📌 {selectedClass.notes}
+              <div style={{ background: cream, borderRadius: 8, padding: "1rem", marginBottom: "1.5rem", fontSize: "0.875rem", color: "#2C2C2C", display: "flex", gap: "0.6rem", alignItems: "flex-start" }}>
+                <span style={{ flexShrink: 0, marginTop: "0.1rem" }}><PbIcon name="note" size={15} color={sage} /></span>
+                {selectedClass.notes}
               </div>
             )}
 
