@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   // Najpierw szukaj po custom domain
   let { data: studio } = await supabase
     .from("studios")
-    .select("id, name, slug, domain, features, branding")
+    .select("id, name, slug, domain, plan_id, features, branding")
     .eq("domain", domain)
     .maybeSingle();
 
@@ -24,13 +24,27 @@ export default async function handler(req, res) {
     if (sub !== domain) {
       ({ data: studio } = await supabase
         .from("studios")
-        .select("id, name, slug, domain, features, branding")
+        .select("id, name, slug, domain, plan_id, features, branding")
         .eq("slug", sub)
         .maybeSingle());
     }
   }
 
   if (!studio) return res.status(404).json({ error: "Studio not found" });
+
+  // Dla demo — zwróć bez zmian
+  if (!studio.features?.is_demo && studio.plan_id) {
+    const { data: plan } = await supabase
+      .from("plans")
+      .select("features")
+      .eq("id", studio.plan_id)
+      .maybeSingle();
+
+    if (plan?.features) {
+      // Plan jako baza, studio.features jako override (per-studio wyjątki)
+      studio = { ...studio, features: { ...plan.features, ...studio.features } };
+    }
+  }
 
   res.setHeader("Cache-Control", "public, max-age=60");
   return res.status(200).json(studio);
