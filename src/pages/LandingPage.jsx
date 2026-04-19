@@ -207,13 +207,96 @@ function LandingClassic({ onLogin, onRegister }) {
   );
 }
 
+/* ─── Szablon: BOLD (split-screen) ───────────────────────────────────────
+   Lewa połowa: sage z dużą literą. Prawa połowa: cream z treścią + nav.
+   Mocny, wyrazisty charakter — dobry dla studiów z silną marką.        */
+function LandingBold({ onLogin, onRegister }) {
+  const { studio } = useStudio();
+  const t = useT();
+  const lang = useLang();
+  const setLang = useSetLang();
+  const b = studio?.branding || {};
+  const name = studio?.name || "Studio";
+  const letter = name[0] || "S";
+  const isDemo = studio?.features?.is_demo === true;
+  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
+  const onCTA = isDemo ? onLogin : onRegister;
+
+  return (
+    <div style={{ height: "100vh", display: "flex", overflow: "hidden", fontFamily: "'DM Sans', sans-serif" }}>
+
+      {/* LEWA — sage panel */}
+      <div style={{ width: "42%", flexShrink: 0, background: "var(--sage)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", fontSize: "clamp(10rem,28vw,22rem)", fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, color: "rgba(255,255,255,0.12)", lineHeight: 1, userSelect: "none", bottom: "-2rem", right: "-1rem" }}>
+          {letter}
+        </div>
+        <div style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "2rem" }}>
+          {b.logo_url
+            ? <img src={b.logo_url} alt={name} style={{ height: 56, maxWidth: 200, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+            : <>
+                <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem", fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", color: "white" }}>{letter}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.4rem,3vw,2rem)", fontWeight: 300, color: "white", letterSpacing: "0.08em" }}>{b.nav_name || name}</div>
+              </>}
+          <div style={{ width: 40, height: 1, background: "rgba(255,255,255,0.4)", margin: "1.5rem auto" }} />
+          <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.2em" }}>
+            {b.hero_eyebrow || t("Twoje studio", "Your studio")}
+          </p>
+        </div>
+      </div>
+
+      {/* PRAWA — treść */}
+      <div style={{ flex: 1, background: "var(--cream)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* mini nav */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", padding: "1.25rem 2rem", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+          <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
+          {isMultilingual && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+              {lang === "pl" ? "EN" : "PL"}
+            </button>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={onLogin}>{t("Zaloguj się", "Log in")}</button>
+          {!isDemo && <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>}
+        </div>
+
+        {/* hero treść */}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "2rem 3rem" }}>
+          <div style={{ maxWidth: 480 }}>
+            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2.8rem,5vw,4.5rem)", fontWeight: 300, lineHeight: 1.05, color: "var(--charcoal)", marginBottom: "1.25rem" }}>
+              {b.hero_title || t("Zadbaj o siebie.", "Take care of yourself.")}
+            </h1>
+            <p style={{ fontSize: "1rem", color: "var(--mid)", lineHeight: 1.75, marginBottom: "2.5rem", maxWidth: 400 }}>
+              {b.hero_sub || t("Rezerwuj zajęcia online w kilku kliknięciach.", "Book your classes online in a few clicks.")}
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <button className="btn btn-primary landing-btn-lg" onClick={onCTA}>
+                {isDemo ? t("Zaloguj się do demo", "Log in to demo") : t("Zarezerwuj miejsce", "Book a spot")}
+              </button>
+              <a href="/zapisy" className="btn btn-secondary landing-btn-lg">
+                {t("Zobacz harmonogram", "View schedule")}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* footer */}
+        <footer style={{ flexShrink: 0, padding: "0.75rem 2rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: "var(--light)" }}>
+          <span>{b.nav_name || name}</span>
+          <span>© {new Date().getFullYear()} {name}</span>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Router szablonów ────────────────────────────────────────────────────
-   Ustaw w Supabase: UPDATE studios SET features = features || '{"landing_template":"classic"}'::jsonb
-   Dostępne: "minimal" (domyślny), "classic"                            */
+   Dostępne: "minimal" (domyślny), "classic", "bold"
+   Zmiana: panel admina → Ustawienia → Wygląd → Szablon strony głównej  */
 export default function LandingPage({ onLogin, onRegister }) {
   const { studio } = useStudio();
   const template = studio?.features?.landing_template || "minimal";
 
   if (template === "classic") return <LandingClassic onLogin={onLogin} onRegister={onRegister} />;
+  if (template === "bold")    return <LandingBold    onLogin={onLogin} onRegister={onRegister} />;
   return <LandingMinimal onLogin={onLogin} onRegister={onRegister} />;
 }

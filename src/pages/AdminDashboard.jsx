@@ -199,6 +199,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       service_mode: f.service_mode || "classes",
       payments_online: f.payments_online === true,
       payment_provider: f.payment_provider || "p24",
+      landing_template: f.landing_template || "minimal",
     });
   }, [studio]);
 
@@ -466,6 +467,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             service_mode: studioSettings.service_mode,
             payments_online: studioSettings.payments_online,
             payment_provider: studioSettings.payment_provider,
+            landing_template: studioSettings.landing_template,
           },
           },
         }),
@@ -2801,6 +2803,86 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
                 <span className="settings-section-chevron" style={{ transform: settingsOpen.appearance ? "rotate(180deg)" : "none" }}>▾</span>
               </div>
               {settingsOpen.appearance && <div className="settings-section-body">
+
+                {/* Szablon strony głównej */}
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#3a3a3a", marginBottom: "0.6rem" }}>{t("Szablon strony głównej","Landing page template")}</div>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                    {[
+                      {
+                        key: "minimal",
+                        label: t("Minimal","Minimal"),
+                        desc: t("Jeden ekran, bez scrollowania","Single screen, no scroll"),
+                        preview: (
+                          <div style={{ width: "100%", height: 56, borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", background: "#F7F3EE", border: "1px solid #E8E0D8" }}>
+                            <div style={{ height: 10, background: "#fff", borderBottom: "1px solid #E8E0D8", display: "flex", alignItems: "center", padding: "0 4px", gap: 3 }}>
+                              <div style={{ width: 12, height: 4, background: "#8A9E85", borderRadius: 2 }} />
+                              <div style={{ flex: 1 }} />
+                              <div style={{ width: 16, height: 4, background: "#8A9E85", borderRadius: 2 }} />
+                            </div>
+                            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 3 }}>
+                              <div style={{ width: 40, height: 4, background: "#2C2C2C", borderRadius: 2, opacity: 0.7 }} />
+                              <div style={{ width: 28, height: 3, background: "#6B6B6B", borderRadius: 2, opacity: 0.4 }} />
+                              <div style={{ width: 22, height: 5, background: "#8A9E85", borderRadius: 3, marginTop: 2 }} />
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "bold",
+                        label: t("Bold","Bold"),
+                        desc: t("Split: kolor + treść","Split: color + content"),
+                        preview: (
+                          <div style={{ width: "100%", height: 56, borderRadius: 4, overflow: "hidden", display: "flex", border: "1px solid #E8E0D8" }}>
+                            <div style={{ width: "42%", background: "#8A9E85", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.25)" }} />
+                            </div>
+                            <div style={{ flex: 1, background: "#F7F3EE", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 6px", gap: 3 }}>
+                              <div style={{ width: 36, height: 4, background: "#2C2C2C", borderRadius: 2, opacity: 0.7 }} />
+                              <div style={{ width: 28, height: 3, background: "#6B6B6B", borderRadius: 2, opacity: 0.4 }} />
+                              <div style={{ width: 20, height: 5, background: "#8A9E85", borderRadius: 3, marginTop: 2 }} />
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "classic",
+                        label: t("Classic","Classic"),
+                        desc: t("Pełna strona z sekcjami","Full page with sections"),
+                        preview: (
+                          <div style={{ width: "100%", height: 56, borderRadius: 4, overflow: "hidden", display: "flex", flexDirection: "column", background: "#F7F3EE", border: "1px solid #E8E0D8" }}>
+                            <div style={{ height: 10, background: "#fff", borderBottom: "1px solid #E8E0D8", display: "flex", alignItems: "center", padding: "0 4px", gap: 3 }}>
+                              <div style={{ width: 12, height: 4, background: "#8A9E85", borderRadius: 2 }} />
+                              <div style={{ flex: 1 }} />
+                              <div style={{ width: 16, height: 4, background: "#8A9E85", borderRadius: 2 }} />
+                            </div>
+                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, padding: "4px 6px" }}>
+                              <div style={{ width: 36, height: 5, background: "#2C2C2C", borderRadius: 2, opacity: 0.7 }} />
+                              <div style={{ width: 28, height: 3, background: "#6B6B6B", borderRadius: 2, opacity: 0.4 }} />
+                              <div style={{ display: "flex", gap: 2, marginTop: 2 }}>
+                                {[0,1,2].map(i => <div key={i} style={{ flex: 1, height: 14, background: "#fff", borderRadius: 2, border: "1px solid #E8E0D8" }} />)}
+                              </div>
+                            </div>
+                          </div>
+                        ),
+                      },
+                    ].map(({ key, label, desc, preview }) => (
+                      <label key={key} style={{ flex: "1 1 120px", cursor: ro ? "default" : "pointer", border: `2px solid ${studioSettings.landing_template === key ? "var(--sage)" : "var(--border)"}`, borderRadius: 8, padding: "0.6rem", background: studioSettings.landing_template === key ? "var(--cream)" : "#fff", transition: "border-color 0.15s" }}>
+                        <input type="radio" name="landing_template" value={key}
+                          checked={studioSettings.landing_template === key}
+                          disabled={ro}
+                          onChange={() => setStudioSettings(s => ({ ...s, landing_template: key }))}
+                          style={{ display: "none" }} />
+                        {preview}
+                        <div style={{ marginTop: "0.4rem" }}>
+                          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: studioSettings.landing_template === key ? "var(--sage-dark)" : "#3a3a3a" }}>{label}</div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--mid)" }}>{desc}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.75rem", marginBottom: "1rem" }}>
                   {[
                     { key: "color_sage", label: t("Kolor główny","Primary color"), desc: t("przyciski, akcenty","buttons, accents") },
