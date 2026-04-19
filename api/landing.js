@@ -125,7 +125,7 @@ export default async function handler(req, res) {
     const html = head(`
       body{height:100vh;overflow:hidden}
       .wrap{height:100vh;display:flex;flex-direction:column;overflow:hidden}
-      nav{display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;border-bottom:1px solid var(--border);flex-shrink:0}
+      nav{display:flex;justify-content:space-between;align-items:center;height:64px;padding:0 2.5rem;border-bottom:1px solid var(--border);flex-shrink:0}
       .logo{display:flex;align-items:center;gap:.5rem}
       .logo-letter{width:32px;height:32px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:.9rem}
       .logo-name{font-weight:500;font-size:.95rem;color:var(--charcoal)}
@@ -149,6 +149,7 @@ export default async function handler(req, res) {
     <div class="logo">${logoHtml}</div>
     <div class="nav-actions">
       <a href="/zapisy" class="btn btn-secondary btn-sm hide-m">Harmonogram</a>
+      <a href="?lang=en" class="btn btn-secondary btn-sm">EN</a>
       <a href="/login" class="btn btn-secondary btn-sm">Zaloguj się</a>
       ${!isDemo ? `<a href="${ctaHref}" class="btn btn-primary btn-sm">Dołącz</a>` : ""}
     </div>
@@ -182,7 +183,7 @@ ${sessionScript}</body></html>`;
       .left-divider{width:40px;height:1px;background:rgba(255,255,255,.4);margin:1.5rem auto}
       .left-eyebrow{font-size:.72rem;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.2em}
       .right{flex:1;background:var(--cream);display:flex;flex-direction:column;overflow:hidden}
-      .right-nav{display:flex;justify-content:flex-end;gap:.5rem;padding:1.25rem 2rem;border-bottom:1px solid var(--border);flex-shrink:0}
+      .right-nav{display:flex;justify-content:flex-end;align-items:center;gap:.5rem;height:64px;padding:0 2rem;border-bottom:1px solid var(--border);flex-shrink:0}
       .right-hero{flex:1;display:flex;align-items:center;padding:2rem 3rem}
       h1{font-size:clamp(2.8rem,5vw,4.5rem);margin-bottom:1.25rem}
       .sub{font-size:1rem;color:var(--mid);line-height:1.75;margin-bottom:2.5rem;max-width:400px}
@@ -223,7 +224,7 @@ ${sessionScript}</body></html>`;
   // ── CLASSIC (full scrollable page) ────────────────────────────────────────
   const html = head(`
     body{min-height:100vh}
-    nav{display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(247,243,238,.95);backdrop-filter:blur(8px);z-index:100}
+    nav{display:flex;justify-content:space-between;align-items:center;height:64px;padding:0 2.5rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(247,243,238,.95);backdrop-filter:blur(8px);z-index:100}
     .logo{display:flex;align-items:center;gap:.5rem}
     .logo-letter{width:32px;height:32px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:.9rem}
     .logo-name{font-weight:500;font-size:.95rem;color:var(--charcoal)}

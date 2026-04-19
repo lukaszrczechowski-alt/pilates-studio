@@ -174,13 +174,11 @@ export default function PublicBooking({ studioId }) {
               </>}
         </a>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          {isMultilingual && (
-            <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
+          <button onClick={() => setLang(lang === "pl" ? "en" : "pl")}
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 0.85rem", borderRadius: 8, fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem" }}>
               <PbIcon name="globe" size={14} color="white" /> {lang === "pl" ? "EN" : "PL"}
             </button>
-          )}
-          <a href="/" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
+          <a href="/login" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
             {t("Zaloguj się →", "Log in →")}
           </a>
         </div>
@@ -329,7 +327,7 @@ export default function PublicBooking({ studioId }) {
               ? t("Aby się umówić, zaloguj się lub załóż konto", "To book an appointment, log in or create an account")
               : t("Aby się zapisać, zaloguj się lub załóż konto", "To sign up, log in or create an account")}
           </p>
-          <a href="/" style={{ display: "inline-block", background: sage, color: "white", padding: "0.75rem 2rem", borderRadius: 8, textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
+          <a href="/login" style={{ display: "inline-block", background: sage, color: "white", padding: "0.75rem 2rem", borderRadius: 8, textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
             {isServices ? t("Zarezerwuj wizytę →", "Book appointment →") : t("Zapisz się na zajęcia →", "Sign up for a class →")}
           </a>
         </div>
@@ -423,7 +421,7 @@ export default function PublicBooking({ studioId }) {
                 {t("Brak wolnych miejsc", "No spots available")}
               </div>
             ) : (
-              <a href="/" style={{ display: "block", background: sage, color: "white", padding: "0.875rem", borderRadius: 8, textDecoration: "none", textAlign: "center", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
+              <a href="/login" style={{ display: "block", background: sage, color: "white", padding: "0.875rem", borderRadius: 8, textDecoration: "none", textAlign: "center", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
                 {isServices ? t("Zaloguj się i zarezerwuj →", "Log in and book →") : t("Zaloguj się i zapisz →", "Log in and sign up →")}
               </a>
             )}

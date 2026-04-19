@@ -28,11 +28,9 @@ function LandingMinimal({ onLogin, onRegister }) {
         </div>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
-          {isMultilingual && (
-            <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
-              {lang === "pl" ? "EN" : "PL"}
-            </button>
-          )}
+          <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+            {lang === "pl" ? "EN" : "PL"}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={onLogin}>{t("Zaloguj się", "Log in")}</button>
           {!isDemo && <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>}
         </div>
@@ -103,11 +101,9 @@ function LandingClassic({ onLogin, onRegister }) {
         </div>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
-          {isMultilingual && (
-            <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
-              {lang === "pl" ? "EN" : "PL"}
-            </button>
-          )}
+          <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+            {lang === "pl" ? "EN" : "PL"}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={onLogin}>{t("Zaloguj się", "Log in")}</button>
           {!isDemo && <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>}
         </div>
@@ -248,13 +244,11 @@ function LandingBold({ onLogin, onRegister }) {
       <div style={{ flex: 1, background: "var(--cream)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* mini nav */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", padding: "1.25rem 2rem", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem", height: 64, padding: "0 2rem", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
-          {isMultilingual && (
-            <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
-              {lang === "pl" ? "EN" : "PL"}
-            </button>
-          )}
+          <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+            {lang === "pl" ? "EN" : "PL"}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={onLogin}>{t("Zaloguj się", "Log in")}</button>
           {!isDemo && <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>}
         </div>
