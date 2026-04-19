@@ -1,7 +1,87 @@
 import { useStudio } from "../StudioContext";
 import { useT, useLang, useSetLang } from "../LanguageContext";
 
-export default function LandingPage({ onLogin, onRegister }) {
+/* ─── Szablon: MINIMAL (domyślny) ─────────────────────────────────────────
+   Jeden ekran, bez scrollowania. Nav + hero na całą wysokość okna.
+   Idealny dla nowych studiów i branż innych niż pilates.             */
+function LandingMinimal({ onLogin, onRegister }) {
+  const { studio } = useStudio();
+  const t = useT();
+  const lang = useLang();
+  const setLang = useSetLang();
+  const b = studio?.branding || {};
+  const name = studio?.name || "Studio";
+  const letter = name[0] || "S";
+  const isDemo = studio?.features?.is_demo === true;
+  const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
+  const onCTA = isDemo ? onLogin : onRegister;
+
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--cream)", overflow: "hidden" }}>
+
+      {/* NAV */}
+      <nav className="landing-nav" style={{ flexShrink: 0 }}>
+        <div className="landing-nav-logo">
+          {b.logo_url
+            ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
+            : <><span className="landing-nav-letter">{letter}</span><span className="landing-nav-name">{b.nav_name || name}</span></>}
+        </div>
+        <div className="landing-nav-actions">
+          <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
+          {isMultilingual && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+              {lang === "pl" ? "EN" : "PL"}
+            </button>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={onLogin}>{t("Zaloguj się", "Log in")}</button>
+          {!isDemo && <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>}
+        </div>
+      </nav>
+
+      {/* HERO — cała pozostała przestrzeń */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+        {/* tło */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, var(--cream) 50%, var(--sage-light) 100%)", opacity: 0.5 }} />
+        <div className="landing-hero-deco" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <div className="landing-hero-circle landing-hero-circle-1" />
+          <div className="landing-hero-circle landing-hero-circle-2" />
+          <div className="landing-hero-big-p" style={{ fontSize: "clamp(8rem,22vw,18rem)", opacity: 0.06 }}>{letter}</div>
+        </div>
+
+        {/* treść */}
+        <div style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "1.5rem 2rem", maxWidth: 600 }}>
+          <p style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--sage-dark)", fontWeight: 500, marginBottom: "1rem" }}>
+            {b.hero_eyebrow || name}
+          </p>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(3rem,8vw,5.5rem)", fontWeight: 300, lineHeight: 1.05, color: "var(--charcoal)", marginBottom: "1.25rem" }}>
+            {b.hero_title || t("Zadbaj o siebie.", "Take care of yourself.")}
+          </h1>
+          <p style={{ fontSize: "1rem", color: "var(--mid)", lineHeight: 1.7, marginBottom: "2rem", maxWidth: 440, margin: "0 auto 2rem" }}>
+            {b.hero_sub || t("Rezerwuj zajęcia online w kilku kliknięciach.", "Book your classes online in a few clicks.")}
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+            <button className="btn btn-primary landing-btn-lg" onClick={onCTA}>
+              {isDemo ? t("Zaloguj się do demo", "Log in to demo") : t("Zarezerwuj miejsce", "Book a spot")}
+            </button>
+            <a href="/zapisy" className="btn btn-secondary landing-btn-lg">
+              {t("Zobacz harmonogram", "View schedule")}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER — cienki pasek */}
+      <footer style={{ flexShrink: 0, padding: "0.75rem 2rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: "var(--light)" }}>
+        <span>{b.nav_name || name}</span>
+        <span>© {new Date().getFullYear()} {name}</span>
+      </footer>
+
+    </div>
+  );
+}
+
+/* ─── Szablon: CLASSIC (pełna strona, poprzednia wersja) ──────────────── */
+function LandingClassic({ onLogin, onRegister }) {
   const { studio } = useStudio();
   const t = useT();
   const lang = useLang();
@@ -15,8 +95,6 @@ export default function LandingPage({ onLogin, onRegister }) {
 
   return (
     <div className="landing">
-
-      {/* NAV */}
       <nav className="landing-nav">
         <div className="landing-nav-logo">
           {b.logo_url
@@ -27,15 +105,14 @@ export default function LandingPage({ onLogin, onRegister }) {
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
           {isMultilingual && (
             <button className="btn btn-secondary btn-sm" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
-              {lang === "pl" ? "🇬🇧 EN" : "🇵🇱 PL"}
+              {lang === "pl" ? "EN" : "PL"}
             </button>
           )}
           <button className="btn btn-secondary btn-sm" onClick={onLogin}>{t("Zaloguj się", "Log in")}</button>
-          <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>
+          {!isDemo && <button className="btn btn-primary btn-sm" onClick={onRegister}>{t("Dołącz", "Join")}</button>}
         </div>
       </nav>
 
-      {/* HERO */}
       <section className="landing-hero">
         <div className="landing-hero-bg" />
         <div className="landing-hero-content">
@@ -50,9 +127,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             <button className="btn btn-primary landing-btn-lg" onClick={onCTA}>
               {isDemo ? t("Zaloguj się do demo", "Log in to demo") : t("Zarezerwuj miejsce", "Book a spot")}
             </button>
-            <a href="/zapisy" className="btn btn-secondary landing-btn-lg">
-              {t("Zobacz harmonogram", "View schedule")}
-            </a>
+            <a href="/zapisy" className="btn btn-secondary landing-btn-lg">{t("Zobacz harmonogram", "View schedule")}</a>
           </div>
         </div>
         <div className="landing-hero-deco">
@@ -62,32 +137,26 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
-      {/* OFERTA */}
       <section className="landing-section">
         <div className="landing-container">
           <p className="landing-label">{t("Co oferujemy", "What we offer")}</p>
           <h2 className="landing-section-title">{t("Znajdź zajęcia dla siebie", "Find the right class for you")}</h2>
           <div className="landing-cards">
-            <div className="landing-card">
-              <div className="landing-card-icon">🌱</div>
-              <h3>{t("Zajęcia dla początkujących", "Beginner classes")}</h3>
-              <p>{t("Idealne do startu — spokojne tempo, nauka poprawnej techniki i fundamentów pracy z ciałem.", "Perfect to start — gentle pace, learning proper technique and body movement fundamentals.")}</p>
-            </div>
-            <div className="landing-card">
-              <div className="landing-card-icon">✨</div>
-              <h3>{t("Zajęcia ogólnorozwojowe", "All-around classes")}</h3>
-              <p>{t("Pełna praca ciała, wzmacnianie core, elastyczność. Dla każdego kto chce czuć się lepiej każdego dnia.", "Full-body workout, core strengthening, flexibility. For everyone who wants to feel better every day.")}</p>
-            </div>
-            <div className="landing-card">
-              <div className="landing-card-icon">🔥</div>
-              <h3>{t("Zajęcia zaawansowane", "Advanced classes")}</h3>
-              <p>{t("Intensywniejszy trening dla osób z doświadczeniem — wyzwanie dla ciała i umysłu.", "More intense training for experienced participants — a challenge for body and mind.")}</p>
-            </div>
+            {(b.offer_cards || [
+              { icon: "🌱", title: t("Zajęcia dla początkujących","Beginner classes"), text: t("Idealne do startu — spokojne tempo, nauka poprawnej techniki.","Perfect to start — gentle pace, proper technique.") },
+              { icon: "✨", title: t("Zajęcia ogólnorozwojowe","All-around classes"), text: t("Pełna praca ciała, wzmacnianie core, elastyczność.","Full-body workout, core strengthening, flexibility.") },
+              { icon: "🔥", title: t("Zajęcia zaawansowane","Advanced classes"), text: t("Intensywniejszy trening dla osób z doświadczeniem.","More intense training for experienced participants.") },
+            ]).map((card, i) => (
+              <div key={i} className="landing-card">
+                <div className="landing-card-icon">{card.icon}</div>
+                <h3>{card.title}</h3>
+                <p>{card.text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* JAK TO DZIAŁA */}
       <section className="landing-section landing-section-alt">
         <div className="landing-container">
           <p className="landing-label">{t("Jak to działa", "How it works")}</p>
@@ -96,25 +165,24 @@ export default function LandingPage({ onLogin, onRegister }) {
             <div className="landing-step">
               <div className="landing-step-num">1</div>
               <h3>{t("Załóż konto", "Create an account")}</h3>
-              <p>{t("Rejestracja zajmuje minutę — podaj imię, email i hasło. Bez zbędnych formalności.", "Registration takes a minute — enter your name, email and password. No fuss.")}</p>
+              <p>{t("Rejestracja zajmuje minutę.", "Registration takes a minute.")}</p>
             </div>
             <div className="landing-step-arrow">→</div>
             <div className="landing-step">
               <div className="landing-step-num">2</div>
               <h3>{t("Wybierz termin", "Pick a time slot")}</h3>
-              <p>{t("Przeglądaj dostępne zajęcia i zapisz się na wybrany termin jednym kliknięciem.", "Browse available classes and book your chosen slot with one click.")}</p>
+              <p>{t("Przeglądaj dostępne zajęcia i zapisz się jednym kliknięciem.", "Browse and book with one click.")}</p>
             </div>
             <div className="landing-step-arrow">→</div>
             <div className="landing-step">
               <div className="landing-step-num">3</div>
               <h3>{t("Przyjdź i ćwicz", "Come and train")}</h3>
-              <p>{t("Dostaniesz potwierdzenie. Reszta należy do Ciebie — do zobaczenia!", "You'll get a confirmation. The rest is up to you — see you there!")}</p>
+              <p>{t("Dostaniesz potwierdzenie. Do zobaczenia!", "You'll get a confirmation. See you there!")}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
       <section className="landing-cta-section">
         <div className="landing-container landing-cta-inner">
           <h2>{b.cta_title || t("Gotowa, żeby zacząć?", "Ready to get started?")}</h2>
@@ -125,7 +193,6 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="landing-footer">
         <div className="landing-container landing-footer-inner">
           <span className="landing-footer-logo">
@@ -136,7 +203,17 @@ export default function LandingPage({ onLogin, onRegister }) {
           <span className="landing-footer-copy">© {new Date().getFullYear()} {name}. {t("Wszelkie prawa zastrzeżone.", "All rights reserved.")}</span>
         </div>
       </footer>
-
     </div>
   );
+}
+
+/* ─── Router szablonów ────────────────────────────────────────────────────
+   Ustaw w Supabase: UPDATE studios SET features = features || '{"landing_template":"classic"}'::jsonb
+   Dostępne: "minimal" (domyślny), "classic"                            */
+export default function LandingPage({ onLogin, onRegister }) {
+  const { studio } = useStudio();
+  const template = studio?.features?.landing_template || "minimal";
+
+  if (template === "classic") return <LandingClassic onLogin={onLogin} onRegister={onRegister} />;
+  return <LandingMinimal onLogin={onLogin} onRegister={onRegister} />;
 }
