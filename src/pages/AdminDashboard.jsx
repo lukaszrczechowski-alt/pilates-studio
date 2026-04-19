@@ -47,7 +47,7 @@ function NavIcon({ name }) {
 }
 
 export default function AdminDashboard({ session, profile, studioId, darkMode, setDarkMode }) {
-  const { studio } = useStudio();
+  const { studio, updateStudio } = useStudio();
   const t = useT();
   const lang = useLang();
   const setLang = useSetLang();
@@ -475,15 +475,7 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      // Zastosuj kolory i tytuł od razu bez przeładowania strony
-      const root = document.documentElement;
-      root.style.setProperty("--sage", studioSettings.color_sage);
-      root.style.setProperty("--clay", studioSettings.color_clay);
-      root.style.setProperty("--cream", studioSettings.color_cream);
-      root.style.setProperty("--charcoal", studioSettings.color_charcoal);
-      root.style.setProperty("--mid", studioSettings.color_mid);
-      if (studioSettings.name) document.title = studioSettings.name;
-
+      if (json.data) updateStudio(json.data);
       showMsg("Ustawienia studia zapisane. ✓");
     } catch (e) {
       showMsg("Błąd: " + e.message, "error");

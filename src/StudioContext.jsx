@@ -53,8 +53,15 @@ export function StudioProvider({ children }) {
       });
   }, []);
 
+  function updateStudio(newData) {
+    setStudio(newData);
+    applyBranding(newData);
+    const hostname = window.location.hostname.replace(/^www\./, "");
+    try { localStorage.setItem(`studio_${hostname}`, JSON.stringify(newData)); } catch {}
+  }
+
   return (
-    <StudioContext.Provider value={{ studio, loading }}>
+    <StudioContext.Provider value={{ studio, loading, updateStudio }}>
       {children}
     </StudioContext.Provider>
   );
