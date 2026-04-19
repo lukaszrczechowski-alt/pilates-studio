@@ -362,14 +362,13 @@ h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
 
 /* Admin main content — lighter, consistent font */
 .main-content { font-size: 0.88rem; font-weight: 400; color: var(--charcoal); font-family: 'DM Sans', sans-serif; }
-.main-content h3, .main-content h4 { font-family: 'DM Sans', sans-serif; font-weight: 500; color: #3a3a3a; }
-.main-content h3 { font-size: 1rem; }
-.main-content h4 { font-size: 0.9rem; }
+.main-content h3 { font-weight: 500; color: #3a3a3a; }
+.main-content h4 { font-weight: 500; color: #3a3a3a; font-size: 0.95rem; }
 .main-content .class-title { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; color: #3a3a3a; }
 .main-content .form-label { color: #3a3a3a; font-weight: 500; font-size: 0.82rem; }
 .main-content p, .main-content .stat-label { color: #525252; }
-.main-content td { font-size: 0.875rem; color: #3a3a3a; }
-.main-content th { font-size: 0.72rem; color: #767676; }
+.main-content td, .main-content tbody tr td { font-size: 0.85rem; color: #3a3a3a; font-family: 'DM Sans', sans-serif; font-weight: 400; }
+.main-content th { font-size: 0.72rem; color: #767676; font-family: 'DM Sans', sans-serif; }
 .main-content .btn, .main-content button { font-size: 0.82rem; font-family: 'DM Sans', sans-serif; }
 /* Sidebar — explicit DM Sans */
 .sidebar { font-family: 'DM Sans', sans-serif; }
