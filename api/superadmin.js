@@ -149,7 +149,7 @@ export default async function handler(req, res) {
 
   const { action, payload } = req.body || {};
 
-  const superAdminOnly = ["list_studios", "get_stats", "create_studio", "delete_studio"];
+  const superAdminOnly = ["list_studios", "get_stats", "create_studio", "delete_studio", "list_plans", "save_plan", "delete_plan", "assign_plan"];
   if (superAdminOnly.includes(action) && !isSuperAdmin)
     return res.status(403).json({ error: "Forbidden" });
   if (action === "update_own_studio" && !isAdmin)
@@ -226,6 +226,39 @@ export default async function handler(req, res) {
           .single();
         if (error) throw error;
         return res.json({ data });
+      }
+
+      case "list_plans": {
+        const { data, error } = await supabase.from("plans").select("*").order("sort_order");
+        if (error) throw error;
+        return res.json({ data: data || [] });
+      }
+
+      case "save_plan": {
+        const { id, name, price_pln, features, sort_order } = payload;
+        if (id) {
+          const { data, error } = await supabase.from("plans").update({ name, price_pln, features, sort_order }).eq("id", id).select().single();
+          if (error) throw error;
+          return res.json({ data });
+        } else {
+          const { data, error } = await supabase.from("plans").insert({ name, price_pln, features, sort_order: sort_order || 0 }).select().single();
+          if (error) throw error;
+          return res.json({ data });
+        }
+      }
+
+      case "delete_plan": {
+        await supabase.from("studios").update({ plan_id: null }).eq("plan_id", payload.id);
+        const { error } = await supabase.from("plans").delete().eq("id", payload.id);
+        if (error) throw error;
+        return res.json({ success: true });
+      }
+
+      case "assign_plan": {
+        const { studio_id, plan_id } = payload;
+        const { error } = await supabase.from("studios").update({ plan_id: plan_id || null }).eq("id", studio_id);
+        if (error) throw error;
+        return res.json({ success: true });
       }
 
       default:
