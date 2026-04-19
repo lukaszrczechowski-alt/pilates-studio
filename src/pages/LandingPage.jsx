@@ -25,8 +25,8 @@ function LandingMinimal({ onLogin, onRegister }) {
           {b.logo_url
             ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
             : <>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.2rem", color: "white", flexShrink: 0 }}>{letter}</div>
-                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.1rem", color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "white", flexShrink: 0 }}>{letter}</div>
+                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
               </>}
         </a>
         <div className="landing-nav-actions">
@@ -101,8 +101,8 @@ function LandingClassic({ onLogin, onRegister }) {
           {b.logo_url
             ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
             : <>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.2rem", color: "white", flexShrink: 0 }}>{letter}</div>
-                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.1rem", color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "white", flexShrink: 0 }}>{letter}</div>
+                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
               </>}
         </a>
         <div className="landing-nav-actions">

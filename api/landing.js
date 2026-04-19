@@ -127,8 +127,8 @@ export default async function handler(req, res) {
       .wrap{height:100vh;display:flex;flex-direction:column;overflow:hidden}
       nav{display:flex;justify-content:space-between;align-items:center;height:64px;padding:0 2.5rem;border-bottom:1px solid var(--border);flex-shrink:0}
       .logo{display:flex;align-items:center;gap:.5rem}
-      .logo-letter{width:32px;height:32px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:.9rem}
-      .logo-name{font-weight:500;font-size:.95rem;color:var(--charcoal)}
+      .logo-letter{width:40px;height:40px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300}
+      .logo-name{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;color:var(--charcoal);letter-spacing:.03em}
       .nav-actions{display:flex;gap:.5rem;align-items:center}
       .hero{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
       .hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--cream) 50%,var(--sage-light) 100%);opacity:.5}
