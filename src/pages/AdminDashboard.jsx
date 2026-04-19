@@ -1198,19 +1198,17 @@ export default function AdminDashboard({ session, profile, studioId, darkMode, s
             <div className="user-avatar">{profile?.first_name?.[0]}{profile?.last_name?.[0]}</div>
             <div><div className="user-name">{profile?.first_name} {profile?.last_name}</div><div className="user-role">{t("Administrator", "Administrator")}</div></div>
           </div>
-          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.4rem" }}>
             <button className="sidebar-footer-btn" onClick={() => setDarkMode(!darkMode)}>
               <NavIcon name={darkMode ? "sun" : "moon"} /> {darkMode ? t("Jasny", "Light") : t("Ciemny", "Dark")}
             </button>
-            {isMultilingual && (
-              <button className="sidebar-footer-btn" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
-                <NavIcon name="globe" /> {lang === "pl" ? "EN" : "PL"}
-              </button>
-            )}
-            <button className={`sidebar-footer-btn ${tab === "studio_settings" ? "active" : ""}`} onClick={() => switchTab("studio_settings")}>
-              <NavIcon name="gear" /> {t("Ustawienia", "Settings")}
+            <button className="sidebar-footer-btn" onClick={() => setLang(lang === "pl" ? "en" : "pl")}>
+              <NavIcon name="globe" /> {lang === "pl" ? "EN" : "PL"}
             </button>
           </div>
+          <button className={`sidebar-footer-btn ${tab === "studio_settings" ? "active" : ""}`} style={{ width: "100%", justifyContent: "flex-start", marginBottom: "0.4rem" }} onClick={() => switchTab("studio_settings")}>
+            <NavIcon name="gear" /> {t("Ustawienia", "Settings")}
+          </button>
           <button className="btn-logout" onClick={() => supabase.auth.signOut()}>{t("Wyloguj się", "Log out")}</button>
         </div>
       </aside>
