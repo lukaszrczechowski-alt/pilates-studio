@@ -47,6 +47,7 @@ export default function PublicBooking({ studioId }) {
   const name = studio?.name || "Studio";
   const letter = name[0] || "S";
   const serviceMode = studio?.features?.service_mode || "classes";
+  const isDemo = studio?.features?.is_demo === true;
   const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
   const isServices = serviceMode === "services";
 
@@ -219,8 +220,13 @@ export default function PublicBooking({ studioId }) {
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 0.85rem", borderRadius: 8, fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem" }}>
               <PbIcon name="globe" size={14} color="white" /> {lang === "pl" ? "EN" : "PL"}
             </button>
+          {!isDemo && (
+            <a href="/register" style={{ background: "white", color: sage, padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>
+              {t("Załóż konto", "Sign up")}
+            </a>
+          )}
           <a href="/login" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.35)", color: "white", padding: "0.5rem 1.25rem", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontFamily: "DM Sans, sans-serif", fontWeight: 500 }}>
-            {t("Zaloguj się →", "Log in →")}
+            {t("Zaloguj się", "Log in")}
           </a>
         </div>
       </div>
@@ -349,18 +355,6 @@ export default function PublicBooking({ studioId }) {
             </p>
           </div>
         )}
-
-        {/* CTA - zaloguj się */}
-        <div style={{ textAlign: "center", marginTop: "2.5rem", padding: "2rem", background: "white", borderRadius: 12, border: "1px solid #E8E0D8" }}>
-          <p style={{ color: "#6B6B6B", marginBottom: "1rem", fontSize: "0.9rem" }}>
-            {isServices
-              ? t("Aby się umówić, zaloguj się lub załóż konto", "To book an appointment, log in or create an account")
-              : t("Aby się zapisać, zaloguj się lub załóż konto", "To sign up, log in or create an account")}
-          </p>
-          <a href="/login" style={{ display: "inline-block", background: sage, color: "white", padding: "0.75rem 2rem", borderRadius: 8, textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
-            {isServices ? t("Zarezerwuj wizytę →", "Book appointment →") : t("Zapisz się na zajęcia →", "Sign up for a class →")}
-          </a>
-        </div>
 
         {/* FORMULARZ KONTAKTOWY */}
         <div style={{ marginTop: "2.5rem", background: "white", borderRadius: 12, border: "1px solid #E8E0D8", padding: "2rem" }}>
