@@ -4,12 +4,13 @@ import { sendEmail } from "../emailService";
 import { useStudio } from "../StudioContext";
 import { useT, useLang, useSetLang } from "../LanguageContext";
 
-export default function AuthPage({ initialMode = "login", onBack, studioId }) {
+export default function AuthPage({ initialMode = "login", onBack, studioId, initialError = "" }) {
   const { studio } = useStudio();
   const t = useT();
   const lang = useLang();
   const setLang = useSetLang();
   const isMultilingual = studio?.slug === "demo" || studio?.features?.multilingual === true;
+  const isDemo = studio?.features?.is_demo === true;
   const studioName = studio?.name || "Studio";
   const letter = studioName[0] || "S";
   const [mode, setMode] = useState(initialMode); // login | register | reset
@@ -18,7 +19,7 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
   const [success, setSuccess] = useState("");
 
   async function handleLogin(e) {
@@ -144,17 +145,19 @@ export default function AuthPage({ initialMode = "login", onBack, studioId }) {
                   {t("Zapomniałam hasła", "Forgot password")}
                 </button>
               </div>
-              <div className="auth-toggle">
-                {t("Nie masz konta?", "Don't have an account?")}{" "}
-                <button onClick={() => { setMode("register"); setError(""); setSuccess(""); }}>
-                  {t("Zarejestruj się", "Sign up")}
-                </button>
-              </div>
+              {!isDemo && (
+                <div className="auth-toggle">
+                  {t("Nie masz konta?", "Don't have an account?")}{" "}
+                  <button onClick={() => { setMode("register"); setError(""); setSuccess(""); }}>
+                    {t("Zarejestruj się", "Sign up")}
+                  </button>
+                </div>
+              )}
             </>
           )}
 
           {/* REGISTER */}
-          {mode === "register" && (
+          {mode === "register" && !isDemo && (
             <>
               <h2>{t("Nowe konto", "New account")}</h2>
               <p>{t("Dołącz do", "Join")} {studioName}</p>
