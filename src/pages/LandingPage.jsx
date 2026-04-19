@@ -1,6 +1,23 @@
 import { useStudio } from "../StudioContext";
 import { useT, useLang, useSetLang } from "../LanguageContext";
 
+function NavLogo({ b, name, letter }) {
+  if (b.logo_url) return (
+    <img src={b.logo_url} alt={name} style={{ height: 40, maxWidth: 160, objectFit: "contain" }} />
+  );
+  return (
+    <>
+      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#8A9E85", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 300, color: "#fff", flexShrink: 0 }}>{letter}</div>
+      <div>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem", fontWeight: 300, color: "#2C2C2C", letterSpacing: "0.05em", lineHeight: 1.1 }}>{name}</div>
+        {b.nav_name && b.nav_name !== name && (
+          <div style={{ fontSize: "0.68rem", color: "#8A9E85", letterSpacing: "0.15em", textTransform: "uppercase", lineHeight: 1 }}>{b.nav_name}</div>
+        )}
+      </div>
+    </>
+  );
+}
+
 /* ─── Szablon: MINIMAL (domyślny) ─────────────────────────────────────────
    Jeden ekran, bez scrollowania. Nav + hero na całą wysokość okna.
    Idealny dla nowych studiów i branż innych niż pilates.             */
@@ -22,12 +39,7 @@ function LandingMinimal({ onLogin, onRegister }) {
       {/* NAV */}
       <nav className="landing-nav" style={{ flexShrink: 0 }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}>
-          {b.logo_url
-            ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
-            : <>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "white", flexShrink: 0 }}>{letter}</div>
-                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
-              </>}
+          <NavLogo b={b} name={name} letter={letter} />
         </a>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>
@@ -98,12 +110,7 @@ function LandingClassic({ onLogin, onRegister }) {
     <div className="landing">
       <nav className="landing-nav">
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}>
-          {b.logo_url
-            ? <img src={b.logo_url} alt={name} style={{ height: 38, maxWidth: 160, objectFit: "contain" }} />
-            : <>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--sage)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "white", flexShrink: 0 }}>{letter}</div>
-                <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: "1.4rem", fontWeight: 300, color: "var(--charcoal)", letterSpacing: "0.03em" }}>{b.nav_name || name}</span>
-              </>}
+          <NavLogo b={b} name={name} letter={letter} />
         </a>
         <div className="landing-nav-actions">
           <a href="/zapisy" className="btn btn-secondary btn-sm">{t("Harmonogram", "Schedule")}</a>

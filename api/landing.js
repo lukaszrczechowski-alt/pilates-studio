@@ -63,9 +63,10 @@ export default async function handler(req, res) {
   const ctaHref     = isDemo ? "/login" : "/register";
   const ctaText     = isDemo ? "Zaloguj się do demo" : "Zarezerwuj miejsce";
 
+  const navSub = b.nav_name && b.nav_name !== name ? `<div class="logo-sub">${escHtml(b.nav_name)}</div>` : "";
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="${escHtml(name)}" style="height:38px;max-width:160px;object-fit:contain;">`
-    : `<div class="logo-letter">${letter}</div><span class="logo-name">${navName}</span>`;
+    ? `<img src="${logoUrl}" alt="${escHtml(name)}" style="height:40px;max-width:160px;object-fit:contain;">`
+    : `<div class="logo-letter">${letter}</div><div><div class="logo-name">${navName}</div>${navSub}</div>`;
 
   const logoHtmlWhite = logoUrl
     ? `<img src="${logoUrl}" alt="${escHtml(name)}" style="height:44px;max-width:180px;object-fit:contain;filter:brightness(0) invert(1);">`
@@ -127,8 +128,9 @@ export default async function handler(req, res) {
       .wrap{height:100vh;display:flex;flex-direction:column;overflow:hidden}
       nav{display:flex;justify-content:space-between;align-items:center;height:64px;padding:0 2.5rem;border-bottom:1px solid var(--border);flex-shrink:0}
       .logo{display:flex;align-items:center;gap:.5rem}
-      .logo-letter{width:40px;height:40px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300}
-      .logo-name{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;color:var(--charcoal);letter-spacing:.03em}
+      .logo-letter{width:40px;height:40px;border-radius:50%;background:#8A9E85;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;flex-shrink:0}
+      .logo-name{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:300;color:#2C2C2C;letter-spacing:.05em;line-height:1.1}
+      .logo-sub{font-size:.68rem;color:#8A9E85;letter-spacing:.15em;text-transform:uppercase;line-height:1}
       .nav-actions{display:flex;gap:.5rem;align-items:center}
       .hero{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
       .hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--cream) 50%,var(--sage-light) 100%);opacity:.5}
