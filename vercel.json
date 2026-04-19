@@ -2,9 +2,10 @@
   "buildCommand": "npx vite build",
   "outputDirectory": "dist",
   "framework": null,
-  "rewrites": [
-    { "source": "/", "destination": "/api/landing" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "^/api/(.*)", "dest": "/api/$1" },
+    { "src": "^/$", "dest": "/api/landing" },
+    { "src": "^/(.*)", "dest": "/index.html" }
   ],
   "crons": [
     {
